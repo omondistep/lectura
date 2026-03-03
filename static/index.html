@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lectura</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <meta name="color-scheme" content="dark light">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "codemirror": "https://esm.sh/codemirror@6",
+      "@codemirror/state": "https://esm.sh/@codemirror/state@6",
+      "@codemirror/view": "https://esm.sh/@codemirror/view@6",
+      "@codemirror/commands": "https://esm.sh/@codemirror/commands@6",
+      "@codemirror/lang-markdown": "https://esm.sh/@codemirror/lang-markdown@6",
+      "@codemirror/language": "https://esm.sh/@codemirror/language@6",
+      "@codemirror/theme-one-dark": "https://esm.sh/@codemirror/theme-one-dark@6",
+      "@codemirror/search": "https://esm.sh/@codemirror/search@6",
+      "@codemirror/autocomplete": "https://esm.sh/@codemirror/autocomplete@6",
+      "@replit/codemirror-vim": "https://esm.sh/@replit/codemirror-vim@6"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<a href="#cm-editor" class="skip-link">Skip to editor</a>
+
+<!-- ── MENU BAR (Typora-style) ──────────────────────────────────────────────── -->
+<header id="menubar">
+  <div class="menu-left">
+    <button id="btn-sidebar" class="menu-btn" title="Toggle sidebar (Ctrl+Shift+L)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <rect x="1" y="3" width="14" height="1.5" rx=".75"/>
+        <rect x="1" y="7.25" width="14" height="1.5" rx=".75"/>
+        <rect x="1" y="11.5" width="14" height="1.5" rx=".75"/>
+      </svg>
+    </button>
+  </div>
+
+  <nav class="menu-items">
+    <div class="menu-dropdown" data-menu="file">
+      <button class="menu-trigger">File</button>
+      <div class="menu-panel">
+        <button id="btn-new" data-shortcut="Ctrl+N">New</button>
+        <button id="btn-open-file" data-shortcut="Ctrl+O">Open…</button>
+        <button id="btn-open-folder">Open Folder…</button>
+        <div class="menu-sep"></div>
+        <button id="btn-save" data-shortcut="Ctrl+S">Save</button>
+        <button id="btn-save-as" data-shortcut="Ctrl+Shift+S">Save As…</button>
+        <div class="menu-sep"></div>
+        <button id="btn-import">Import…</button>
+        <div class="menu-submenu-trigger">
+          Export <span class="menu-arrow">›</span>
+          <div class="menu-submenu">
+            <button id="btn-dl-md">Markdown (.md)</button>
+            <button id="btn-export-html">HTML</button>
+            <button id="btn-export-pdf">PDF</button>
+            <button id="btn-print">Print…</button>
+          </div>
+        </div>
+        <div class="menu-sep"></div>
+        <button id="btn-settings" data-shortcut="Ctrl+,">Preferences…</button>
+        <div class="menu-sep"></div>
+        <button id="btn-quit" style="display:none" data-shortcut="Ctrl+Q">Quit</button>
+      </div>
+    </div>
+
+    <div class="menu-dropdown" data-menu="edit">
+      <button class="menu-trigger">Edit</button>
+      <div class="menu-panel">
+        <button data-action="bold" data-shortcut="Ctrl+B">Bold</button>
+        <button data-action="italic" data-shortcut="Ctrl+I">Italic</button>
+        <button data-action="underline" data-shortcut="Ctrl+U">Underline</button>
+        <button data-action="code" data-shortcut="Ctrl+E">Inline Code</button>
+        <button data-action="strikethrough" data-shortcut="Alt+Shift+5">Strikethrough</button>
+        <button data-action="highlight" data-shortcut="Ctrl+Shift+H">Highlight</button>
+        <div class="menu-sep"></div>
+        <button data-action="link" data-shortcut="Ctrl+K">Hyperlink…</button>
+        <button data-action="image" data-shortcut="Ctrl+Shift+I">Image…</button>
+        <div class="menu-sep"></div>
+        <button onclick="clearFormat()" data-shortcut="Ctrl+\">Clear Format</button>
+      </div>
+    </div>
+
+    <div class="menu-dropdown" data-menu="paragraph">
+      <button class="menu-trigger">Paragraph</button>
+      <div class="menu-panel">
+        <button data-action="h1" data-shortcut="Ctrl+1">Heading 1</button>
+        <button data-action="h2" data-shortcut="Ctrl+2">Heading 2</button>
+        <button data-action="h3" data-shortcut="Ctrl+3">Heading 3</button>
+        <button data-action="h4" data-shortcut="Ctrl+4">Heading 4</button>
+        <button data-action="h5" data-shortcut="Ctrl+5">Heading 5</button>
+        <button data-action="h6" data-shortcut="Ctrl+6">Heading 6</button>
+        <button data-action="paragraph" data-shortcut="Ctrl+0">Paragraph</button>
+        <div class="menu-sep"></div>
+        <button data-action="table" data-shortcut="Ctrl+T">Table</button>
+        <button data-action="codeblock" data-shortcut="Ctrl+Shift+K">Code Fences</button>
+        <button data-action="mathblock" data-shortcut="Ctrl+Shift+M">Math Block</button>
+        <button data-action="blockquote" data-shortcut="Ctrl+Shift+Q">Quote</button>
+        <div class="menu-sep"></div>
+        <button data-action="ul">Unordered List</button>
+        <button data-action="ol">Ordered List</button>
+        <button data-action="task">Task List</button>
+        <div class="menu-sep"></div>
+        <button data-action="diagram">Diagram…</button>
+        <button data-action="flashcard">Flashcard</button>
+        <button data-action="graph">Graph Canvas…</button>
+      </div>
+    </div>
+
+    <div class="menu-dropdown" data-menu="view">
+      <button class="menu-trigger">View</button>
+      <div class="menu-panel">
+        <button id="btn-toggle-sidebar" data-shortcut="Ctrl+Shift+L">Toggle Sidebar</button>
+        <div class="menu-sep"></div>
+        <button id="btn-focus" data-shortcut="F8">Focus Mode</button>
+        <div class="menu-sep"></div>
+        <button id="btn-toggle-terminal" data-shortcut="Ctrl+`">Toggle Terminal</button>
+        <div class="menu-sep"></div>
+        <button id="btn-toggle-preview">Toggle Render</button>
+        <div class="menu-sep"></div>
+        <button id="btn-publish">Publish…</button>
+      </div>
+    </div>
+
+    <div class="menu-dropdown" data-menu="theme">
+      <button class="menu-trigger">Themes</button>
+      <div class="menu-panel" id="theme-menu">
+        <button data-theme="phantom" class="theme-option">Phantom</button>
+        <button data-theme="cobalt" class="theme-option">Cobalt</button>
+        <button data-theme="forest" class="theme-option">Forest</button>
+        <button data-theme="jade" class="theme-option">Jade</button>
+        <button data-theme="lavender" class="theme-option">Lavender</button>
+        <button data-theme="sunset" class="theme-option">Sunset</button>
+        <div class="menu-sep"></div>
+        <button data-theme="seraph" class="theme-option">Seraph</button>
+        <button data-theme="newsprint" class="theme-option">Newsprint</button>
+        <button data-theme="seniva" class="theme-option">Seniva</button>
+      </div>
+    </div>
+
+    <div class="menu-dropdown" data-menu="help">
+      <button class="menu-trigger">Help</button>
+      <div class="menu-panel">
+        <button id="btn-help">Markdown Reference</button>
+        <button id="btn-toggle-vim">Toggle Vim Mode</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="menu-right">
+    <div id="filename-bar">
+      <input id="filename-input" type="text" placeholder="untitled.md" value="untitled.md" spellcheck="false" />
+      <span id="autosave-badge" class="hidden">●</span>
+    </div>
+  </div>
+</header>
+
+<!-- hidden file inputs -->
+<input id="file-input" type="file" accept=".md,.txt,.pdf,.docx" style="display:none" />
+<input id="image-input" type="file" accept="image/*" style="display:none" />
+
+<!-- folder browser dialog -->
+<div id="folder-dialog-overlay" class="dialog-overlay hidden">
+  <!-- Web mode dialog -->
+  <div id="folder-dialog" class="dialog hidden">
+    <div class="dialog-header">
+      <h3>Open Folder</h3>
+      <button id="folder-dialog-close" class="dialog-close">&times;</button>
+    </div>
+    <div class="dialog-body">
+      <div id="folder-path-bar">
+        <button id="folder-up-btn" title="Parent folder">⬆</button>
+        <input id="folder-path-input" type="text" placeholder="/home/user/notes" spellcheck="false" />
+        <button id="folder-go-btn">Go</button>
+      </div>
+      <ul id="folder-browser-list"></ul>
+    </div>
+    <div class="dialog-footer">
+      <span id="folder-selected-path"></span>
+      <button id="folder-open-btn" class="btn-primary">Open</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN AREA ─────────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- sidebar -->
+  <aside id="sidebar">
+    <!-- sidebar mode tabs -->
+    <div class="sidebar-tabs">
+      <button class="sidebar-tab active" data-mode="tree" title="File Tree">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 012.5 1h3.379a1.5 1.5 0 011.06.44l1.122 1.12A1.5 1.5 0 009.121 3H13.5A1.5 1.5 0 0115 4.5v8a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-10zm2.5-.5a.5.5 0 00-.5.5v10a.5.5 0 00.5.5h11a.5.5 0 00.5-.5v-8a.5.5 0 00-.5-.5H9.121a.5.5 0 01-.354-.146L7.354 2.44A.5.5 0 007 2.293H3.5z"/></svg>
+      </button>
+      <button class="sidebar-tab" data-mode="list" title="File List">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 4a.5.5 0 010-1h11a.5.5 0 010 1h-11zm0 3a.5.5 0 010-1h11a.5.5 0 010 1h-11zm0 3a.5.5 0 010-1h11a.5.5 0 010 1h-11zm0 3a.5.5 0 010-1h11a.5.5 0 010 1h-11z"/></svg>
+      </button>
+      <button class="sidebar-tab" data-mode="outline" title="Outline">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3.5a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h7a.5.5 0 010 1h-7a.5.5 0 01-.5-.5zm-2 3a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5z"/></svg>
+      </button>
+      <button class="sidebar-tab" data-mode="git" title="Git">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      </button>
+      <div class="sidebar-tab-spacer"></div>
+      <button id="btn-refresh-files" class="sidebar-tab" title="Refresh">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.418A6 6 0 118 2v1z"/><path d="M8 4.466V.534a.25.25 0 01.41-.192l2.36 1.966a.25.25 0 010 .384L8.41 4.658A.25.25 0 018 4.466z"/></svg>
+      </button>
+    </div>
+
+    <!-- search (shared across modes) -->
+    <div id="search-box">
+      <input id="search-input" type="search" placeholder="Search notes…" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <!-- workspace label -->
+    <div id="workspace-bar">
+      <span id="workspace-name" title="Click to open folder">No folder open</span>
+    </div>
+
+    <!-- tree mode content -->
+    <div class="sidebar-content" data-for="tree">
+      <ul id="file-list"></ul>
+    </div>
+
+    <!-- list mode content -->
+    <div class="sidebar-content" data-for="list" style="display:none">
+      <ul id="file-list-flat"></ul>
+    </div>
+
+    <!-- outline mode content -->
+    <div class="sidebar-content" data-for="outline" style="display:none">
+      <ul id="outline-list"></ul>
+      <div id="outline-empty" class="sidebar-empty">No headings</div>
+    </div>
+
+    <!-- git mode content -->
+    <div class="sidebar-content" data-for="git" style="display:none">
+      <div id="git-auth" class="git-section">
+        <button id="btn-github-signin" class="git-signin-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          Sign in with GitHub
+        </button>
+      </div>
+      
+      <div id="git-panel" class="git-section hidden">
+        <div class="git-user-info">
+          <img id="git-avatar" class="git-avatar" src="" alt="">
+          <div class="git-user-details">
+            <div id="git-username" class="git-username"></div>
+            <div id="git-repo" class="git-repo"></div>
+          </div>
+          <button id="btn-github-signout" class="git-signout-btn" title="Sign out">×</button>
+        </div>
+        
+        <div class="git-status">
+          <div id="git-branch" class="git-branch">main</div>
+          <div id="git-changes" class="git-changes">No changes</div>
+        </div>
+        
+        <div class="git-commit-section">
+          <textarea id="git-commit-message" placeholder="Commit message..." rows="2"></textarea>
+          <div class="git-actions">
+            <button id="btn-git-commit" class="git-btn git-btn-primary" disabled>Commit</button>
+            <button id="btn-git-push" class="git-btn git-btn-secondary" disabled>Push</button>
+          </div>
+        </div>
+        
+        <div id="git-file-changes" class="git-file-list">
+          <!-- Changed files will be listed here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- search results (overlay on any mode) -->
+    <ul id="search-results" class="hidden"></ul>
+
+    <!-- cloud file lists -->
+    <div id="cloud-section" class="hidden">
+      <div class="sidebar-sub-header">
+        <span id="cloud-label">Cloud</span>
+        <button id="btn-close-cloud" title="Close">✕</button>
+      </div>
+      <ul id="cloud-file-list"></ul>
+    </div>
+
+    <!-- resize handle -->
+    <div id="sidebar-resize-handle"></div>
+  </aside>
+
+  <!-- preview pane (now on left) -->
+  <div id="preview-pane">
+    <div id="preview"></div>
+  </div>
+
+  <!-- resize handle between preview and editor -->
+  <div id="preview-editor-resize-handle"></div>
+
+  <!-- editor pane (now on right) -->
+  <div id="editor-pane">
+    <div id="cm-editor"></div>
+  </div>
+
+  <!-- terminal panel -->
+  <div id="terminal-panel" class="terminal-panel hidden">
+    <div class="terminal-header">
+      <div class="terminal-tabs">
+        <div class="terminal-tab active" data-terminal="1">
+          <span>Terminal</span>
+          <button class="terminal-tab-close">×</button>
+        </div>
+        <button class="terminal-new-tab">+</button>
+      </div>
+      <div class="terminal-controls">
+        <button id="btn-terminal-toggle" class="terminal-control-btn" title="Toggle Terminal">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2z"/>
+            <path d="M6.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h1z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="terminal-content">
+      <div id="terminal-1" class="terminal-instance active"></div>
+    </div>
+  </div>
+
+  <!-- terminal resize handle -->
+  <div id="terminal-resize-handle" class="terminal-resize-handle hidden"></div>
+</div>
+
+<!-- context menu (file tree) -->
+<div id="context-menu" class="context-menu hidden">
+  <div id="menu-empty" class="menu-section">
+    <button data-action="new-file">New Note</button>
+    <button data-action="new-folder">New Folder</button>
+    <div class="ctx-sep"></div>
+    <button data-action="refresh">Refresh</button>
+  </div>
+  <div id="menu-file" class="menu-section" style="display:none">
+    <button data-action="open">Open</button>
+    <div class="ctx-sep"></div>
+    <button data-action="new-file">New Note</button>
+    <button data-action="new-folder-from-file">New Folder</button>
+    <button data-action="duplicate">Duplicate</button>
+    <div class="ctx-sep"></div>
+    <button data-action="rename">Rename</button>
+    <button data-action="move">Move…</button>
+    <div class="ctx-sep"></div>
+    <button data-action="copy-path">Copy Path</button>
+    <button data-action="reveal">Reveal in File Manager</button>
+    <div class="ctx-sep"></div>
+    <button data-action="delete" class="ctx-danger">Move to Trash</button>
+  </div>
+  <div id="menu-folder" class="menu-section" style="display:none">
+    <button data-action="new-file-in-folder">New Note Inside</button>
+    <button data-action="new-subfolder">New Subfolder</button>
+    <div class="ctx-sep"></div>
+    <button data-action="rename">Rename</button>
+    <div class="ctx-sep"></div>
+    <button data-action="copy-path">Copy Path</button>
+    <button data-action="reveal">Reveal in File Manager</button>
+    <div class="ctx-sep"></div>
+    <button data-action="delete" class="ctx-danger">Move to Trash</button>
+  </div>
+</div>
+
+<!-- ── STATUS BAR ──────────────────────────────────────────────────────────── -->
+<footer id="statusbar">
+  <div class="status-left">
+    <span id="vim-mode-indicator" class="vim-mode hidden"></span>
+    <span id="doc-status" class="doc-status new" title="New document">● New</span>
+    <span id="status-msg">Ready</span>
+  </div>
+  <div class="status-right">
+    <span id="reading-time">~1 min read</span>
+    <span class="status-sep">|</span>
+    <span id="word-count">0 words</span>
+  </div>
+</footer>
+
+<!-- ── SETTINGS MODAL ───────────────────────────────────────────────────────── -->
+<div id="modal-overlay" class="hidden">
+  <div id="modal">
+    <h2>Preferences</h2>
+
+    <h3>GitHub</h3>
+    <label>Repo URL
+      <input type="text" id="cfg-repo-url" placeholder="https://github.com/user/notes.git" />
+    </label>
+    <label>Branch
+      <input type="text" id="cfg-branch" value="main" />
+    </label>
+    <div class="cloud-row">
+      <span id="github-status">Not connected</span>
+      <button id="btn-github-login" class="secondary-btn">Login with GitHub</button>
+    </div>
+
+    <hr />
+    <h3>Dropbox</h3>
+    <div class="cloud-row">
+      <span id="dropbox-status">Not connected</span>
+      <button id="btn-dropbox-login" class="secondary-btn">Login with Dropbox</button>
+    </div>
+
+    <hr />
+    <h3>Google Drive</h3>
+    <div class="cloud-row">
+      <span id="gdrive-status">Not connected</span>
+      <button id="btn-gdrive-login" class="secondary-btn">Login with Google Drive</button>
+    </div>
+
+    <div class="modal-actions">
+      <button id="btn-save-config">Save</button>
+      <button id="btn-close-modal">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PUBLISH MODAL ─────────────────────────────────────────────────────────── -->
+<div id="publish-overlay" class="hidden">
+  <div id="publish-modal">
+    <h2>Publish to Cloud</h2>
+    <p>All notes and folders will be synced to your connected cloud service.</p>
+    <div class="modal-actions">
+      <button id="btn-confirm-publish">Publish All</button>
+      <button id="btn-cancel-publish">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TABLE INSERTER MODAL ─────────────────────────────────────────────────── -->
+<div id="table-overlay" class="hidden">
+  <div id="table-modal">
+    <h2>Insert Table</h2>
+    <div class="table-preview-grid" id="table-grid"></div>
+    <div class="table-modal-dims">
+      <label>Rows <input type="number" id="tbl-rows" value="3" min="1" max="20" /></label>
+      <label>Columns <input type="number" id="tbl-cols" value="3" min="1" max="10" /></label>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-insert-table">Insert</button>
+      <button id="btn-cancel-table">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIAGRAM PICKER MODAL ──────────────────────────────────────────────────── -->
+<div id="diagram-overlay" class="hidden">
+  <div id="diagram-modal">
+    <h2>Insert Diagram</h2>
+    <div class="diagram-grid">
+      <button class="diagram-type" data-type="flowchart">
+        <span class="diagram-icon">⬡</span><span>Flowchart</span>
+      </button>
+      <button class="diagram-type" data-type="sequence">
+        <span class="diagram-icon">↔</span><span>Sequence</span>
+      </button>
+      <button class="diagram-type" data-type="gantt">
+        <span class="diagram-icon">▥</span><span>Gantt</span>
+      </button>
+      <button class="diagram-type" data-type="pie">
+        <span class="diagram-icon">◔</span><span>Pie Chart</span>
+      </button>
+      <button class="diagram-type" data-type="er">
+        <span class="diagram-icon">⊞</span><span>ER Diagram</span>
+      </button>
+      <button class="diagram-type" data-type="mindmap">
+        <span class="diagram-icon">◉</span><span>Mind Map</span>
+      </button>
+    </div>
+    <div class="menu-sep" style="margin:12px 0 10px"></div>
+    <p class="modal-section-label">Economic Graphs</p>
+    <div class="diagram-grid">
+      <button class="diagram-type" data-type="econ-supply-demand">
+        <span class="diagram-icon">⊿</span><span>Supply &amp; Demand</span>
+      </button>
+      <button class="diagram-type" data-type="econ-ppf">
+        <span class="diagram-icon">⌢</span><span>PPF</span>
+      </button>
+      <button class="diagram-type" data-type="econ-cost">
+        <span class="diagram-icon">∿</span><span>Cost Curves</span>
+      </button>
+      <button class="diagram-type" data-type="econ-custom">
+        <span class="diagram-icon">✎</span><span>Custom Graph</span>
+      </button>
+    </div>
+    <button id="btn-cancel-diagram" class="secondary-btn" style="margin-top:12px">Cancel</button>
+  </div>
+</div>
+
+<!-- ── MARKDOWN HELP PANEL ──────────────────────────────────────────────────── -->
+<aside id="help-panel" aria-label="Markdown syntax help">
+  <div id="help-panel-header">
+    <h2>Markdown Reference</h2>
+    <button id="btn-close-help" title="Close">✕</button>
+  </div>
+  <div id="help-body">
+    <div class="help-section">
+      <h3>Headings</h3>
+      <div class="help-row"><span class="help-syntax"># Heading 1</span><span class="help-desc">Largest heading</span></div>
+      <div class="help-row"><span class="help-syntax">## Heading 2</span><span class="help-desc">Section heading</span></div>
+      <div class="help-row"><span class="help-syntax">### Heading 3</span><span class="help-desc">Subsection</span></div>
+      <div class="help-row"><span class="help-syntax">#### Heading 4</span><span class="help-desc">Sub-subsection</span></div>
+      <div class="help-row"><span class="help-syntax">##### Heading 5</span><span class="help-desc">Minor heading</span></div>
+      <div class="help-row"><span class="help-syntax">###### Heading 6</span><span class="help-desc">Smallest heading</span></div>
+      <div class="help-row"><span class="help-syntax">Alt H1<br>======</span><span class="help-desc">Alternative H1</span></div>
+      <div class="help-row"><span class="help-syntax">Alt H2<br>------</span><span class="help-desc">Alternative H2</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Emphasis</h3>
+      <div class="help-row"><span class="help-syntax">**bold**</span><span class="help-desc"><strong>Bold text</strong></span></div>
+      <div class="help-row"><span class="help-syntax">__bold__</span><span class="help-desc"><strong>Bold text</strong></span></div>
+      <div class="help-row"><span class="help-syntax">*italic*</span><span class="help-desc"><em>Italic text</em></span></div>
+      <div class="help-row"><span class="help-syntax">_italic_</span><span class="help-desc"><em>Italic text</em></span></div>
+      <div class="help-row"><span class="help-syntax">***bold italic***</span><span class="help-desc"><strong><em>Bold italic</em></strong></span></div>
+      <div class="help-row"><span class="help-syntax">~~strikethrough~~</span><span class="help-desc"><s>Strikethrough</s></span></div>
+      <div class="help-row"><span class="help-syntax">==highlight==</span><span class="help-desc"><mark>Highlight</mark></span></div>
+    </div>
+    <div class="help-section">
+      <h3>Lists</h3>
+      <div class="help-row"><span class="help-syntax">- Unordered item</span><span class="help-desc">Bullet list</span></div>
+      <div class="help-row"><span class="help-syntax">* Unordered item</span><span class="help-desc">Bullet list</span></div>
+      <div class="help-row"><span class="help-syntax">+ Unordered item</span><span class="help-desc">Bullet list</span></div>
+      <div class="help-row"><span class="help-syntax">1. Ordered item</span><span class="help-desc">Numbered list</span></div>
+      <div class="help-row"><span class="help-syntax">- [ ] Task item</span><span class="help-desc">Unchecked task</span></div>
+      <div class="help-row"><span class="help-syntax">- [x] Task item</span><span class="help-desc">Checked task</span></div>
+      <div class="help-row"><span class="help-syntax">    - Nested item</span><span class="help-desc">Indented list</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Links &amp; Images</h3>
+      <div class="help-row"><span class="help-syntax">[text](url)</span><span class="help-desc">Basic link</span></div>
+      <div class="help-row"><span class="help-syntax">[text](url "title")</span><span class="help-desc">Link with title</span></div>
+      <div class="help-row"><span class="help-syntax">&lt;url&gt;</span><span class="help-desc">Automatic link</span></div>
+      <div class="help-row"><span class="help-syntax">[text][ref]</span><span class="help-desc">Reference link</span></div>
+      <div class="help-row"><span class="help-syntax">[ref]: url</span><span class="help-desc">Reference definition</span></div>
+      <div class="help-row"><span class="help-syntax">![alt](url)</span><span class="help-desc">Image</span></div>
+      <div class="help-row"><span class="help-syntax">[![alt](img)](url)</span><span class="help-desc">Linked image</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Code</h3>
+      <div class="help-row"><span class="help-syntax">`inline code`</span><span class="help-desc">Inline code</span></div>
+      <div class="help-row"><span class="help-syntax">``code with `backticks```</span><span class="help-desc">Escaped backticks</span></div>
+      <div class="help-row"><span class="help-syntax">```<br>code block<br>```</span><span class="help-desc">Fenced code block</span></div>
+      <div class="help-row"><span class="help-syntax">```lang<br>code<br>```</span><span class="help-desc">Code with language</span></div>
+      <div class="help-row"><span class="help-syntax">    indented code</span><span class="help-desc">Indented code block</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Blocks</h3>
+      <div class="help-row"><span class="help-syntax">&gt; Blockquote</span><span class="help-desc">Quote text</span></div>
+      <div class="help-row"><span class="help-syntax">&gt;&gt; Nested quote</span><span class="help-desc">Nested blockquote</span></div>
+      <div class="help-row"><span class="help-syntax">---</span><span class="help-desc">Horizontal rule</span></div>
+      <div class="help-row"><span class="help-syntax">***</span><span class="help-desc">Horizontal rule</span></div>
+      <div class="help-row"><span class="help-syntax">___</span><span class="help-desc">Horizontal rule</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Tables</h3>
+      <div class="help-row"><span class="help-syntax">| Header | Header |<br>|--------|--------|<br>| Cell   | Cell   |</span><span class="help-desc">Basic table</span></div>
+      <div class="help-row"><span class="help-syntax">|:-----|</span><span class="help-desc">Left align</span></div>
+      <div class="help-row"><span class="help-syntax">|:----:|</span><span class="help-desc">Center align</span></div>
+      <div class="help-row"><span class="help-syntax">|-----:|</span><span class="help-desc">Right align</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Line Breaks &amp; Paragraphs</h3>
+      <div class="help-row"><span class="help-syntax">Line ending with two spaces  <br>Next line</span><span class="help-desc">Line break</span></div>
+      <div class="help-row"><span class="help-syntax">Line ending with&lt;br&gt;<br>Next line</span><span class="help-desc">HTML line break</span></div>
+      <div class="help-row"><span class="help-syntax">Paragraph 1<br><br>Paragraph 2</span><span class="help-desc">Paragraph break</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Escaping &amp; HTML</h3>
+      <div class="help-row"><span class="help-syntax">\* Escaped asterisk</span><span class="help-desc">Literal character</span></div>
+      <div class="help-row"><span class="help-syntax">&lt;em&gt;HTML tag&lt;/em&gt;</span><span class="help-desc">Raw HTML</span></div>
+      <div class="help-row"><span class="help-syntax">&lt;!-- Comment --&gt;</span><span class="help-desc">HTML comment</span></div>
+    </div>
+    <div class="help-section">
+      <h3>Keyboard Shortcuts</h3>
+      <div class="help-kbd-row"><span class="help-kbd-label">Save</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>S</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Bold</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>B</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Italic</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>I</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Heading 1–6</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>1</kbd>–<kbd>6</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Link</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Code block</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>K</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Sidebar</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Preview</span><span class="help-kbd-keys"><kbd>Ctrl</kbd><kbd>/</kbd></span></div>
+      <div class="help-kbd-row"><span class="help-kbd-label">Focus mode</span><span class="help-kbd-keys"><kbd>F8</kbd></span></div>
+    </div>
+    <div class="help-section">
+      <h3>Vim Commands</h3>
+      <div class="help-subsection">
+        <h4>Modes</h4>
+        <div class="help-row"><span class="help-syntax">i</span><span class="help-desc">Enter INSERT mode</span></div>
+        <div class="help-row"><span class="help-syntax">a</span><span class="help-desc">Insert after cursor</span></div>
+        <div class="help-row"><span class="help-syntax">o</span><span class="help-desc">New line below</span></div>
+        <div class="help-row"><span class="help-syntax">O</span><span class="help-desc">New line above</span></div>
+        <div class="help-row"><span class="help-syntax">Esc</span><span class="help-desc">Return to NORMAL mode</span></div>
+        <div class="help-row"><span class="help-syntax">v</span><span class="help-desc">Enter VISUAL mode</span></div>
+      </div>
+      <div class="help-subsection">
+        <h4>Navigation</h4>
+        <div class="help-row"><span class="help-syntax">h j k l</span><span class="help-desc">Left, down, up, right</span></div>
+        <div class="help-row"><span class="help-syntax">w</span><span class="help-desc">Next word</span></div>
+        <div class="help-row"><span class="help-syntax">b</span><span class="help-desc">Previous word</span></div>
+        <div class="help-row"><span class="help-syntax">e</span><span class="help-desc">End of word</span></div>
+        <div class="help-row"><span class="help-syntax">0</span><span class="help-desc">Start of line</span></div>
+        <div class="help-row"><span class="help-syntax">$</span><span class="help-desc">End of line</span></div>
+        <div class="help-row"><span class="help-syntax">gg</span><span class="help-desc">Go to top</span></div>
+        <div class="help-row"><span class="help-syntax">G</span><span class="help-desc">Go to bottom</span></div>
+        <div class="help-row"><span class="help-syntax">Ctrl+f</span><span class="help-desc">Page down</span></div>
+        <div class="help-row"><span class="help-syntax">Ctrl+b</span><span class="help-desc">Page up</span></div>
+      </div>
+      <div class="help-subsection">
+        <h4>Editing</h4>
+        <div class="help-row"><span class="help-syntax">x</span><span class="help-desc">Delete character</span></div>
+        <div class="help-row"><span class="help-syntax">dd</span><span class="help-desc">Delete line</span></div>
+        <div class="help-row"><span class="help-syntax">yy</span><span class="help-desc">Copy line</span></div>
+        <div class="help-row"><span class="help-syntax">p</span><span class="help-desc">Paste after</span></div>
+        <div class="help-row"><span class="help-syntax">P</span><span class="help-desc">Paste before</span></div>
+        <div class="help-row"><span class="help-syntax">u</span><span class="help-desc">Undo</span></div>
+        <div class="help-row"><span class="help-syntax">Ctrl+r</span><span class="help-desc">Redo</span></div>
+        <div class="help-row"><span class="help-syntax">r</span><span class="help-desc">Replace character</span></div>
+        <div class="help-row"><span class="help-syntax">cw</span><span class="help-desc">Change word</span></div>
+      </div>
+      <div class="help-subsection">
+        <h4>Commands</h4>
+        <div class="help-row"><span class="help-syntax">:w</span><span class="help-desc">Save file</span></div>
+        <div class="help-row"><span class="help-syntax">:q</span><span class="help-desc">Quit (if saved)</span></div>
+        <div class="help-row"><span class="help-syntax">:wq</span><span class="help-desc">Save and quit</span></div>
+        <div class="help-row"><span class="help-syntax">:help</span><span class="help-desc">Show this help</span></div>
+        <div class="help-row"><span class="help-syntax">:20</span><span class="help-desc">Go to line 20</span></div>
+        <div class="help-row"><span class="help-syntax">:20,30d</span><span class="help-desc">Delete lines 20-30</span></div>
+        <div class="help-row"><span class="help-syntax">/text</span><span class="help-desc">Search for text</span></div>
+        <div class="help-row"><span class="help-syntax">n</span><span class="help-desc">Next search result</span></div>
+        <div class="help-row"><span class="help-syntax">N</span><span class="help-desc">Previous search result</span></div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── EDITOR CONTEXT MENU ────────────────────────────────────────────────── -->
+<div id="editor-ctx-menu" class="context-menu hidden">
+  <button data-action="bold">Bold</button>
+  <button data-action="italic">Italic</button>
+  <button data-action="code">Inline Code</button>
+  <button data-action="highlight">Highlight</button>
+  <div class="ctx-sep"></div>
+  <button data-action="h1">Heading 1</button>
+  <button data-action="h2">Heading 2</button>
+  <button data-action="h3">Heading 3</button>
+  <div class="ctx-sep"></div>
+  <button data-action="link">Hyperlink…</button>
+  <button data-action="image">Image…</button>
+  <button data-action="table">Table…</button>
+  <div class="ctx-sep"></div>
+  <button data-action="ul">Bullet List</button>
+  <button data-action="ol">Numbered List</button>
+  <button data-action="task">Task List</button>
+  <button data-action="blockquote">Blockquote</button>
+  <div class="ctx-sep"></div>
+  <button data-action="codeblock">Code Block</button>
+  <button data-action="diagram">Diagram…</button>
+  <button data-action="graph">Graph Canvas…</button>
+  <button data-action="flashcard">Flashcard</button>
+</div>
+
+<!-- ── GRAPH CANVAS MODAL ──────────────────────────────────────────────────── -->
+<div id="graph-overlay" class="hidden">
+  <div id="graph-modal">
+    <div id="graph-toolbar">
+      <div class="gc-tool-group">
+        <button class="gc-tool active" data-tool="line" title="Line">╱</button>
+        <button class="gc-tool" data-tool="curve" title="Curve">⌒</button>
+        <button class="gc-tool" data-tool="arrow" title="Arrow">→</button>
+        <button class="gc-tool" data-tool="text" title="Text">T</button>
+        <button class="gc-tool" data-tool="rect" title="Rectangle">▭</button>
+        <button class="gc-tool" data-tool="freehand" title="Freehand">✎</button>
+        <button class="gc-tool" data-tool="select" title="Select">⊹</button>
+      </div>
+      <span class="gc-sep"></span>
+      <div class="gc-tool-group">
+        <label class="gc-toggle"><input type="checkbox" id="gc-grid" checked /> Grid</label>
+        <label class="gc-toggle"><input type="checkbox" id="gc-snap" checked /> Snap</label>
+      </div>
+      <span class="gc-sep"></span>
+      <div class="gc-tool-group">
+        <input type="color" id="gc-color" value="#3b82f6" title="Color" />
+        <select id="gc-width" title="Width">
+          <option value="1.5">Thin</option>
+          <option value="2.5" selected>Normal</option>
+          <option value="4">Thick</option>
+        </select>
+      </div>
+      <span class="gc-sep"></span>
+      <div class="gc-tool-group">
+        <button id="gc-undo" title="Undo">↩</button>
+        <button id="gc-redo" title="Redo">↪</button>
+        <button id="gc-delete" title="Delete">🗑</button>
+        <button id="gc-clear" title="Clear">✕</button>
+      </div>
+      <div class="gc-tool-group gc-labels">
+        <input type="text" id="gc-title" placeholder="Title" class="gc-label-input" />
+        <input type="text" id="gc-x-label" placeholder="X" class="gc-label-input gc-label-sm" />
+        <input type="text" id="gc-y-label" placeholder="Y" class="gc-label-input gc-label-sm" />
+      </div>
+      <div class="gc-tool-group gc-right">
+        <button id="gc-save" class="gc-primary">Save</button>
+        <button id="gc-cancel">Cancel</button>
+      </div>
+    </div>
+    <div id="graph-canvas-area">
+      <svg id="graph-svg"></svg>
+    </div>
+    <div id="graph-hint">
+      <span><b>Draw:</b> click+drag</span>
+      <span><b>Curve:</b> click points, right-click finish</span>
+      <span><b>Select:</b> click, drag handles</span>
+      <span><b>Edit:</b> double-click</span>
+      <span><b>Keys:</b> Del, Ctrl+C/V/D</span>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/static/editor.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+2026-03-01 16:17:42,766 - __main__ - INFO - Starting Lectura
+INFO:     Started server process [118303]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:57466 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57466 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57480 - "GET /static/editor.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57494 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57494 - "GET /static/graph-canvas.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57494 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57494 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57514 - "GET /config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57514 - "GET /github/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57514 - "GET /dropbox/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57514 - "GET /gdrive/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57514 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57514 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:57514 - "GET /static/editor.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:57514 - "GET /files HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [118303]
