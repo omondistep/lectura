@@ -20,7 +20,7 @@
       "!*.log"
     ],
     "linux": {
-      "target": ["AppImage"],
+      "target": ["pacman"],
       "category": "Office",
       "icon": "build/icon.png",
       "maintainer": "Ondiek <ondiek@lectura.app>"
