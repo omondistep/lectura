@@ -439,6 +439,31 @@ html, body {
 }
 #workspace-name:hover { color: var(--text); }
 
+/* ── sidebar header (Typora-style folder name) ───────────────────────────── */
+#sidebar-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+#sidebar-header.hidden { display: none; }
+#sidebar-folder-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── status bar folder display ───────────────────────────────────────────── */
+.folder-status {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ── folder browser dialog ───────────────────────────────────────────────── */
 .dialog-overlay {
   position: fixed;
@@ -1031,10 +1056,14 @@ li.tree-file:hover .del-btn,
   flex-shrink: 0;
 }
 
-.status-left, .status-right {
+.status-left, .status-center, .status-right {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.status-center {
+  flex: 1;
+  justify-content: center;
 }
 .status-right { flex-shrink: 0; }
 .status-sep { color: var(--border); }

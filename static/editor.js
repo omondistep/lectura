@@ -617,6 +617,26 @@ const ACTIONS = {
   diagram: () => openDiagramModal(),
   flashcard: () => insertSnippet(":::qa\nQuestion goes here\n:::\nAnswer goes here\n:::"),
   graph: () => openGraphCanvas(),
+  cut: () => {
+    const { from, to } = view.state.selection.main;
+    const text = view.state.sliceDoc(from, to);
+    if (text) {
+      navigator.clipboard.writeText(text);
+      view.dispatch({ changes: { from, to, insert: "" } });
+    }
+  },
+  copy: () => {
+    const { from, to } = view.state.selection.main;
+    const text = view.state.sliceDoc(from, to);
+    if (text) navigator.clipboard.writeText(text);
+  },
+  paste: async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const { from, to } = view.state.selection.main;
+      view.dispatch({ changes: { from, to, insert: text } });
+    } catch {}
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -893,18 +913,93 @@ const themeConfig = {
 };
 
 let currentTheme = "dark";
+let loadedThemes = {}; // Store dynamically loaded themes
 
-function applyTheme(themeName) {
-  const config = themeConfig[themeName];
-  if (!config) return;
-  currentTheme = themeName;
-  document.documentElement.setAttribute("data-theme", themeName);
-  view.dispatch({ effects: themeCompartment.reconfigure(config.cmTheme) });
-  localStorage.setItem("sc-theme", themeName);
-  // Update checkmark
+// Apply theme - handles both built-in and loaded themes
+async function applyTheme(themeName) {
+  // Check if it's a loaded (external) theme first - external themes should override built-in
+  if (loadedThemes[themeName]) {
+    // It's a loaded theme from the themes folder
+    currentTheme = themeName;
+    localStorage.setItem("sc-theme", themeName);
+    
+    // Load the theme CSS
+    let link = document.getElementById('loaded-theme-css');
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'loaded-theme-css';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    link.href = `/static/themes/${themeName}.css`;
+    
+    // Determine if dark or light based on theme name patterns
+    const isDark = themeName.toLowerCase().includes('dark') || 
+                   ['nord', 'phantom', 'cobalt', 'forest', 'jade', 'lavender', 'sunset'].includes(themeName.toLowerCase());
+    const themeAttr = isDark ? 'dark' : 'light';
+    document.documentElement.setAttribute("data-theme", themeAttr);
+    
+    // Apply appropriate CodeMirror theme
+    const cmTheme = isDark ? oneDark : lightCmTheme;
+    view.dispatch({ effects: themeCompartment.reconfigure(cmTheme) });
+  } else if (themeConfig[themeName]) {
+    // It's a built-in theme
+    currentTheme = themeName;
+    document.documentElement.setAttribute("data-theme", themeName);
+    view.dispatch({ effects: themeCompartment.reconfigure(themeConfig[themeName].cmTheme) });
+    localStorage.setItem("sc-theme", themeName);
+    // Remove any loaded theme CSS
+    const loadedThemeLink = document.getElementById('loaded-theme-css');
+    if (loadedThemeLink) loadedThemeLink.remove();
+  }
+  
+  // Update checkmark in menu
   document.querySelectorAll(".theme-option").forEach(btn => {
     btn.classList.toggle("active-theme", btn.dataset.theme === themeName);
   });
+}
+
+// Load themes from the themes folder and add to menu
+async function loadExternalThemes() {
+  try {
+    const res = await fetch('/themes');
+    const data = await res.json();
+    console.log('Loaded themes:', data.themes);
+    if (!data.themes || data.themes.length === 0) return;
+    
+    const themeMenu = document.getElementById('theme-menu');
+    console.log('Theme menu found:', !!themeMenu);
+    if (!themeMenu) return;
+    
+    // Add separator before external themes
+    const sep = document.createElement('div');
+    sep.className = 'menu-sep';
+    sep.id = 'external-themes-sep';
+    themeMenu.appendChild(sep);
+    
+    for (const theme of data.themes) {
+      // Skip if already added (built-in theme)
+      if (themeConfig[theme.id]) {
+        console.log('Skipping built-in theme:', theme.id);
+        continue;
+      }
+      
+      console.log('Adding external theme:', theme.id);
+      loadedThemes[theme.id] = theme;
+      
+      const btn = document.createElement('button');
+      btn.className = 'theme-option';
+      btn.dataset.theme = theme.id;
+      btn.textContent = theme.name;
+      btn.addEventListener('click', () => {
+        applyTheme(theme.id);
+        closeAllMenus();
+      });
+      themeMenu.appendChild(btn);
+    }
+  } catch (e) {
+    console.warn('Failed to load external themes:', e);
+  }
 }
 
 // Theme selection from menu
@@ -914,6 +1009,9 @@ document.querySelectorAll(".theme-option").forEach(btn => {
     closeAllMenus();
   });
 });
+
+// Load external themes from themes folder
+loadExternalThemes();
 
 const savedTheme = localStorage.getItem("sc-theme") || "light";
 applyTheme(savedTheme);
@@ -1445,6 +1543,7 @@ document.getElementById("btn-save")?.addEventListener("click", () => { closeAllM
 const contextMenu = document.getElementById("context-menu");
 let contextMenuTarget = null;
 let contextMenuIsFolder = false;
+let clipboardOperation = null; // For copy/cut/paste operations
 
 function handleSidebarContextMenu(e) {
   e.preventDefault();
@@ -1767,6 +1866,70 @@ contextMenu.addEventListener("click", async (e) => {
       break;
     }
     case "refresh": {
+      loadFileList();
+      break;
+    }
+    case "open-in-new-window": {
+      if (!target) break;
+      // Open file in new window (for Electron)
+      if (window.electronAPI?.openInNewWindow) {
+        const fullPath = workspacePath ? `${workspacePath}/${target}` : target;
+        window.electronAPI.openInNewWindow(fullPath);
+      } else {
+        // Fallback: open in new browser tab
+        window.open(`/view?file=${encodeURIComponent(target)}`, '_blank');
+      }
+      break;
+    }
+    case "copy": {
+      if (!target || isFolder) break;
+      // Store the copied file path for paste operation
+      clipboardOperation = { operation: 'copy', path: target, isFolder: isFolder };
+      setStatus("File copied");
+      break;
+    }
+    case "cut": {
+      if (!target || isFolder) break;
+      // Store the cut file path for paste operation
+      clipboardOperation = { operation: 'cut', path: target, isFolder: isFolder };
+      setStatus("File cut");
+      break;
+    }
+    case "paste": {
+      if (!clipboardOperation || clipboardOperation.isFolder) break;
+      const { operation, path: srcPath } = clipboardOperation;
+      const parent = target || "";
+      const srcName = srcPath.split("/").pop();
+      const destPath = parent ? `${parent}/${srcName}` : srcName;
+      
+      try {
+        if (operation === 'copy') {
+          // Copy file
+          const r = await fetch(`/files/${encodeURIComponent(srcPath)}`);
+          if (r.ok) {
+            const { content } = await r.json();
+            const createRes = await fetch(`/files/${encodeURIComponent(destPath)}`, {
+              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
+            });
+            if (createRes.ok) {
+              setStatus(`Copied to "${destPath}"`);
+            } else {
+              setStatus("Error: Failed to copy file");
+            }
+          } else {
+            setStatus("Error: Failed to read source file");
+          }
+        } else if (operation === 'cut') {
+          // Move (cut/paste)
+          if (srcPath !== destPath) {
+            await moveFile(srcPath, destPath);
+            // moveFile sets its own status, so we don't set another one here
+          }
+        }
+      } catch (e) {
+        setStatus("Error: " + e.message);
+      }
+      clipboardOperation = null;
       loadFileList();
       break;
     }
@@ -2187,6 +2350,9 @@ async function openSettings() {
 
 document.getElementById("btn-settings")?.addEventListener("click", () => openSettings());
 document.getElementById("btn-close-modal")?.addEventListener("click", () => document.getElementById("modal-overlay").classList.add("hidden"));
+document.getElementById("btn-open-theme-folder")?.addEventListener("click", async () => {
+  await fetch("/themes/open-folder", { method: "POST" });
+});
 
 document.getElementById("btn-save-config")?.addEventListener("click", async () => {
   const config = {
@@ -2798,6 +2964,22 @@ async function loadWorkspace() {
       el.textContent = workspaceName;
       el.title = workspacePath;
     }
+    
+    // Update sidebar header (Typora-style: show folder name in sidebar)
+    const sidebarHeader = document.getElementById("sidebar-header");
+    const sidebarFolderName = document.getElementById("sidebar-folder-name");
+    if (workspacePath) {
+      if (sidebarHeader) sidebarHeader.classList.remove("hidden");
+      if (sidebarFolderName) sidebarFolderName.textContent = workspaceName;
+    } else {
+      if (sidebarHeader) sidebarHeader.classList.add("hidden");
+    }
+    
+    // Update status bar folder display
+    const folderStatus = document.getElementById("folder-status");
+    if (folderStatus) {
+      folderStatus.textContent = workspacePath ? workspaceName : "";
+    }
   } catch {}
 }
 
@@ -2815,11 +2997,30 @@ async function setWorkspace(folderPath) {
   const data = await res.json();
   workspacePath = data.path;
   workspaceName = data.name;
+  
+  // Update workspace bar
   const el = document.getElementById("workspace-name");
   if (el) {
     el.textContent = workspaceName;
     el.title = workspacePath;
   }
+  
+  // Update sidebar header (Typora-style: show folder name in sidebar)
+  const sidebarHeader = document.getElementById("sidebar-header");
+  const sidebarFolderName = document.getElementById("sidebar-folder-name");
+  if (workspacePath) {
+    if (sidebarHeader) sidebarHeader.classList.remove("hidden");
+    if (sidebarFolderName) sidebarFolderName.textContent = workspaceName;
+  } else {
+    if (sidebarHeader) sidebarHeader.classList.add("hidden");
+  }
+  
+  // Update status bar folder display
+  const folderStatus = document.getElementById("folder-status");
+  if (folderStatus) {
+    folderStatus.textContent = workspacePath ? workspaceName : "";
+  }
+  
   // Reset editor state
   currentFile = "untitled.md";
   document.getElementById("filename-input").value = "untitled.md";

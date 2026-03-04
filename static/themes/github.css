@@ -1,0 +1,143 @@
+/*
+ * Typora-compatible theme: GitHub
+ * Place this file in static/themes/ folder
+ * Compatible with Typora theme format
+ */
+
+/* Base variables - these are used by Lectura but also compatible with Typora */
+:root {
+  --bg-color: #ffffff;
+  --text-color: #24292e;
+  --primary-color: #0366d6;
+  --secondary-color: #6a737d;
+  --border-color: #e1e4e8;
+  --code-bg: #f6f8fa;
+}
+
+/* When imported, these override the CSS variables */
+body {
+  --bg-app: #ffffff;
+  --bg-editor: #ffffff;
+  --bg-preview: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-sidebar: #f6f8fa;
+  --text: #24292e;
+  --text-muted: #6a737d;
+  --border: #e1e4e8;
+  --border-dim: #e1e4e8;
+  --accent: #0366d6;
+  --red: #cb2431;
+}
+
+/* Dark mode variant (when body has data-theme="dark") */
+body[data-theme="dark"],
+[data-theme="dark"] {
+  --bg-app: #0d1117;
+  --bg-editor: #0d1117;
+  --bg-preview: #0d1117;
+  --bg-surface: #161b22;
+  --bg-sidebar: #161b22;
+  --text: #c9d1d9;
+  --text-muted: #8b949e;
+  --border: #30363d;
+  --border-dim: #21262d;
+  --accent: #58a6ff;
+  --red: #f85149;
+}
+
+/* CodeMirror editor styling */
+.cm-editor {
+  background-color: var(--bg-editor) !important;
+}
+
+.cm-gutters {
+  background-color: var(--bg-sidebar) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+.cm-activeLineGutter {
+  background-color: var(--bg-surface) !important;
+}
+
+.cm-activeLine {
+  background: rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="dark"] .cm-activeLine {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Headings styling */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+/* Links */
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Code blocks */
+pre, code {
+  background-color: var(--code-bg);
+  border-radius: 3px;
+}
+
+pre {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid var(--border);
+  color: var(--text-muted);
+  padding-left: 1em;
+  margin-left: 0;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+}
+
+th {
+  background-color: var(--bg-sidebar);
+}
+
+/* Horizontal rules */
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+/* Lists */
+ul, ol {
+  padding-left: 2em;
+}
+
+/* Checkboxes (task lists) */
+input[type="checkbox"] {
+  margin-right: 0.5em;
+}
+
+/* Selection */
+::selection {
+  background-color: var(--accent);
+  color: white;
+}

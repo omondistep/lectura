@@ -123,6 +123,7 @@
         <button id="btn-toggle-sidebar" data-shortcut="Ctrl+Shift+L">Toggle Sidebar</button>
         <div class="menu-sep"></div>
         <button id="btn-focus" data-shortcut="F8">Focus Mode</button>
+        <button id="btn-typewriter" data-shortcut="F9">Typewriter Mode</button>
         <div class="menu-sep"></div>
         <button id="btn-toggle-terminal" data-shortcut="Ctrl+`">Toggle Terminal</button>
         <div class="menu-sep"></div>
@@ -228,6 +229,11 @@
     <!-- workspace label -->
     <div id="workspace-bar">
       <span id="workspace-name" title="Click to open folder">No folder open</span>
+    </div>
+
+    <!-- sidebar header with folder name ( Typora-style) -->
+    <div id="sidebar-header" class="hidden">
+      <span id="sidebar-folder-name"></span>
     </div>
 
     <!-- tree mode content -->
@@ -349,10 +355,14 @@
     <button data-action="new-file">New Note</button>
     <button data-action="new-folder">New Folder</button>
     <div class="ctx-sep"></div>
+    <button data-action="open-in-new-window">Open in New Window</button>
+    <div class="ctx-sep"></div>
     <button data-action="refresh">Refresh</button>
+    <button data-action="reveal">Show in Explorer</button>
   </div>
   <div id="menu-file" class="menu-section" style="display:none">
     <button data-action="open">Open</button>
+    <button data-action="open-in-new-window">Open in New Window</button>
     <div class="ctx-sep"></div>
     <button data-action="new-file">New Note</button>
     <button data-action="new-folder-from-file">New Folder</button>
@@ -361,19 +371,32 @@
     <button data-action="rename">Rename</button>
     <button data-action="move">Move…</button>
     <div class="ctx-sep"></div>
+    <button data-action="copy">Copy</button>
+    <button data-action="cut">Cut</button>
+    <button data-action="paste">Paste</button>
+    <div class="ctx-sep"></div>
     <button data-action="copy-path">Copy Path</button>
-    <button data-action="reveal">Reveal in File Manager</button>
+    <button data-action="reveal">Show in Explorer</button>
     <div class="ctx-sep"></div>
     <button data-action="delete" class="ctx-danger">Move to Trash</button>
   </div>
   <div id="menu-folder" class="menu-section" style="display:none">
+    <button data-action="open">Open</button>
+    <button data-action="open-in-new-window">Open in New Window</button>
+    <div class="ctx-sep"></div>
     <button data-action="new-file-in-folder">New Note Inside</button>
     <button data-action="new-subfolder">New Subfolder</button>
+    <button data-action="duplicate">Duplicate</button>
     <div class="ctx-sep"></div>
     <button data-action="rename">Rename</button>
+    <button data-action="move">Move…</button>
+    <div class="ctx-sep"></div>
+    <button data-action="copy">Copy</button>
+    <button data-action="cut">Cut</button>
+    <button data-action="paste">Paste</button>
     <div class="ctx-sep"></div>
     <button data-action="copy-path">Copy Path</button>
-    <button data-action="reveal">Reveal in File Manager</button>
+    <button data-action="reveal">Show in Explorer</button>
     <div class="ctx-sep"></div>
     <button data-action="delete" class="ctx-danger">Move to Trash</button>
   </div>
@@ -385,6 +408,9 @@
     <span id="vim-mode-indicator" class="vim-mode hidden"></span>
     <span id="doc-status" class="doc-status new" title="New document">● New</span>
     <span id="status-msg">Ready</span>
+  </div>
+  <div class="status-center">
+    <span id="folder-status" class="folder-status"></span>
   </div>
   <div class="status-right">
     <span id="reading-time">~1 min read</span>
@@ -398,6 +424,26 @@
   <div id="modal">
     <h2>Preferences</h2>
 
+    <h3>Appearance</h3>
+    <label>Theme
+      <select id="cfg-theme">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+        <option value="cobalt">Cobalt</option>
+        <option value="phantom">Phantom</option>
+        <option value="forest">Forest</option>
+        <option value="jade">Jade</option>
+        <option value="lavender">Lavender</option>
+        <option value="sunset">Sunset</option>
+        <option value="seraph">Seraph</option>
+        <option value="newsprint">Newsprint</option>
+        <option value="seniva">Seniva</option>
+      </select>
+    </label>
+    <button id="btn-open-theme-folder" class="secondary-btn">Open Theme Folder</button>
+    <p class="modal-hint">Drop .css theme files in the theme folder to add custom themes.</p>
+
+    <hr />
     <h3>GitHub</h3>
     <label>Repo URL
       <input type="text" id="cfg-repo-url" placeholder="https://github.com/user/notes.git" />
@@ -652,25 +698,31 @@
 
 <!-- ── EDITOR CONTEXT MENU ────────────────────────────────────────────────── -->
 <div id="editor-ctx-menu" class="context-menu hidden">
+  <button data-action="cut">Cut</button>
+  <button data-action="copy">Copy</button>
+  <button data-action="paste">Paste</button>
+  <div class="ctx-sep"></div>
   <button data-action="bold">Bold</button>
   <button data-action="italic">Italic</button>
   <button data-action="code">Inline Code</button>
   <button data-action="highlight">Highlight</button>
+  <button data-action="strikethrough">Strikethrough</button>
   <div class="ctx-sep"></div>
   <button data-action="h1">Heading 1</button>
   <button data-action="h2">Heading 2</button>
   <button data-action="h3">Heading 3</button>
-  <div class="ctx-sep"></div>
-  <button data-action="link">Hyperlink…</button>
-  <button data-action="image">Image…</button>
-  <button data-action="table">Table…</button>
+  <button data-action="h4">Heading 4</button>
   <div class="ctx-sep"></div>
   <button data-action="ul">Bullet List</button>
   <button data-action="ol">Numbered List</button>
   <button data-action="task">Task List</button>
   <button data-action="blockquote">Blockquote</button>
   <div class="ctx-sep"></div>
+  <button data-action="link">Hyperlink…</button>
+  <button data-action="image">Image…</button>
+  <button data-action="table">Table…</button>
   <button data-action="codeblock">Code Block</button>
+  <div class="ctx-sep"></div>
   <button data-action="diagram">Diagram…</button>
   <button data-action="graph">Graph Canvas…</button>
   <button data-action="flashcard">Flashcard</button>
