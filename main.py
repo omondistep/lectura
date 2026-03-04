@@ -107,7 +107,7 @@ GDRIVE_SECRETS_PATH = BASE / "gdrive_secrets.json"
 GDRIVE_TOKEN_PATH = BASE / ".gdrive_token.json"
 GDRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
-app = FastAPI(title="Lectura")
+app = FastAPI(title="Lectura", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
 
@@ -1110,4 +1110,4 @@ async def github_callback(code: str = None, state: str = None, error: str = None
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="warning")

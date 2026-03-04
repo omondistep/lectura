@@ -3,6 +3,11 @@ const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 
+// Disable GPU acceleration to prevent crashes on Linux
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+
 let mainWindow;
 let pythonProcess;
 
@@ -22,22 +27,28 @@ function startPython() {
 }
 
 function createWindow() {
+  console.log('[Electron] Creating window...');
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     title: 'Lectura',
+    show: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
   });
+  console.log('[Electron] Window created');
 
   // Hide native menu bar
   Menu.setApplicationMenu(null);
 
   setTimeout(() => {
+    console.log('[Electron] Loading URL...');
     mainWindow.loadURL('http://localhost:8000');
+    mainWindow.show();
+    mainWindow.focus();
   }, 3000);
 
   mainWindow.on('closed', () => {

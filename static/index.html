@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lectura</title>
+  <link rel="preload" href="/static/style.css" as="style">
+  <link rel="preload" href="/static/editor.js" as="script">
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="color-scheme" content="dark light">
 
@@ -23,11 +25,11 @@
     }
   }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js" defer></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" media="print" onload="this.media='all'">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
 </head>
 <body>
 <a href="#cm-editor" class="skip-link">Skip to editor</a>
@@ -133,6 +135,9 @@
     <div class="menu-dropdown" data-menu="theme">
       <button class="menu-trigger">Themes</button>
       <div class="menu-panel" id="theme-menu">
+        <button data-theme="light" class="theme-option">Light</button>
+        <button data-theme="dark" class="theme-option">Dark</button>
+        <div class="menu-sep"></div>
         <button data-theme="phantom" class="theme-option">Phantom</button>
         <button data-theme="cobalt" class="theme-option">Cobalt</button>
         <button data-theme="forest" class="theme-option">Forest</button>

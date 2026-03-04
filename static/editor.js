@@ -915,7 +915,7 @@ document.querySelectorAll(".theme-option").forEach(btn => {
   });
 });
 
-const savedTheme = localStorage.getItem("sc-theme") || "dark";
+const savedTheme = localStorage.getItem("sc-theme") || "light";
 applyTheme(savedTheme);
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1023,8 +1023,10 @@ async function populateFileList() {
     ul.appendChild(li);
     return;
   }
-  files.sort(naturalSort);
-  files.forEach(filePath => {
+  // files may be objects {path, preview} or strings — normalize
+  const paths = files.map(f => typeof f === "string" ? f : f.path);
+  paths.sort(naturalSort);
+  paths.forEach(filePath => {
     const li = document.createElement("li");
     const fileName = filePath.split("/").pop();
     const folder = filePath.includes("/") ? filePath.substring(0, filePath.lastIndexOf("/")) : "";
@@ -1081,13 +1083,29 @@ function updateOutline() {
 }
 
 // ── File tree loading ────────────────────────────────────────────────────────
+let _loadFileListTimer = null;
+let _loadFileListPromiseResolvers = [];
+
 async function loadFileList() {
-  const res = await fetch("/files");
-  const { files, folders } = await res.json();
-  const ul = document.getElementById("file-list");
-  ul.innerHTML = "";
-  const tree = buildTree(folders, files);
-  renderTree(tree, ul);
+  // Debounce: collapse rapid successive calls into a single fetch
+  return new Promise((resolve) => {
+    _loadFileListPromiseResolvers.push(resolve);
+    if (_loadFileListTimer) clearTimeout(_loadFileListTimer);
+    _loadFileListTimer = setTimeout(async () => {
+      _loadFileListTimer = null;
+      const resolvers = _loadFileListPromiseResolvers.splice(0);
+      try {
+        const res = await fetch("/files");
+        const { files, folders } = await res.json();
+        const ul = document.getElementById("file-list");
+        ul.innerHTML = "";
+        const tree = buildTree(folders, files);
+        renderTree(tree, ul);
+      } finally {
+        resolvers.forEach(r => r());
+      }
+    }, 150);
+  });
 }
 
 function buildTree(folders, files) {
@@ -2323,94 +2341,13 @@ function toggleTerminal() {
 function initializeTerminal(terminalId) {
   const terminal = document.getElementById(terminalId);
   if (!terminal) return;
-  
-  // Simple terminal simulation
+
   terminal.innerHTML = `
-    <div style="margin-bottom: 8px;">
-      <span style="color: #569cd6;">Lectura Terminal</span> - Type commands below
-    </div>
-    <div id="${terminalId}-output"></div>
-    <div style="display: flex; align-items: center;">
-      <span style="color: #4ec9b0;">$</span>
-      <input type="text" id="${terminalId}-input" style="
-        flex: 1;
-        background: transparent;
-        border: none;
-        color: white;
-        margin-left: 8px;
-        outline: none;
-        font-family: inherit;
-        font-size: inherit;
-      " placeholder="Enter command...">
+    <div style="padding: 12px; color: var(--text-muted, #8b949e);">
+      Terminal is not yet connected to a real shell.<br>
+      Use your system terminal for shell commands.
     </div>
   `;
-  
-  const input = document.getElementById(`${terminalId}-input`);
-  const output = document.getElementById(`${terminalId}-output`);
-  
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const command = input.value.trim();
-      if (command) {
-        executeCommand(command, output);
-        input.value = '';
-      }
-    }
-  });
-  
-  // Focus input when terminal is shown
-  setTimeout(() => input.focus(), 100);
-}
-
-function executeCommand(command, output) {
-  const commandLine = document.createElement('div');
-  commandLine.innerHTML = `<span style="color: #4ec9b0;">$</span> ${command}`;
-  commandLine.style.marginBottom = '4px';
-  output.appendChild(commandLine);
-  
-  const result = document.createElement('div');
-  result.style.marginBottom = '8px';
-  result.style.color = '#cccccc';
-  
-  // Simple command simulation
-  switch (command.toLowerCase()) {
-    case 'help':
-      result.innerHTML = `Available commands:
-• help - Show this help
-• clear - Clear terminal
-• pwd - Show current directory
-• ls - List files
-• git status - Show git status
-• echo [text] - Echo text`;
-      break;
-    case 'clear':
-      output.innerHTML = '';
-      return;
-    case 'pwd':
-      result.textContent = '/home/user/notes';
-      break;
-    case 'ls':
-      result.innerHTML = `<span style="color: #569cd6;">notes/</span>
-<span style="color: #4ec9b0;">README.md</span>
-<span style="color: #4ec9b0;">document.md</span>`;
-      break;
-    case 'git status':
-      result.innerHTML = `On branch main
-Your branch is up to date with 'origin/main'.
-
-Changes not staged for commit:
-  <span style="color: #f39c12;">modified:   ${currentFile || 'document.md'}</span>`;
-      break;
-    default:
-      if (command.startsWith('echo ')) {
-        result.textContent = command.substring(5);
-      } else {
-        result.innerHTML = `<span style="color: #f44747;">Command not found: ${command}</span>`;
-      }
-  }
-  
-  output.appendChild(result);
-  output.scrollTop = output.scrollHeight;
 }
 
 // Terminal toggle event listeners
@@ -2432,22 +2369,27 @@ document.addEventListener('keydown', (e) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // GITHUB INTEGRATION
 // ═══════════════════════════════════════════════════════════════════════════════
-let githubToken = localStorage.getItem('github-token');
+let githubToken = sessionStorage.getItem('github-token');
 let githubUser = null;
 let currentRepo = null;
 
 // GitHub OAuth flow
 document.getElementById('btn-github-signin')?.addEventListener('click', async () => {
   try {
-    // GitHub OAuth App credentials (set these as environment variables)
-    const CLIENT_ID = 'Ov23liABCDEFGHIJKLMN'; // Replace with your actual GitHub App client ID
+    // Fetch client ID from the backend (configured via GITHUB_CLIENT_ID env var)
+    const idRes = await fetch('/auth/github/client-id');
+    if (!idRes.ok) {
+      setStatus('GitHub OAuth not configured — set GITHUB_CLIENT_ID env var', true);
+      return;
+    }
+    const { client_id: CLIENT_ID } = await idRes.json();
     const REDIRECT_URI = `${window.location.origin}/auth/github/callback`;
     const SCOPE = 'repo,user:email';
-    
+
     // Generate state for security
     const state = Math.random().toString(36).substring(2, 15);
     localStorage.setItem('github-oauth-state', state);
-    
+
     // Build OAuth URL
     const authUrl = `https://github.com/login/oauth/authorize?` +
       `client_id=${CLIENT_ID}&` +
@@ -2524,7 +2466,7 @@ async function handleGitHubCallback(code, state) {
     
     githubToken = access_token;
     githubUser = user;
-    localStorage.setItem('github-token', access_token);
+    sessionStorage.setItem('github-token', access_token);
     
     updateGitPanel();
     setStatus(`Signed in as ${user.login}`);
@@ -2538,46 +2480,61 @@ document.getElementById('btn-github-signout')?.addEventListener('click', () => {
   githubToken = null;
   githubUser = null;
   currentRepo = null;
-  localStorage.removeItem('github-token');
+  sessionStorage.removeItem('github-token');
   updateGitPanel();
   setStatus('Signed out of GitHub');
 });
 
-// Commit changes
+// Commit changes — uses the publish endpoint to actually push to GitHub
 document.getElementById('btn-git-commit')?.addEventListener('click', async () => {
   const message = document.getElementById('git-commit-message').value.trim();
   if (!message) {
     setStatus('Commit message required', true);
     return;
   }
-  
+
+  if (!currentFile || currentFile === 'untitled.md') {
+    setStatus('Save the file first', true);
+    return;
+  }
+
   try {
-    // In a real implementation, this would commit files to the repository
-    setStatus('Committing changes...');
-    
-    // Simulate commit
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    document.getElementById('git-commit-message').value = '';
-    updateGitStatus();
-    setStatus('Changes committed');
+    setStatus('Publishing to GitHub...');
+    await saveFile(true);
+    const res = await fetch(`/publish/${encodeURIComponent(currentFile)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: getContent(), message }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('git-commit-message').value = '';
+      updateGitStatus();
+      setStatus(`Published ${currentFile} to GitHub`);
+    } else {
+      setStatus(data.detail || 'Publish failed', true);
+    }
   } catch (error) {
-    setStatus('Commit failed', true);
+    setStatus('Publish failed', true);
   }
 });
 
-// Push changes
+// Push all — uses the bulk publish endpoint
 document.getElementById('btn-git-push')?.addEventListener('click', async () => {
   try {
-    setStatus('Pushing to GitHub...');
-    
-    // Simulate push
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    updateGitStatus();
-    setStatus('Pushed to GitHub');
+    setStatus('Publishing all notes...');
+    const res = await fetch('/publish', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      let msg = `Published ${data.published} notes`;
+      if (data.results?.github) msg += ` — GitHub: ${data.results.github}`;
+      updateGitStatus();
+      setStatus(msg);
+    } else {
+      setStatus(data.detail || 'Publish failed', true);
+    }
   } catch (error) {
-    setStatus('Push failed', true);
+    setStatus('Publish failed', true);
   }
 });
 
@@ -2658,7 +2615,7 @@ if (githubToken) {
     updateGitPanel();
   })
   .catch(() => {
-    localStorage.removeItem('github-token');
+    sessionStorage.removeItem('github-token');
     githubToken = null;
   });
 }
@@ -2724,20 +2681,8 @@ function saveEditorHistory() {
 }
 
 function restoreEditorHistory() {
-  try {
-    const saved = localStorage.getItem(HISTORY_KEY);
-    if (saved) {
-      const h = JSON.parse(saved);
-      if (h.content && (h.file === currentFile || currentFile === "untitled.md")) {
-        setContent(h.content);
-        if (h.file && h.file !== "untitled.md") {
-          currentFile = h.file;
-          document.getElementById("filename-input").value = currentFile.split("/").pop();
-        }
-        setStatus("Restored previous session");
-      }
-    }
-  } catch (e) {}
+  // Disabled - don't auto-restore files on launch (Typora behavior)
+  return;
 }
 
 function scheduleHistorySave() {
@@ -2750,7 +2695,8 @@ window.addEventListener("beforeunload", (e) => {
   if (isDirty) { e.preventDefault(); e.returnValue = ""; }
 });
 
-setTimeout(restoreEditorHistory, 100);
+// Disabled auto-restore
+// setTimeout(restoreEditorHistory, 100);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLOUD BROWSER
@@ -2811,10 +2757,7 @@ setInterval(() => {
   }
 }, 60000);
 
-setInterval(async () => {
-  if (!navigator.onLine) return;
-  try { await fetch("/publish", { method: "POST" }); } catch (e) {}
-}, 600000);
+// Auto-publish removed — publishing should only happen on explicit user action
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ELECTRON
@@ -2975,4 +2918,5 @@ document.getElementById("folder-open-btn")?.addEventListener("click", () => {
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════════
 loadWorkspace();
-loadFileList();
+// Lazy load file list after UI is ready
+setTimeout(() => loadFileList(), 100);
