@@ -241,11 +241,6 @@ function markDirty() {
 let previewDebounceTimer = null;
 const PREVIEW_DEBOUNCE_DELAY = 150;
 
-// Pagination state
-let currentPage = 1;
-let totalPages = 1;
-let fullContent = '';
-
 function renderPreview() {
   clearTimeout(previewDebounceTimer);
   previewDebounceTimer = setTimeout(doRenderPreview, PREVIEW_DEBOUNCE_DELAY);
@@ -255,9 +250,6 @@ function doRenderPreview() {
   const content = getContent();
   const processed = preprocessFlashcards(content);
   const html = md.render(processed);
-  
-  fullContent = html;
-  currentPage = 1;
   
   const previewEl = document.getElementById("preview");
   previewEl.innerHTML = html;
@@ -280,9 +272,6 @@ function doRenderPreview() {
     renderGraphBlocks(previewEl);
   })();
   
-  // Calculate pages after rendering
-  setTimeout(() => calculatePages(), 100);
-  
   updateWordCount();
   updateReadingTime();
   updateDocStatus();
@@ -292,35 +281,6 @@ function doRenderPreview() {
     clearTimeout(outlineTimer);
     outlineTimer = setTimeout(updateOutline, 300);
   }
-}
-
-function calculatePages() {
-  const previewEl = document.getElementById("preview");
-  const contentHeight = previewEl.scrollHeight;
-  const pageHeight = 1100;
-  
-  totalPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
-  
-  // Add visual page break indicators
-  const existingBreaks = previewEl.querySelectorAll('.page-break-indicator');
-  existingBreaks.forEach(br => br.remove());
-  
-  for (let i = 1; i < totalPages; i++) {
-    const indicator = document.createElement('div');
-    indicator.className = 'page-break-indicator';
-    indicator.style.top = `${i * pageHeight}px`;
-    indicator.innerHTML = `<span>Page ${i}</span>`;
-    previewEl.appendChild(indicator);
-  }
-  
-  updatePaginationUI();
-}
-
-function updatePaginationUI() {
-  document.getElementById('current-page').textContent = currentPage;
-  document.getElementById('total-pages').textContent = totalPages;
-  document.getElementById('prev-page').disabled = currentPage === 1;
-  document.getElementById('next-page').disabled = currentPage === totalPages;
 }
 
 function goToPage(pageNum) {
@@ -1351,9 +1311,22 @@ function updateOutline() {
     li.textContent = h.text;
     li.title = h.text;
     li.addEventListener("click", () => {
+      // Scroll in editor
       const line = view.state.doc.lineAt(h.offset);
       view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
       view.focus();
+      
+      // Also scroll in preview if visible
+      const previewPane = document.getElementById("preview-pane");
+      if (previewPane && !previewPane.classList.contains("hidden-pane")) {
+        const preview = document.getElementById("preview");
+        const headings = preview.querySelectorAll("h1, h2, h3, h4, h5, h6");
+        const targetHeading = Array.from(headings).find(el => el.textContent.trim() === h.text);
+        if (targetHeading) {
+          targetHeading.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+      
       ol.querySelectorAll("li").forEach(el => el.classList.remove("outline-active"));
       li.classList.add("outline-active");
     });
@@ -1454,7 +1427,14 @@ function renderTree(node, container) {
     header.appendChild(arrow);
     header.appendChild(icon);
     header.appendChild(nameSpan);
-    header.addEventListener("click", () => toggleFolderExpand(folderPath));
+    header.addEventListener("click", () => {
+      toggleFolderExpand(folderPath);
+      // Update bottom to show folder name
+      const fileNameEl = document.getElementById("bottom-file-name");
+      if (fileNameEl) {
+        fileNameEl.textContent = folderName;
+      }
+    });
     li.appendChild(header);
 
     header.addEventListener("contextmenu", (e) => {
@@ -1614,6 +1594,16 @@ async function openFile(name) {
   const displayPath = workspaceName ? `${workspaceName}/${name}` : name;
   setStatus(`Opened ${displayPath}`);
   revealInSidebar(name);
+  
+  // Update bottom file name
+  updateBottomFileName();
+  
+  // Add to recent files
+  const recent = JSON.parse(localStorage.getItem("lectura-recent-files") || "[]");
+  const filtered = recent.filter(f => f !== name);
+  filtered.unshift(name);
+  localStorage.setItem("lectura-recent-files", JSON.stringify(filtered.slice(0, 20)));
+  
   // Mark active in tree
   document.querySelectorAll("li.tree-file").forEach(el => {
     el.classList.toggle("active-file", el.dataset.filePath === currentFile);
@@ -1708,6 +1698,7 @@ document.getElementById("btn-new").addEventListener("click", async () => {
         const fileName = filePath.split("/").pop();
         document.getElementById("filename-input").value = fileName;
         setContent("");
+        updateBottomFileName();
         await loadFileList();
         setStatus(`Created ${fileName}`);
       } else {
@@ -1743,6 +1734,7 @@ document.getElementById("btn-new").addEventListener("click", async () => {
     setContent("");
     isDirty = false;
     updateDirtyBadge();
+    updateBottomFileName();
     switchToEditorView();
     await loadFileList();
     revealInSidebar(fullPath);
@@ -3546,6 +3538,158 @@ document.getElementById("folder-open-btn")?.addEventListener("click", () => {
   closeFolderDialog();
 });
 
+// ── Bottom sidebar context menus ─────────────────────────────────────────────
+function showFolderContextMenu(e) {
+  const menu = document.createElement("div");
+  menu.className = "context-menu";
+  menu.style.position = "fixed";
+  menu.style.left = e.clientX + "px";
+  menu.style.top = e.clientY + "px";
+  
+  menu.innerHTML = `
+    <div class="context-menu-item" data-action="new-file">New File</div>
+    <div class="context-menu-item" data-action="search">Search</div>
+    <div class="context-menu-item" data-action="reveal">Reveal in File Explorer</div>
+    <div class="context-menu-sep"></div>
+    <div class="context-menu-item" data-action="open-folder">Open Folder...</div>
+    <div class="context-menu-item" data-action="refresh">Refresh Folder</div>
+  `;
+  
+  document.body.appendChild(menu);
+  
+  menu.addEventListener("click", (ev) => {
+    const action = ev.target.dataset.action;
+    if (action === "new-file") newFile();
+    else if (action === "search") document.getElementById("search-input")?.focus();
+    else if (action === "reveal") revealInExplorer();
+    else if (action === "open-folder") openFolderDialog();
+    else if (action === "refresh") loadFileList();
+    menu.remove();
+  });
+  
+  setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
+}
+
+function showFolderOptionsMenu(e) {
+  const menu = document.createElement("div");
+  menu.className = "context-menu";
+  const rect = e.target.closest("button").getBoundingClientRect();
+  menu.style.position = "fixed";
+  menu.style.left = rect.left + "px";
+  menu.style.top = (rect.bottom + 4) + "px";
+  
+  menu.innerHTML = `
+    <div class="context-menu-item" data-action="pin">Pin Folder</div>
+    <div class="context-menu-item" data-action="delete">Delete Folder</div>
+  `;
+  
+  document.body.appendChild(menu);
+  
+  menu.addEventListener("click", (ev) => {
+    const action = ev.target.dataset.action;
+    if (action === "pin") {
+      showToast("Folder pinned");
+    } else if (action === "delete") {
+      if (confirm("Delete this folder and all its contents?")) {
+        showToast("Folder deleted");
+      }
+    }
+    menu.remove();
+  });
+  
+  setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
+}
+
+function revealInExplorer() {
+  if (!currentFile) {
+    showToast("No file selected");
+    return;
+  }
+  fetch("/reveal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: currentFile })
+  }).then(() => {
+    showToast("Opened in file explorer");
+  }).catch(() => {
+    showToast("Could not open file explorer");
+  });
+}
+
+function makeFileNameEditable(fileEl, filePath, currentName) {
+  const nameSpan = fileEl.querySelector(".file-name");
+  if (!nameSpan) return;
+  
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "file-name-input";
+  input.value = currentName.replace(/\.md$/, "");
+  input.style.cssText = "background: var(--bg-input); border: 1px solid var(--accent); padding: 2px 4px; border-radius: 3px; font-size: inherit; width: 100%;";
+  
+  nameSpan.replaceWith(input);
+  input.focus();
+  input.select();
+  
+  const finishEdit = async () => {
+    const newName = input.value.trim();
+    if (!newName) {
+      input.replaceWith(nameSpan);
+      return;
+    }
+    
+    const finalName = newName.endsWith(".md") ? newName : newName + ".md";
+    if (finalName === currentName) {
+      input.replaceWith(nameSpan);
+      return;
+    }
+    
+    // Rename the file
+    const parent = filePath.includes("/") ? filePath.substring(0, filePath.lastIndexOf("/")) : "";
+    const newPath = parent ? `${parent}/${finalName}` : finalName;
+    
+    const r = await fetch(`/files/${encodeURIComponent(filePath)}`);
+    if (!r.ok) {
+      input.replaceWith(nameSpan);
+      showToast("Failed to rename");
+      return;
+    }
+    
+    const { content } = await r.json();
+    const createRes = await fetch(`/files/${encodeURIComponent(newPath)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+    
+    if (!createRes.ok) {
+      input.replaceWith(nameSpan);
+      showToast("Failed to rename");
+      return;
+    }
+    
+    await fetch(`/files/${encodeURIComponent(filePath)}`, { method: "DELETE" });
+    
+    if (currentFile === filePath) {
+      currentFile = newPath;
+      document.getElementById("filename-input").value = finalName;
+      updateBottomFileName();
+    }
+    
+    await loadFileList();
+    showToast(`Renamed to "${finalName}"`);
+  };
+  
+  input.addEventListener("blur", finishEdit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      finishEdit();
+    } else if (e.key === "Escape") {
+      input.replaceWith(nameSpan);
+    }
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3567,22 +3711,67 @@ applyPreferences();
 document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", toggleSidebar);
 document.getElementById("btn-bottom-toggle-editor")?.addEventListener("click", () => {
   const editorPane = document.getElementById("editor-pane");
-  editorPane.classList.toggle("hidden-pane");
-  document.body.classList.toggle("editor-hidden", editorPane.classList.contains("hidden-pane"));
-});
-
-document.getElementById("btn-bottom-new-file")?.addEventListener("click", () => {
-  closeAllMenus();
-  newFile();
-});
-
-document.getElementById("btn-bottom-folder-menu")?.addEventListener("click", (e) => {
-  e.preventDefault();
-  const folderDialog = document.getElementById("folder-dialog");
-  if (folderDialog && !folderDialog.classList.contains("hidden")) {
-    closeFolderDialog();
+  const previewPane = document.getElementById("preview-pane");
+  
+  // Toggle between editor-only and preview-only
+  if (editorPane.classList.contains("hidden-pane")) {
+    // Currently showing preview-only, switch to editor-only
+    editorPane.classList.remove("hidden-pane");
+    previewPane.classList.add("hidden-pane");
+  } else if (previewPane.classList.contains("hidden-pane")) {
+    // Currently showing editor-only, switch to preview-only
+    editorPane.classList.add("hidden-pane");
+    previewPane.classList.remove("hidden-pane");
   } else {
-    openFolderDialog();
+    // Currently showing both, switch to preview-only
+    editorPane.classList.add("hidden-pane");
+  }
+});
+
+document.getElementById("btn-bottom-new-file")?.addEventListener("click", async () => {
+  closeAllMenus();
+  
+  // Create untitled file inline
+  const folder = currentFolder || "";
+  let counter = 1;
+  let fileName = "untitled.md";
+  let fullPath = folder ? `${folder}/${fileName}` : fileName;
+  
+  // Find unique name
+  const res = await fetch("/files");
+  const { files } = await res.json();
+  while (files.some(f => (typeof f === 'string' ? f : f.path) === fullPath)) {
+    fileName = `untitled-${counter}.md`;
+    fullPath = folder ? `${folder}/${fileName}` : fileName;
+    counter++;
+  }
+  
+  // Create empty file
+  const r = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: "" })
+  });
+  
+  if (r.ok) {
+    currentFile = fullPath;
+    setContent("");
+    isDirty = false;
+    updateDirtyBadge();
+    updateBottomFileName();
+    await loadFileList();
+    
+    // Find the file in sidebar and make it editable
+    setTimeout(() => {
+      const fileEl = document.querySelector(`li.tree-file[data-file-path="${fullPath}"]`);
+      if (fileEl) {
+        fileEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        const nameSpan = fileEl.querySelector(".file-name");
+        if (nameSpan) {
+          makeFileNameEditable(fileEl, fullPath, fileName);
+        }
+      }
+    }, 100);
   }
 });
 
@@ -3612,11 +3801,96 @@ function updateBottomFolderName() {
   }
 }
 
+function updateBottomFileName() {
+  const fileNameEl = document.getElementById("bottom-file-name");
+  if (fileNameEl) {
+    if (currentFile) {
+      const fileName = currentFile.split("/").pop();
+      fileNameEl.textContent = fileName;
+    } else {
+      fileNameEl.textContent = "No file open";
+    }
+  }
+}
+
+function showRecentLocationsMenu(e) {
+  const menu = document.createElement("div");
+  menu.className = "context-menu";
+  const rect = e.target.closest("button").getBoundingClientRect();
+  menu.style.position = "fixed";
+  menu.style.right = (window.innerWidth - rect.right) + "px";
+  menu.style.bottom = (window.innerHeight - rect.top + 4) + "px";
+  
+  // Get recent files from localStorage
+  const recentFiles = JSON.parse(localStorage.getItem("lectura-recent-files") || "[]");
+  
+  let menuHTML = '<div class="context-menu-section-title">Recent Locations</div>';
+  
+  if (recentFiles.length > 0) {
+    recentFiles.slice(0, 10).forEach((file, index) => {
+      const fileName = file.split("/").pop();
+      menuHTML += `
+        <div class="context-menu-item recent-location-item" data-file="${file}" title="${file}">
+          <span class="recent-file-name">${fileName}</span>
+          <div class="recent-actions">
+            <button class="recent-pin-btn" data-file="${file}" title="Pin">📍</button>
+            <button class="recent-delete-btn" data-file="${file}" title="Remove">✕</button>
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    menuHTML += '<div class="context-menu-item" style="opacity: 0.5">No recent files</div>';
+  }
+  
+  menuHTML += '<div class="context-menu-sep"></div>';
+  menuHTML += '<div class="context-menu-item" data-action="clear-recent">Clear Recent</div>';
+  
+  menu.innerHTML = menuHTML;
+  document.body.appendChild(menu);
+  
+  menu.addEventListener("click", (ev) => {
+    const item = ev.target.closest(".context-menu-item");
+    if (!item) return;
+    
+    if (item.classList.contains("recent-location-item")) {
+      const file = item.dataset.file;
+      if (file) openFile(file);
+    } else if (item.dataset.action === "clear-recent") {
+      localStorage.setItem("lectura-recent-files", "[]");
+      showToast("Recent files cleared");
+    }
+    menu.remove();
+  });
+  
+  menu.querySelectorAll(".recent-pin-btn").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      showToast("File pinned");
+    });
+  });
+  
+  menu.querySelectorAll(".recent-delete-btn").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const file = btn.dataset.file;
+      const recent = JSON.parse(localStorage.getItem("lectura-recent-files") || "[]");
+      const filtered = recent.filter(f => f !== file);
+      localStorage.setItem("lectura-recent-files", JSON.stringify(filtered));
+      menu.remove();
+      showToast("Removed from recent");
+    });
+  });
+  
+  setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
+}
+
 loadWorkspace();
 // Lazy load file list after UI is ready
 setTimeout(() => {
   loadFileList();
   updateBottomFolderName();
+  updateBottomFileName();
   switchSidebarMode("files");
 }, 100);
 // Initialize Mermaid early
