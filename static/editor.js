@@ -240,6 +240,11 @@ function markDirty() {
 let previewDebounceTimer = null;
 const PREVIEW_DEBOUNCE_DELAY = 150;
 
+// Pagination state
+let currentPage = 1;
+let totalPages = 1;
+let fullContent = '';
+
 function renderPreview() {
   clearTimeout(previewDebounceTimer);
   previewDebounceTimer = setTimeout(doRenderPreview, PREVIEW_DEBOUNCE_DELAY);
@@ -249,6 +254,10 @@ function doRenderPreview() {
   const content = getContent();
   const processed = preprocessFlashcards(content);
   const html = md.render(processed);
+  
+  fullContent = html;
+  currentPage = 1;
+  
   const previewEl = document.getElementById("preview");
   previewEl.innerHTML = html;
 
@@ -262,9 +271,17 @@ function doRenderPreview() {
   });
 
   renderLatex(previewEl);
-  renderMermaidDiagrams(previewEl);
-  renderEconGraphs(previewEl);
-  renderGraphBlocks(previewEl);
+  
+  // Render diagrams asynchronously
+  (async () => {
+    await renderMermaidDiagrams(previewEl);
+    renderEconGraphs(previewEl);
+    renderGraphBlocks(previewEl);
+  })();
+  
+  // Calculate pages after rendering
+  setTimeout(() => calculatePages(), 100);
+  
   updateWordCount();
   updateReadingTime();
   updateDocStatus();
@@ -275,6 +292,82 @@ function doRenderPreview() {
     outlineTimer = setTimeout(updateOutline, 300);
   }
 }
+
+function calculatePages() {
+  const previewEl = document.getElementById("preview");
+  const contentHeight = previewEl.scrollHeight;
+  const pageHeight = 1100;
+  
+  totalPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
+  
+  // Add visual page break indicators
+  const existingBreaks = previewEl.querySelectorAll('.page-break-indicator');
+  existingBreaks.forEach(br => br.remove());
+  
+  for (let i = 1; i < totalPages; i++) {
+    const indicator = document.createElement('div');
+    indicator.className = 'page-break-indicator';
+    indicator.style.top = `${i * pageHeight}px`;
+    indicator.innerHTML = `<span>Page ${i}</span>`;
+    previewEl.appendChild(indicator);
+  }
+  
+  updatePaginationUI();
+}
+
+function updatePaginationUI() {
+  document.getElementById('current-page').textContent = currentPage;
+  document.getElementById('total-pages').textContent = totalPages;
+  document.getElementById('prev-page').disabled = currentPage === 1;
+  document.getElementById('next-page').disabled = currentPage === totalPages;
+}
+
+function goToPage(pageNum) {
+  if (pageNum < 1 || pageNum > totalPages) return;
+  currentPage = pageNum;
+  
+  const previewEl = document.getElementById("preview");
+  const pageHeight = 1100;
+  previewEl.scrollTop = (currentPage - 1) * pageHeight;
+  
+  updatePaginationUI();
+}
+
+// Pagination event listeners
+document.getElementById('prev-page')?.addEventListener('click', () => goToPage(currentPage - 1));
+document.getElementById('next-page')?.addEventListener('click', () => goToPage(currentPage + 1));
+
+// Keyboard navigation for pages
+document.addEventListener('keydown', (e) => {
+  const previewPane = document.getElementById('preview-pane');
+  if (!previewPane || previewPane.classList.contains('hidden-pane')) return;
+  
+  // Only handle arrow keys when not in editor
+  if (document.activeElement.closest('.cm-editor')) return;
+  
+  if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    goToPage(currentPage - 1);
+  } else if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    goToPage(currentPage + 1);
+  }
+});
+
+// Update current page on scroll
+let scrollTimeout;
+document.getElementById('preview')?.addEventListener('scroll', (e) => {
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    const scrollTop = e.target.scrollTop;
+    const pageHeight = 1100;
+    const newPage = Math.floor(scrollTop / pageHeight) + 1;
+    if (newPage !== currentPage && newPage <= totalPages) {
+      currentPage = newPage;
+      updatePaginationUI();
+    }
+  }, 100);
+});
 
 function renderLatex(container) {
   if (!window.katex) return;
@@ -613,6 +706,12 @@ const ACTIONS = {
   highlight: () => wrapSelection("=="),
   strikethrough: () => wrapSelection("~~"),
   underline: () => wrapSelection("<u>", "</u>"),
+  superscript: () => wrapSelection("<sup>", "</sup>"),
+  subscript: () => wrapSelection("<sub>", "</sub>"),
+  hr: () => insertBlock("\n---\n"),
+  toc: () => insertBlock("\n[TOC]\n"),
+  "increase-heading": () => increaseHeading(),
+  "decrease-heading": () => decreaseHeading(),
   table: () => openTableModal(),
   diagram: () => openDiagramModal(),
   flashcard: () => insertSnippet(":::qa\nQuestion goes here\n:::\nAnswer goes here\n:::"),
@@ -823,6 +922,7 @@ const customKeymap = keymap.of([
   { key: "Ctrl-\\", run: () => { clearFormat(); return true; } },
   { key: "Ctrl-Shift-l", run: () => { toggleSidebar(); return true; } },
   { key: "Ctrl-/", run: () => { togglePreview(); return true; } },
+  { key: "F7", run: () => { togglePreview(); return true; } },
   { key: "F8", run: () => { toggleFocusMode(); return true; } },
   { key: "F9", run: () => { toggleTypewriter(); return true; } },
   { key: "Ctrl-=", run: () => { increaseHeading(); return true; } },
@@ -837,7 +937,7 @@ const customKeymap = keymap.of([
 
 const view = new EditorView({
   state: EditorState.create({
-    doc: "# Welcome to Lectura\n\nStart typing your notes here...\n",
+    doc: "# Welcome to Lectura\n\n**Click anywhere on this page to start editing**, or press **F7** to switch between reader and editor views.\n\nYou can also:\n- Press **Ctrl+N** to create a new note\n- Press **Ctrl+O** to open an existing note\n- Use the sidebar to browse your notes\n\nStart typing your notes here...\n",
     extensions: [
       vimCompartment.of(vimEnabled ? vim() : []),
       history(),
@@ -856,6 +956,7 @@ const view = new EditorView({
       customKeymap,
       updateListener,
       EditorView.lineWrapping,
+      EditorView.contentAttributes.of({ spellcheck: "true", autocorrect: "on", autocapitalize: "on" }),
     ],
   }),
   parent: document.getElementById("cm-editor"),
@@ -910,16 +1011,57 @@ const themeConfig = {
   jade: { cmTheme: oneDark, label: "Jade" },
   lavender: { cmTheme: oneDark, label: "Lavender" },
   sunset: { cmTheme: oneDark, label: "Sunset" },
+  github: { cmTheme: lightCmTheme, label: "GitHub" },
+  nord: { cmTheme: oneDark, label: "Nord" },
+  drake: { cmTheme: oneDark, label: "Drake" },
+  pie: { cmTheme: lightCmTheme, label: "Pie" },
+  ursine: { cmTheme: oneDark, label: "Ursine" },
+  lapis: { cmTheme: oneDark, label: "Lapis" },
+  vue: { cmTheme: lightCmTheme, label: "Vue" },
 };
 
 let currentTheme = "dark";
 let loadedThemes = {}; // Store dynamically loaded themes
 
+// Themes that have CSS files
+const themesWithCSS = ['cobalt', 'seniva', 'github', 'nord', 'drake', 'pie', 'ursine', 'lapis', 'vue'];
+
 // Apply theme - handles both built-in and loaded themes
 async function applyTheme(themeName) {
-  // Check if it's a loaded (external) theme first - external themes should override built-in
-  if (loadedThemes[themeName]) {
-    // It's a loaded theme from the themes folder
+  // Check if it's a built-in theme first
+  if (themeConfig[themeName]) {
+    currentTheme = themeName;
+    localStorage.setItem("sc-theme", themeName);
+    
+    // Check if this theme has a CSS file
+    if (themesWithCSS.includes(themeName)) {
+      // Load the theme CSS
+      let link = document.getElementById('loaded-theme-css');
+      if (!link) {
+        link = document.createElement('link');
+        link.id = 'loaded-theme-css';
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+      }
+      link.href = `/static/themes/${themeName}.css`;
+      
+      // Determine if dark or light based on theme name patterns
+      const isDark = themeName.toLowerCase().includes('dark') || 
+                     ['nord', 'phantom', 'cobalt', 'forest', 'jade', 'lavender', 'sunset', 'drake', 'ursine', 'lapis'].includes(themeName.toLowerCase());
+      const themeAttr = isDark ? 'dark' : 'light';
+      document.documentElement.setAttribute("data-theme", themeAttr);
+    } else {
+      // It's a built-in theme without CSS file (uses inline styles)
+      document.documentElement.setAttribute("data-theme", themeName);
+      // Remove any loaded theme CSS
+      const loadedThemeLink = document.getElementById('loaded-theme-css');
+      if (loadedThemeLink) loadedThemeLink.remove();
+    }
+    
+    // Apply appropriate CodeMirror theme
+    view.dispatch({ effects: themeCompartment.reconfigure(themeConfig[themeName].cmTheme) });
+  } else if (loadedThemes[themeName]) {
+    // It's a loaded external theme
     currentTheme = themeName;
     localStorage.setItem("sc-theme", themeName);
     
@@ -934,23 +1076,13 @@ async function applyTheme(themeName) {
     link.href = `/static/themes/${themeName}.css`;
     
     // Determine if dark or light based on theme name patterns
-    const isDark = themeName.toLowerCase().includes('dark') || 
-                   ['nord', 'phantom', 'cobalt', 'forest', 'jade', 'lavender', 'sunset'].includes(themeName.toLowerCase());
+    const isDark = themeName.toLowerCase().includes('dark');
     const themeAttr = isDark ? 'dark' : 'light';
     document.documentElement.setAttribute("data-theme", themeAttr);
     
     // Apply appropriate CodeMirror theme
     const cmTheme = isDark ? oneDark : lightCmTheme;
     view.dispatch({ effects: themeCompartment.reconfigure(cmTheme) });
-  } else if (themeConfig[themeName]) {
-    // It's a built-in theme
-    currentTheme = themeName;
-    document.documentElement.setAttribute("data-theme", themeName);
-    view.dispatch({ effects: themeCompartment.reconfigure(themeConfig[themeName].cmTheme) });
-    localStorage.setItem("sc-theme", themeName);
-    // Remove any loaded theme CSS
-    const loadedThemeLink = document.getElementById('loaded-theme-css');
-    if (loadedThemeLink) loadedThemeLink.remove();
   }
   
   // Update checkmark in menu
@@ -1080,7 +1212,9 @@ function saveExpandedFolders() {
 loadExpandedFolders();
 
 function toggleSidebar() {
-  document.getElementById("sidebar").classList.toggle("collapsed");
+  const sidebar = document.getElementById("sidebar");
+  sidebar.classList.toggle("collapsed");
+  document.body.classList.toggle("sidebar-collapsed", sidebar.classList.contains("collapsed"));
 }
 
 document.getElementById("btn-sidebar").addEventListener("click", toggleSidebar);
@@ -1337,6 +1471,41 @@ function renderTree(node, container) {
     li.appendChild(fileContent);
 
     li.addEventListener("click", () => openFile(file.path));
+    
+    // Double-click to rename
+    li.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      const displayName = file.name.replace(/\.md$/, "");
+      const newName = prompt("Rename file:", displayName);
+      if (!newName || newName === displayName) return;
+      
+      // Use the rename logic from context menu
+      (async () => {
+        const r = await fetch(`/files/${encodeURIComponent(file.path)}`);
+        if (!r.ok) { setStatus("Failed to read file", true); return; }
+        const { content } = await r.json();
+        const parent = file.path.includes("/") ? file.path.substring(0, file.path.lastIndexOf("/")) : "";
+        const finalName = newName.endsWith(".md") ? newName : newName + ".md";
+        const newFull = parent ? `${parent}/${finalName}` : finalName;
+        
+        const createRes = await fetch(`/files/${encodeURIComponent(newFull)}`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
+        });
+        
+        if (!createRes.ok) { setStatus("Failed to create renamed file", true); return; }
+        
+        await fetch(`/files/${encodeURIComponent(file.path)}`, { method: "DELETE" });
+        
+        if (currentFile === file.path) {
+          currentFile = newFull;
+          document.getElementById("filename-input").value = finalName;
+        }
+        
+        await loadFileList();
+        setStatus(`Renamed to "${finalName}"`);
+      })();
+    });
+    
     li.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("text/plain", file.path);
       e.dataTransfer.effectAllowed = "move";
@@ -1451,21 +1620,22 @@ async function deleteFile(name) {
 async function moveFile(sourcePath, newPath) {
   try {
     const res = await fetch(`/files/${encodeURIComponent(sourcePath)}`);
-    if (!res.ok) { setStatus("Failed to move file", true); return; }
+    if (!res.ok) { setStatus("Failed to read file", true); return; }
     const { content } = await res.json();
     const saveRes = await fetch(`/files/${encodeURIComponent(newPath)}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
-    if (!saveRes.ok) { setStatus("Failed to move file", true); return; }
-    await fetch(`/files/${encodeURIComponent(sourcePath)}`, { method: "DELETE" });
+    if (!saveRes.ok) { setStatus("Failed to create file at new location", true); return; }
+    const delRes = await fetch(`/files/${encodeURIComponent(sourcePath)}`, { method: "DELETE" });
+    if (!delRes.ok) { setStatus("Failed to delete original file", true); return; }
     if (currentFile === sourcePath) {
       currentFile = newPath;
       document.getElementById("filename-input").value = newPath.split("/").pop();
     }
-    loadFileList();
+    await loadFileList();
     setStatus(`Moved to ${newPath}`);
-  } catch (e) { setStatus("Failed to move file", true); }
+  } catch (e) { setStatus("Move failed: " + e.message, true); }
 }
 
 // ── New file button ──────────────────────────────────────────────────────────
@@ -1524,11 +1694,16 @@ document.getElementById("btn-new").addEventListener("click", async () => {
     currentFile = fullPath;
     document.getElementById("filename-input").value = fileName;
     setContent("");
+    isDirty = false;
+    updateDirtyBadge();
+    switchToEditorView();
     await loadFileList();
+    revealInSidebar(fullPath);
     setStatus(`Created ${fileName}`);
     setTimeout(() => {
       const input = document.getElementById("filename-input");
       input.select();
+      view.focus();
     }, 100);
   } else {
     setStatus("Failed to create file", true);
@@ -1670,8 +1845,10 @@ contextMenu.addEventListener("click", async (e) => {
             const fileName = filePath.split("/").pop();
             document.getElementById("filename-input").value = fileName;
             setContent("");
+            switchToEditorView();
             await loadFileList();
             setStatus(`Created ${fileName}`);
+            view.focus();
           } else {
             setStatus("Failed to create file", true);
           }
@@ -1702,11 +1879,13 @@ contextMenu.addEventListener("click", async (e) => {
         currentFile = fullPath;
         document.getElementById("filename-input").value = fileName;
         setContent("");
+        switchToEditorView();
         await loadFileList();
         setStatus(`Created ${fileName}`);
         setTimeout(() => {
           const input = document.getElementById("filename-input");
           input.select();
+          view.focus();
         }, 100);
       } else {
         setStatus("Failed to create file", true);
@@ -1767,6 +1946,7 @@ contextMenu.addEventListener("click", async (e) => {
         currentFile = fullPath;
         document.getElementById("filename-input").value = fileName;
         setContent("");
+        switchToEditorView();
         expandedFolders.add(folder);
         saveExpandedFolders();
         await loadFileList();
@@ -1774,6 +1954,7 @@ contextMenu.addEventListener("click", async (e) => {
         setTimeout(() => {
           const input = document.getElementById("filename-input");
           input.select();
+          view.focus();
         }, 100);
       } else {
         setStatus("Failed to create file", true);
@@ -1796,30 +1977,46 @@ contextMenu.addEventListener("click", async (e) => {
         const old = target.replace(/\/$/, "");
         const newLeaf = prompt("Rename folder:", old.split("/").pop());
         if (!newLeaf || newLeaf === old.split("/").pop()) break;
-        const parent = old.substring(0, old.lastIndexOf("/"));
+        const parent = old.includes("/") ? old.substring(0, old.lastIndexOf("/")) : "";
         const newFull = parent ? `${parent}/${newLeaf}` : newLeaf;
         const r = await fetch(`/folders/${encodeURIComponent(old)}?new_name=${encodeURIComponent(newFull)}`, { method: "PUT" });
-        if (r.ok) { loadFileList(); setStatus(`Renamed to "${newLeaf}"`); }
-        else setStatus("Rename failed", true);
+        if (r.ok) { 
+          await loadFileList(); 
+          setStatus(`Renamed to "${newLeaf}"`); 
+        } else {
+          setStatus("Rename failed", true);
+        }
       } else {
         const displayName = target.split("/").pop().replace(/\.md$/, "");
         const newLeaf = prompt("Rename note:", displayName);
         if (!newLeaf || newLeaf === displayName) break;
         const r = await fetch(`/files/${encodeURIComponent(target)}`);
-        if (!r.ok) break;
+        if (!r.ok) { 
+          setStatus("Failed to read file", true); 
+          break; 
+        }
         const { content } = await r.json();
-        const parent = target.substring(0, target.lastIndexOf("/"));
+        const parent = target.includes("/") ? target.substring(0, target.lastIndexOf("/")) : "";
         const finalName = newLeaf.endsWith(".md") ? newLeaf : newLeaf + ".md";
         const newFull = parent ? `${parent}/${finalName}` : finalName;
-        await fetch(`/files/${encodeURIComponent(newFull)}`, {
+        
+        const createRes = await fetch(`/files/${encodeURIComponent(newFull)}`, {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
         });
+        
+        if (!createRes.ok) {
+          setStatus("Failed to create renamed file", true);
+          break;
+        }
+        
         await fetch(`/files/${encodeURIComponent(target)}`, { method: "DELETE" });
+        
         if (currentFile === target) {
           currentFile = newFull;
           document.getElementById("filename-input").value = finalName;
         }
-        loadFileList();
+        
+        await loadFileList();
         setStatus(`Renamed to "${finalName}"`);
       }
       break;
@@ -1845,7 +2042,11 @@ contextMenu.addEventListener("click", async (e) => {
       break;
     }
     case "move": {
-      if (!target || isFolder) break;
+      if (!target) break;
+      if (isFolder) {
+        setStatus("Folder move not yet implemented", true);
+        break;
+      }
       const dest = prompt("Move to folder (blank for root):", "");
       if (dest === null) break;
       const fileName = target.split("/").pop();
@@ -1861,50 +2062,56 @@ contextMenu.addEventListener("click", async (e) => {
     }
     case "reveal": {
       if (!target) break;
-      await fetch(`/reveal/${encodeURIComponent(target)}`, { method: "POST" });
-      setStatus("Opened in file manager");
+      const res = await fetch(`/reveal/${encodeURIComponent(target)}`, { method: "POST" });
+      if (res.ok) {
+        setStatus("Opened in file manager");
+      } else {
+        setStatus("Could not open file manager", true);
+      }
       break;
     }
     case "refresh": {
-      loadFileList();
+      await loadFileList();
+      setStatus("File list refreshed");
       break;
     }
     case "open-in-new-window": {
       if (!target) break;
-      // Open file in new window (for Electron)
       if (window.electronAPI?.openInNewWindow) {
         const fullPath = workspacePath ? `${workspacePath}/${target}` : target;
         window.electronAPI.openInNewWindow(fullPath);
+        setStatus("Opened in new window");
       } else {
-        // Fallback: open in new browser tab
-        window.open(`/view?file=${encodeURIComponent(target)}`, '_blank');
+        setStatus("Open in new window only available in desktop app", true);
       }
       break;
     }
     case "copy": {
-      if (!target || isFolder) break;
-      // Store the copied file path for paste operation
+      if (!target) break;
       clipboardOperation = { operation: 'copy', path: target, isFolder: isFolder };
-      setStatus("File copied");
+      setStatus(isFolder ? "Folder copied" : "File copied");
       break;
     }
     case "cut": {
-      if (!target || isFolder) break;
-      // Store the cut file path for paste operation
+      if (!target) break;
       clipboardOperation = { operation: 'cut', path: target, isFolder: isFolder };
-      setStatus("File cut");
+      setStatus(isFolder ? "Folder cut" : "File cut");
       break;
     }
     case "paste": {
-      if (!clipboardOperation || clipboardOperation.isFolder) break;
-      const { operation, path: srcPath } = clipboardOperation;
-      const parent = target || "";
-      const srcName = srcPath.split("/").pop();
-      const destPath = parent ? `${parent}/${srcName}` : srcName;
+      if (!clipboardOperation) break;
+      const { operation, path: srcPath, isFolder: srcIsFolder } = clipboardOperation;
+      const destFolder = isFolder && target ? target : (target ? target.substring(0, target.lastIndexOf("/")) : "");
+      const srcName = srcPath.split("/").pop().replace(/\/$/, "");
+      const destPath = destFolder ? `${destFolder}/${srcName}` : srcName;
       
       try {
+        if (srcIsFolder) {
+          setStatus("Folder copy/move not yet implemented", true);
+          break;
+        }
+        
         if (operation === 'copy') {
-          // Copy file
           const r = await fetch(`/files/${encodeURIComponent(srcPath)}`);
           if (r.ok) {
             const { content } = await r.json();
@@ -1913,24 +2120,22 @@ contextMenu.addEventListener("click", async (e) => {
             });
             if (createRes.ok) {
               setStatus(`Copied to "${destPath}"`);
+              loadFileList();
             } else {
-              setStatus("Error: Failed to copy file");
+              setStatus("Failed to copy file", true);
             }
           } else {
-            setStatus("Error: Failed to read source file");
+            setStatus("Failed to read source file", true);
           }
         } else if (operation === 'cut') {
-          // Move (cut/paste)
           if (srcPath !== destPath) {
             await moveFile(srcPath, destPath);
-            // moveFile sets its own status, so we don't set another one here
           }
         }
       } catch (e) {
-        setStatus("Error: " + e.message);
+        setStatus("Paste failed: " + e.message, true);
       }
       clipboardOperation = null;
-      loadFileList();
       break;
     }
     case "delete": {
@@ -2021,11 +2226,28 @@ document.getElementById("file-input").addEventListener("change", async e => {
     return;
   }
   const { content } = await res.json();
-  setContent(content);
+  
   const stem = file.name.replace(/\.[^.]+$/, "");
-  document.getElementById("filename-input").value = stem + ".md";
-  currentFile = stem + ".md";
-  setStatus(`Imported ${file.name}`);
+  const fileName = stem + ".md";
+  const folder = currentFolder || "";
+  const fullPath = folder ? `${folder}/${fileName}` : fileName;
+  
+  // Save the imported content
+  const saveRes = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  
+  if (saveRes.ok) {
+    currentFile = fullPath;
+    document.getElementById("filename-input").value = fileName;
+    setContent(content);
+    await loadFileList();
+    setStatus(`Imported ${file.name}`);
+  } else {
+    setStatus("Failed to save imported file", true);
+  }
   e.target.value = "";
 });
 
@@ -2053,6 +2275,7 @@ document.getElementById("btn-dl-md")?.addEventListener("click", async () => {
 
 document.getElementById("btn-export-html")?.addEventListener("click", async () => {
   closeAllMenus();
+  setStatus("Exporting HTML…");
   const html = document.getElementById("preview").innerHTML;
   const res = await fetch(`/export/html/${encodeURIComponent(currentFile)}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -2060,10 +2283,12 @@ document.getElementById("btn-export-html")?.addEventListener("click", async () =
   });
   if (!res.ok) { setStatus("HTML export failed", true); return; }
   downloadBlob(await res.blob(), currentFile.replace(/\.md$/, ".html"));
+  setStatus("HTML exported");
 });
 
 document.getElementById("btn-export-pdf")?.addEventListener("click", async () => {
   closeAllMenus();
+  setStatus("Exporting PDF…");
   const html = document.getElementById("preview").innerHTML;
   const res = await fetch(`/export/pdf/${encodeURIComponent(currentFile)}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -2071,11 +2296,16 @@ document.getElementById("btn-export-pdf")?.addEventListener("click", async () =>
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    if ((err.detail || "").includes("501")) { printPreview(); return; }
+    if ((err.detail || "").includes("501")) { 
+      setStatus("PDF export not available, opening print dialog…");
+      printPreview(); 
+      return; 
+    }
     setStatus(err.detail || "PDF export failed", true);
     return;
   }
   downloadBlob(await res.blob(), currentFile.replace(/\.md$/, ".pdf"));
+  setStatus("PDF exported");
 });
 
 document.getElementById("btn-print")?.addEventListener("click", () => { closeAllMenus(); printPreview(); });
@@ -2322,28 +2552,28 @@ document.getElementById("btn-confirm-publish")?.addEventListener("click", async 
 // ═══════════════════════════════════════════════════════════════════════════════
 async function openSettings() {
   closeAllMenus();
-  const res = await fetch("/config");
-  const cfg = await res.json();
-  document.getElementById("cfg-repo-url").value = cfg?.github?.repo_url || "";
-  document.getElementById("cfg-branch").value = cfg?.github?.branch || "main";
-
-  const ghRes = await fetch("/github/status");
-  const ghData = await ghRes.json();
-  const ghStatus = document.getElementById("github-status");
-  ghStatus.textContent = ghData.connected ? "✅ Connected" : "Not connected";
-  ghStatus.style.color = ghData.connected ? "var(--accent-2)" : "";
-
-  const dbRes = await fetch("/dropbox/status");
-  const dbData = await dbRes.json();
-  const dbStatus = document.getElementById("dropbox-status");
-  dbStatus.textContent = dbData.connected ? "✅ Connected" : "Not connected";
-  dbStatus.style.color = dbData.connected ? "var(--accent-2)" : "";
-
-  const gdRes = await fetch("/gdrive/status");
-  const gdData = await gdRes.json();
-  const gdStatus = document.getElementById("gdrive-status");
-  gdStatus.textContent = gdData.connected ? "✅ Connected" : "Not connected";
-  gdStatus.style.color = gdData.connected ? "var(--accent-2)" : "";
+  
+  // Load preferences from localStorage
+  const prefs = JSON.parse(localStorage.getItem("lectura-prefs") || "{}");
+  
+  // Files
+  document.getElementById("cfg-on-launch").value = prefs.onLaunch || "new";
+  document.getElementById("cfg-record-recent").checked = prefs.recordRecent !== false;
+  
+  // Editor
+  document.getElementById("cfg-indent").value = prefs.indent || "auto";
+  document.getElementById("cfg-autopair-brackets").checked = prefs.autopairBrackets !== false;
+  document.getElementById("cfg-autopair-markdown").checked = prefs.autopairMarkdown !== false;
+  document.getElementById("cfg-line-ending").value = prefs.lineEnding || "lf";
+  document.getElementById("cfg-spell-check").value = prefs.spellCheck || "auto";
+  
+  // Export
+  document.getElementById("cfg-export-folder").value = prefs.exportFolder || "auto";
+  document.getElementById("cfg-pandoc-path").value = prefs.pandocPath || "auto";
+  
+  // Appearance
+  document.getElementById("cfg-theme").value = currentTheme;
+  document.getElementById("cfg-font-size").value = prefs.fontSize || "auto";
 
   document.getElementById("modal-overlay").classList.remove("hidden");
 }
@@ -2355,23 +2585,48 @@ document.getElementById("btn-open-theme-folder")?.addEventListener("click", asyn
 });
 
 document.getElementById("btn-save-config")?.addEventListener("click", async () => {
-  const config = {
-    github: {
-      repo_url: document.getElementById("cfg-repo-url").value,
-      branch: document.getElementById("cfg-branch").value,
-    },
+  // Collect all preferences
+  const prefs = {
+    // Files
+    onLaunch: document.getElementById("cfg-on-launch").value,
+    recordRecent: document.getElementById("cfg-record-recent").checked,
+    
+    // Editor
+    indent: document.getElementById("cfg-indent").value,
+    autopairBrackets: document.getElementById("cfg-autopair-brackets").checked,
+    autopairMarkdown: document.getElementById("cfg-autopair-markdown").checked,
+    lineEnding: document.getElementById("cfg-line-ending").value,
+    spellCheck: document.getElementById("cfg-spell-check").value,
+    
+    // Export
+    exportFolder: document.getElementById("cfg-export-folder").value,
+    pandocPath: document.getElementById("cfg-pandoc-path").value,
+    
+    // Appearance
+    fontSize: document.getElementById("cfg-font-size").value,
   };
-  const res = await fetch("/config", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config }),
-  });
-  if (res.ok) { setStatus("Settings saved"); document.getElementById("modal-overlay").classList.add("hidden"); }
-  else setStatus("Failed to save settings", true);
+  
+  // Save to localStorage
+  localStorage.setItem("lectura-prefs", JSON.stringify(prefs));
+  
+  // Apply theme change
+  const selectedTheme = document.getElementById("cfg-theme").value;
+  if (selectedTheme !== currentTheme) {
+    await applyTheme(selectedTheme);
+  }
+  
+  // Apply font size
+  if (prefs.fontSize !== "auto") {
+    document.documentElement.style.setProperty("--editor-font-size", prefs.fontSize + "px");
+    document.documentElement.style.setProperty("--preview-font-size", prefs.fontSize + "px");
+  } else {
+    document.documentElement.style.removeProperty("--editor-font-size");
+    document.documentElement.style.removeProperty("--preview-font-size");
+  }
+  
+  setStatus("Settings saved");
+  document.getElementById("modal-overlay").classList.add("hidden");
 });
-
-document.getElementById("btn-github-login")?.addEventListener("click", () => window.open("/github/auth", "_blank", "width=600,height=700"));
-document.getElementById("btn-dropbox-login")?.addEventListener("click", () => window.open("/dropbox/auth", "_blank", "width=600,height=700"));
-document.getElementById("btn-gdrive-login")?.addEventListener("click", () => window.open("/gdrive/auth", "_blank", "width=600,height=700"));
 
 document.getElementById("modal-overlay")?.addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden"); });
 document.getElementById("publish-overlay")?.addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden"); });
@@ -2382,19 +2637,58 @@ document.getElementById("publish-overlay")?.addEventListener("click", e => { if 
 const previewPane = document.getElementById("preview-pane");
 const editorPane = document.getElementById("editor-pane");
 const previewEditorHandle = document.getElementById("preview-editor-resize-handle");
-let editorVisible = true;
+let viewMode = 1; // 0: both, 1: reader only (default), 2: editor only
+
+function switchToEditorView() {
+  if (viewMode !== 2) {
+    viewMode = 1;
+    togglePreview();
+  }
+}
 
 function togglePreview() {
-  editorVisible = !editorVisible;
-  editorPane.classList.toggle("hidden-pane", !editorVisible);
-  previewEditorHandle.classList.toggle("hidden-pane", !editorVisible);
+  viewMode = (viewMode + 1) % 3;
+  
+  const toggleBtn = document.getElementById("btn-toggle-preview");
+  
+  if (viewMode === 0) { // both visible
+    previewPane.classList.remove("hidden-pane");
+    editorPane.classList.remove("hidden-pane");
+    previewEditorHandle.classList.remove("hidden-pane");
+    if (toggleBtn) toggleBtn.textContent = "Toggle Render";
+  } else if (viewMode === 1) { // reader only
+    previewPane.classList.remove("hidden-pane");
+    editorPane.classList.add("hidden-pane");
+    previewEditorHandle.classList.add("hidden-pane");
+    if (toggleBtn) toggleBtn.textContent = "Render View (Reader)";
+    // Add click-to-edit hint
+    previewPane.style.cursor = "text";
+  } else { // editor only
+    previewPane.classList.add("hidden-pane");
+    editorPane.classList.remove("hidden-pane");
+    previewEditorHandle.classList.add("hidden-pane");
+    if (toggleBtn) toggleBtn.textContent = "Editor View";
+    previewPane.style.cursor = "default";
+  }
   
   // Hide/show Vim indicator based on editor visibility
   const vimIndicator = document.getElementById("vim-mode-indicator");
   if (vimIndicator) {
-    vimIndicator.classList.toggle("hidden", !editorVisible);
+    vimIndicator.classList.toggle("hidden", viewMode === 1);
   }
 }
+
+// Click on preview to switch to editor (Notion-style)
+document.getElementById("preview").addEventListener("click", (e) => {
+  // Only switch if in reader-only mode and not clicking on interactive elements
+  if (viewMode === 1 && !e.target.closest("a, button, .flashcard-flip")) {
+    viewMode = 2; // Switch to editor only
+    togglePreview();
+    togglePreview(); // Call twice to get to editor mode
+    // Focus editor after a short delay
+    setTimeout(() => view.focus(), 100);
+  }
+});
 
 // Preview-Editor resize functionality
 let isResizingPreviewEditor = false;
@@ -2440,22 +2734,151 @@ document.addEventListener("mouseup", () => {
 document.getElementById("btn-toggle-preview")?.addEventListener("click", () => { closeAllMenus(); togglePreview(); });
 document.getElementById("btn-toggle-source")?.addEventListener("click", () => { closeAllMenus(); togglePreview(); });
 
+// Global keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  // F7 to toggle preview
+  if (e.key === 'F7') {
+    e.preventDefault();
+    e.stopPropagation();
+    togglePreview();
+    return;
+  }
+  
+  // "I" key to toggle between reader and editor modes (only when not typing)
+  if (e.key === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+    const target = e.target;
+    
+    // Skip if in input fields
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      return;
+    }
+    
+    // Skip if typing in editor
+    if (target.classList && target.classList.contains('cm-content')) {
+      return;
+    }
+    
+    // Only trigger in reader mode or when editor is not focused
+    if (viewMode === 1 || (viewMode === 2 && !document.querySelector('.cm-focused'))) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (viewMode === 1) {
+        // Reader to editor
+        viewMode = 0;
+        togglePreview();
+        setTimeout(() => view.focus(), 100);
+      } else if (viewMode === 2) {
+        // Editor to reader
+        viewMode = 1;
+        togglePreview();
+      }
+    }
+  }
+}, true);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // FOCUS MODE
 // ═══════════════════════════════════════════════════════════════════════════════
 let focusModeActive = false;
+let paragraphFocusActive = false;
 
 function toggleFocusMode() {
   focusModeActive = !focusModeActive;
   document.body.classList.toggle("focus-mode", focusModeActive);
-  if (focusModeActive) localStorage.setItem("sc-focus-mode", "true");
-  else localStorage.removeItem("sc-focus-mode");
+  
+  if (focusModeActive) {
+    localStorage.setItem("sc-focus-mode", "true");
+    enableParagraphFocus();
+  } else {
+    localStorage.removeItem("sc-focus-mode");
+    disableParagraphFocus();
+  }
+}
+
+function enableParagraphFocus() {
+  paragraphFocusActive = true;
+  view.dom.addEventListener('click', handleParagraphClick);
+  view.dom.addEventListener('keyup', handleParagraphKeyup);
+}
+
+function disableParagraphFocus() {
+  paragraphFocusActive = false;
+  view.dom.removeEventListener('click', handleParagraphClick);
+  view.dom.removeEventListener('keyup', handleParagraphKeyup);
+  clearParagraphFocus();
+}
+
+function handleParagraphClick(e) {
+  if (!paragraphFocusActive) return;
+  updateParagraphFocus();
+}
+
+function handleParagraphKeyup(e) {
+  if (!paragraphFocusActive) return;
+  updateParagraphFocus();
+}
+
+function updateParagraphFocus() {
+  const pos = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(pos);
+  
+  // Find paragraph boundaries (empty lines)
+  let startLine = line.number;
+  let endLine = line.number;
+  
+  // Find start of paragraph
+  while (startLine > 1) {
+    const prevLine = view.state.doc.line(startLine - 1);
+    if (prevLine.text.trim() === '') break;
+    startLine--;
+  }
+  
+  // Find end of paragraph
+  while (endLine < view.state.doc.lines) {
+    const nextLine = view.state.doc.line(endLine + 1);
+    if (nextLine.text.trim() === '') break;
+    endLine++;
+  }
+  
+  const startPos = view.state.doc.line(startLine).from;
+  const endPos = view.state.doc.line(endLine).to;
+  
+  applyParagraphFocus(startPos, endPos);
+}
+
+function applyParagraphFocus(start, end) {
+  // Remove existing focus
+  clearParagraphFocus();
+  
+  // Add dimming class to all lines
+  const lines = view.dom.querySelectorAll('.cm-line');
+  lines.forEach(line => line.classList.add('cm-line-dimmed'));
+  
+  // Remove dimming from focused paragraph
+  const startLine = view.state.doc.lineAt(start).number;
+  const endLine = view.state.doc.lineAt(end).number;
+  
+  for (let i = startLine; i <= endLine; i++) {
+    const lineEl = view.domAtPos(view.state.doc.line(i).from);
+    if (lineEl && lineEl.node) {
+      const lineNode = lineEl.node.nodeType === 1 ? lineEl.node : lineEl.node.parentElement;
+      if (lineNode && lineNode.classList.contains('cm-line')) {
+        lineNode.classList.remove('cm-line-dimmed');
+      }
+    }
+  }
+}
+
+function clearParagraphFocus() {
+  const lines = view.dom.querySelectorAll('.cm-line-dimmed');
+  lines.forEach(line => line.classList.remove('cm-line-dimmed'));
 }
 
 document.getElementById("btn-focus")?.addEventListener("click", () => { closeAllMenus(); toggleFocusMode(); });
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "F11" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  if (e.key === "F8" && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     toggleFocusMode();
   }
@@ -2484,53 +2907,6 @@ function toggleTypewriter() {
 
 document.getElementById("btn-typewriter")?.addEventListener("click", () => { closeAllMenus(); toggleTypewriter(); });
 if (typewriterMode) document.body.classList.add("typewriter-mode");
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TERMINAL PANEL
-// ═══════════════════════════════════════════════════════════════════════════════
-let terminalVisible = false;
-let terminalCount = 1;
-
-function toggleTerminal() {
-  terminalVisible = !terminalVisible;
-  const terminalPanel = document.getElementById('terminal-panel');
-  const resizeHandle = document.getElementById('terminal-resize-handle');
-  
-  terminalPanel.classList.toggle('hidden', !terminalVisible);
-  resizeHandle.classList.toggle('hidden', !terminalVisible);
-  
-  if (terminalVisible && !document.getElementById('terminal-1').innerHTML) {
-    initializeTerminal('terminal-1');
-  }
-}
-
-function initializeTerminal(terminalId) {
-  const terminal = document.getElementById(terminalId);
-  if (!terminal) return;
-
-  terminal.innerHTML = `
-    <div style="padding: 12px; color: var(--text-muted, #8b949e);">
-      Terminal is not yet connected to a real shell.<br>
-      Use your system terminal for shell commands.
-    </div>
-  `;
-}
-
-// Terminal toggle event listeners
-document.getElementById('btn-toggle-terminal')?.addEventListener('click', () => {
-  closeAllMenus();
-  toggleTerminal();
-});
-
-document.getElementById('btn-terminal-toggle')?.addEventListener('click', toggleTerminal);
-
-// Keyboard shortcut for terminal
-document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.key === '`') {
-    e.preventDefault();
-    toggleTerminal();
-  }
-});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GITHUB INTEGRATION
@@ -2598,6 +2974,11 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
   } catch (error) {
     setStatus('GitHub signin failed', true);
   }
+});
+
+// Google Drive sign-in
+document.getElementById('btn-gdrive-signin')?.addEventListener('click', () => {
+  window.open("/gdrive/auth", "_blank", "width=600,height=700");
 });
 
 // Handle OAuth callback (this would be called from the callback page)
@@ -3118,6 +3499,43 @@ document.getElementById("folder-open-btn")?.addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// Apply saved preferences on startup
+function applyPreferences() {
+  const prefs = JSON.parse(localStorage.getItem("lectura-prefs") || "{}");
+  
+  // Apply font size
+  if (prefs.fontSize && prefs.fontSize !== "auto") {
+    document.documentElement.style.setProperty("--editor-font-size", prefs.fontSize + "px");
+    document.documentElement.style.setProperty("--preview-font-size", prefs.fontSize + "px");
+  }
+}
+
+applyPreferences();
 loadWorkspace();
 // Lazy load file list after UI is ready
 setTimeout(() => loadFileList(), 100);
+// Initialize Mermaid early
+initMermaid();
+
+// Set initial view to reader mode
+setTimeout(() => {
+  if (viewMode === 1) {
+    togglePreview();
+    togglePreview(); // Get to reader mode
+  }
+}, 50);
+
+// Check URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('hideSidebar') === 'true') {
+  const sidebar = document.getElementById("sidebar");
+  sidebar.classList.add("collapsed");
+  document.body.classList.add("sidebar-collapsed");
+}
+
+// Load file from URL parameter
+const fileParam = urlParams.get('file');
+if (fileParam) {
+  setTimeout(() => openFile(fileParam), 200);
+}

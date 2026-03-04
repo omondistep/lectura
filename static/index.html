@@ -102,18 +102,40 @@
         <button data-action="h6" data-shortcut="Ctrl+6">Heading 6</button>
         <button data-action="paragraph" data-shortcut="Ctrl+0">Paragraph</button>
         <div class="menu-sep"></div>
-        <button data-action="table" data-shortcut="Ctrl+T">Table</button>
+        <button data-action="increase-heading" data-shortcut="Ctrl+=">Increase Heading Level</button>
+        <button data-action="decrease-heading" data-shortcut="Ctrl+-">Decrease Heading Level</button>
+        <div class="menu-sep"></div>
+        <button data-action="table" data-shortcut="Ctrl+T">Table…</button>
         <button data-action="codeblock" data-shortcut="Ctrl+Shift+K">Code Fences</button>
         <button data-action="mathblock" data-shortcut="Ctrl+Shift+M">Math Block</button>
         <button data-action="blockquote" data-shortcut="Ctrl+Shift+Q">Quote</button>
         <div class="menu-sep"></div>
-        <button data-action="ul">Unordered List</button>
-        <button data-action="ol">Ordered List</button>
+        <button data-action="ul" data-shortcut="Ctrl+Shift+[">Unordered List</button>
+        <button data-action="ol" data-shortcut="Ctrl+Shift+]">Ordered List</button>
         <button data-action="task">Task List</button>
         <div class="menu-sep"></div>
-        <button data-action="diagram">Diagram…</button>
-        <button data-action="flashcard">Flashcard</button>
-        <button data-action="graph">Graph Canvas…</button>
+        <button data-action="hr">Horizontal Line</button>
+        <button data-action="toc">Table of Contents</button>
+        <button data-action="diagram">Diagram (Mermaid)…</button>
+      </div>
+    </div>
+
+    <div class="menu-dropdown" data-menu="format">
+      <button class="menu-trigger">Format</button>
+      <div class="menu-panel">
+        <button data-action="bold" data-shortcut="Ctrl+B">Strong</button>
+        <button data-action="italic" data-shortcut="Ctrl+I">Emphasis</button>
+        <button data-action="underline" data-shortcut="Ctrl+U">Underline</button>
+        <button data-action="code" data-shortcut="Ctrl+Shift+`">Code</button>
+        <button data-action="strikethrough" data-shortcut="Alt+Shift+5">Strike</button>
+        <button data-action="highlight" data-shortcut="Ctrl+Shift+H">Highlight</button>
+        <button data-action="superscript">Superscript</button>
+        <button data-action="subscript">Subscript</button>
+        <div class="menu-sep"></div>
+        <button data-action="link" data-shortcut="Ctrl+K">Hyperlink…</button>
+        <button data-action="image" data-shortcut="Ctrl+Shift+I">Image…</button>
+        <div class="menu-sep"></div>
+        <button onclick="clearFormat()" data-shortcut="Ctrl+\">Clear Style</button>
       </div>
     </div>
 
@@ -123,11 +145,8 @@
         <button id="btn-toggle-sidebar" data-shortcut="Ctrl+Shift+L">Toggle Sidebar</button>
         <div class="menu-sep"></div>
         <button id="btn-focus" data-shortcut="F8">Focus Mode</button>
-        <button id="btn-typewriter" data-shortcut="F9">Typewriter Mode</button>
         <div class="menu-sep"></div>
-        <button id="btn-toggle-terminal" data-shortcut="Ctrl+`">Toggle Terminal</button>
-        <div class="menu-sep"></div>
-        <button id="btn-toggle-preview">Toggle Render</button>
+        <button id="btn-toggle-preview" data-shortcut="F7">Toggle Render</button>
         <div class="menu-sep"></div>
         <button id="btn-publish">Publish…</button>
       </div>
@@ -149,6 +168,14 @@
         <button data-theme="seraph" class="theme-option">Seraph</button>
         <button data-theme="newsprint" class="theme-option">Newsprint</button>
         <button data-theme="seniva" class="theme-option">Seniva</button>
+        <div class="menu-sep"></div>
+        <button data-theme="github" class="theme-option">GitHub</button>
+        <button data-theme="nord" class="theme-option">Nord</button>
+        <button data-theme="drake" class="theme-option">Drake</button>
+        <button data-theme="pie" class="theme-option">Pie</button>
+        <button data-theme="ursine" class="theme-option">Ursine</button>
+        <button data-theme="lapis" class="theme-option">Lapis</button>
+        <button data-theme="vue" class="theme-option">Vue</button>
       </div>
     </div>
 
@@ -161,7 +188,7 @@
     </div>
   </nav>
 
-  <div class="menu-right">
+  <div class="menu-right" style="display:none;">
     <div id="filename-bar">
       <input id="filename-input" type="text" placeholder="untitled.md" value="untitled.md" spellcheck="false" />
       <span id="autosave-badge" class="hidden">●</span>
@@ -214,6 +241,16 @@
       </button>
       <button class="sidebar-tab" data-mode="git" title="Git">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      </button>
+      <button class="sidebar-tab" data-mode="gdrive" title="Google Drive">
+        <svg width="15" height="15" viewBox="0 0 87.3 78" fill="currentColor">
+          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+        </svg>
       </button>
       <div class="sidebar-tab-spacer"></div>
       <button id="btn-refresh-files" class="sidebar-tab" title="Refresh">
@@ -292,6 +329,23 @@
       </div>
     </div>
 
+    <!-- google drive mode content -->
+    <div class="sidebar-content" data-for="gdrive" style="display:none">
+      <div id="gdrive-auth" class="git-section">
+        <button id="btn-gdrive-signin" class="git-signin-btn">
+          <svg width="16" height="16" viewBox="0 0 87.3 78" fill="currentColor">
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+          </svg>
+          Sign in with Google Drive
+        </button>
+      </div>
+    </div>
+
     <!-- search results (overlay on any mode) -->
     <ul id="search-results" class="hidden"></ul>
 
@@ -310,6 +364,21 @@
 
   <!-- preview pane (now on left) -->
   <div id="preview-pane">
+    <div id="preview-pagination" class="preview-pagination">
+      <button id="prev-page" class="page-nav-btn" title="Previous page (←)">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11 1l-9 7 9 7V1z"/>
+        </svg>
+      </button>
+      <div class="page-info">
+        <span id="current-page">1</span> / <span id="total-pages">1</span>
+      </div>
+      <button id="next-page" class="page-nav-btn" title="Next page (→)">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M5 1v14l9-7-9-7z"/>
+        </svg>
+      </button>
+    </div>
     <div id="preview"></div>
   </div>
 
@@ -320,33 +389,6 @@
   <div id="editor-pane">
     <div id="cm-editor"></div>
   </div>
-
-  <!-- terminal panel -->
-  <div id="terminal-panel" class="terminal-panel hidden">
-    <div class="terminal-header">
-      <div class="terminal-tabs">
-        <div class="terminal-tab active" data-terminal="1">
-          <span>Terminal</span>
-          <button class="terminal-tab-close">×</button>
-        </div>
-        <button class="terminal-new-tab">+</button>
-      </div>
-      <div class="terminal-controls">
-        <button id="btn-terminal-toggle" class="terminal-control-btn" title="Toggle Terminal">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2z"/>
-            <path d="M6.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h1z"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-    <div class="terminal-content">
-      <div id="terminal-1" class="terminal-instance active"></div>
-    </div>
-  </div>
-
-  <!-- terminal resize handle -->
-  <div id="terminal-resize-handle" class="terminal-resize-handle hidden"></div>
 </div>
 
 <!-- context menu (file tree) -->
@@ -424,6 +466,75 @@
   <div id="modal">
     <h2>Preferences</h2>
 
+    <h3>Files</h3>
+    <label>On Launch
+      <select id="cfg-on-launch">
+        <option value="new">Open New File</option>
+        <option value="restore-folders">Restore Last Closed Folders</option>
+        <option value="restore-all">Restore Last Closed Files and Folders</option>
+        <option value="custom">Open Custom Folder</option>
+      </select>
+    </label>
+    <label>
+      <input type="checkbox" id="cfg-record-recent" checked />
+      Record recent files and folders
+    </label>
+
+    <hr />
+    <h3>Editor</h3>
+    <label>Indent Size on Save
+      <select id="cfg-indent">
+        <option value="auto">Auto</option>
+        <option value="tab">Tab</option>
+        <option value="2">2 Spaces</option>
+        <option value="3">3 Spaces</option>
+        <option value="4">4 Spaces</option>
+        <option value="5">5 Spaces</option>
+      </select>
+    </label>
+    <label>
+      <input type="checkbox" id="cfg-autopair-brackets" checked />
+      Auto pair brackets and quotes
+    </label>
+    <label>
+      <input type="checkbox" id="cfg-autopair-markdown" checked />
+      Auto pair common Markdown syntax
+    </label>
+    <label>Default Line Ending
+      <select id="cfg-line-ending">
+        <option value="lf">LF (Unix Style)</option>
+        <option value="crlf">CRLF (Windows Style)</option>
+      </select>
+    </label>
+    <label>Spell Check
+      <select id="cfg-spell-check">
+        <option value="auto">Auto Detect Language</option>
+        <option value="en-us">English (US)</option>
+        <option value="en-uk">English (UK)</option>
+      </select>
+    </label>
+
+    <hr />
+    <h3>Export</h3>
+    <label>Default Folder for Exported Files
+      <select id="cfg-export-folder">
+        <option value="auto">Auto</option>
+        <option value="same">Same Folder with Current File</option>
+        <option value="custom">Custom Location</option>
+      </select>
+    </label>
+    <label>Pandoc Path
+      <select id="cfg-pandoc-path">
+        <option value="auto">Auto Detect</option>
+        <option value="custom">Custom Path</option>
+      </select>
+    </label>
+    <div class="export-formats">
+      <p><strong>Export Supported Formats:</strong></p>
+      <p>PDF, HTML, Image, Word (.docx), OpenOffice, RTF, EPUB</p>
+    </div>
+
+    <hr />
     <h3>Appearance</h3>
     <label>Theme
       <select id="cfg-theme">
@@ -438,37 +549,28 @@
         <option value="seraph">Seraph</option>
         <option value="newsprint">Newsprint</option>
         <option value="seniva">Seniva</option>
+        <option value="github">GitHub</option>
+        <option value="nord">Nord</option>
+        <option value="drake">Drake</option>
+        <option value="pie">Pie</option>
+        <option value="ursine">Ursine</option>
+        <option value="lapis">Lapis</option>
+        <option value="vue">Vue</option>
       </select>
     </label>
-    <button id="btn-open-theme-folder" class="secondary-btn">Open Theme Folder</button>
-    <p class="modal-hint">Drop .css theme files in the theme folder to add custom themes.</p>
-
-    <hr />
-    <h3>GitHub</h3>
-    <label>Repo URL
-      <input type="text" id="cfg-repo-url" placeholder="https://github.com/user/notes.git" />
+    <label>Font Size
+      <select id="cfg-font-size">
+        <option value="auto">Auto</option>
+        <option value="12">12px</option>
+        <option value="13">13px</option>
+        <option value="14">14px</option>
+        <option value="15">15px</option>
+        <option value="16">16px</option>
+        <option value="17">17px</option>
+        <option value="18">18px</option>
+        <option value="20">20px</option>
+      </select>
     </label>
-    <label>Branch
-      <input type="text" id="cfg-branch" value="main" />
-    </label>
-    <div class="cloud-row">
-      <span id="github-status">Not connected</span>
-      <button id="btn-github-login" class="secondary-btn">Login with GitHub</button>
-    </div>
-
-    <hr />
-    <h3>Dropbox</h3>
-    <div class="cloud-row">
-      <span id="dropbox-status">Not connected</span>
-      <button id="btn-dropbox-login" class="secondary-btn">Login with Dropbox</button>
-    </div>
-
-    <hr />
-    <h3>Google Drive</h3>
-    <div class="cloud-row">
-      <span id="gdrive-status">Not connected</span>
-      <button id="btn-gdrive-login" class="secondary-btn">Login with Google Drive</button>
-    </div>
 
     <div class="modal-actions">
       <button id="btn-save-config">Save</button>
@@ -697,35 +799,73 @@
 </aside>
 
 <!-- ── EDITOR CONTEXT MENU ────────────────────────────────────────────────── -->
-<div id="editor-ctx-menu" class="context-menu hidden">
-  <button data-action="cut">Cut</button>
-  <button data-action="copy">Copy</button>
-  <button data-action="paste">Paste</button>
-  <div class="ctx-sep"></div>
-  <button data-action="bold">Bold</button>
-  <button data-action="italic">Italic</button>
-  <button data-action="code">Inline Code</button>
-  <button data-action="highlight">Highlight</button>
-  <button data-action="strikethrough">Strikethrough</button>
-  <div class="ctx-sep"></div>
-  <button data-action="h1">Heading 1</button>
-  <button data-action="h2">Heading 2</button>
-  <button data-action="h3">Heading 3</button>
-  <button data-action="h4">Heading 4</button>
-  <div class="ctx-sep"></div>
-  <button data-action="ul">Bullet List</button>
-  <button data-action="ol">Numbered List</button>
-  <button data-action="task">Task List</button>
-  <button data-action="blockquote">Blockquote</button>
-  <div class="ctx-sep"></div>
-  <button data-action="link">Hyperlink…</button>
-  <button data-action="image">Image…</button>
-  <button data-action="table">Table…</button>
-  <button data-action="codeblock">Code Block</button>
-  <div class="ctx-sep"></div>
-  <button data-action="diagram">Diagram…</button>
-  <button data-action="graph">Graph Canvas…</button>
-  <button data-action="flashcard">Flashcard</button>
+<div id="editor-ctx-menu" class="context-menu editor-context-menu hidden">
+  <!-- Icon toolbar -->
+  <div class="ctx-icon-toolbar">
+    <button data-action="copy" title="Copy" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V2zm2-1a1 1 0 00-1 1v8a1 1 0 001 1h8a1 1 0 001-1V2a1 1 0 00-1-1H6zM2 5a1 1 0 00-1 1v8a1 1 0 001 1h8a1 1 0 001-1v-1h1v1a2 2 0 01-2 2H2a2 2 0 01-2-2V6a2 2 0 012-2h1v1H2z"/></svg>
+    </button>
+    <button data-action="paste" title="Paste" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 00-2 2V14a2 2 0 002 2h10a2 2 0 002-2V3.5a2 2 0 00-2-2h-1v1h1a1 1 0 011 1V14a1 1 0 01-1 1H3a1 1 0 01-1-1V3.5a1 1 0 011-1h1v-1z"/><path d="M9.5 1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-1a.5.5 0 01.5-.5h3zm-3-1A1.5 1.5 0 005 1.5v1A1.5 1.5 0 006.5 4h3A1.5 1.5 0 0011 2.5v-1A1.5 1.5 0 009.5 0h-3z"/></svg>
+    </button>
+    <button data-action="cut" title="Cut" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 1a.5.5 0 00-.5.5v1a.5.5 0 001 0V2h3v.5a.5.5 0 001 0v-1a.5.5 0 00-.5-.5h-4zM11 2.5v-1A1.5 1.5 0 009.5 0h-3A1.5 1.5 0 005 1.5v1H2.506a.58.58 0 00-.01 0H1.5a.5.5 0 000 1h.538l.853 10.66A2 2 0 004.885 16h6.23a2 2 0 001.994-1.84l.853-10.66h.538a.5.5 0 000-1h-.995a.59.59 0 00-.01 0H11zm1.958 1l-.846 10.58a1 1 0 01-.997.92h-6.23a1 1 0 01-.997-.92L3.042 3.5h9.916z"/></svg>
+    </button>
+    <div class="ctx-icon-sep"></div>
+    <button data-action="bold" title="Strong (Ctrl+B)" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.21 13c2.106 0 3.412-1.087 3.412-2.823 0-1.306-.984-2.283-2.324-2.386v-.055a2.176 2.176 0 001.852-2.14c0-1.51-1.162-2.46-3.014-2.46H3.843V13H8.21zM5.908 4.674h1.696c.963 0 1.517.451 1.517 1.244 0 .834-.629 1.32-1.73 1.32H5.908V4.673zm0 6.788V8.598h1.73c1.217 0 1.88.492 1.88 1.415 0 .943-.643 1.449-1.832 1.449H5.907z"/></svg>
+    </button>
+    <button data-action="italic" title="Emphasis (Ctrl+I)" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.991 11.674L9.53 4.455c.123-.595.246-.71 1.347-.807l.11-.52H7.211l-.11.52c1.06.096 1.128.212 1.005.807L6.57 11.674c-.123.595-.246.71-1.346.806l-.11.52h3.774l.11-.52c-1.06-.095-1.129-.211-1.006-.806z"/></svg>
+    </button>
+    <button data-action="code" title="Code (Ctrl+Shift+`)" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5.854 4.854a.5.5 0 10-.708-.708l-3.5 3.5a.5.5 0 000 .708l3.5 3.5a.5.5 0 00.708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 01.708-.708l3.5 3.5a.5.5 0 010 .708l-3.5 3.5a.5.5 0 01-.708-.708L13.293 8l-3.147-3.146z"/></svg>
+    </button>
+    <button data-action="link" title="Hyperlink (Ctrl+K)" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.354 5.5H4a3 3 0 000 6h3a3 3 0 002.83-4H9c-.086 0-.17.01-.25.031A2 2 0 017 10.5H4a2 2 0 110-4h1.535c.218-.376.495-.714.82-1z"/><path d="M9 5.5a3 3 0 00-2.83 4h1.098A2 2 0 019 6.5h3a2 2 0 110 4h-1.535a4.02 4.02 0 01-.82 1H12a3 3 0 100-6H9z"/></svg>
+    </button>
+    <button data-action="blockquote" title="Quote (Ctrl+Shift+Q)" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M12 12a1 1 0 001-1V8.558a1 1 0 00-1-1h-1.388c0-.351.021-.703.062-1.054.062-.372.166-.703.31-.992.145-.29.331-.517.559-.683.227-.186.516-.279.868-.279V3c-.579 0-1.085.124-1.52.372a3.322 3.322 0 00-1.085.992 4.92 4.92 0 00-.62 1.458A7.712 7.712 0 009 7.558V11a1 1 0 001 1h2zm-6 0a1 1 0 001-1V8.558a1 1 0 00-1-1H4.612c0-.351.021-.703.062-1.054.062-.372.166-.703.31-.992.145-.29.331-.517.559-.683.227-.186.516-.279.868-.279V3c-.579 0-1.085.124-1.52.372a3.322 3.322 0 00-1.085.992 4.92 4.92 0 00-.62 1.458A7.712 7.712 0 003 7.558V11a1 1 0 001 1h2z"/></svg>
+    </button>
+    <button data-action="ul" title="Unordered List (Ctrl+Shift+[)" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 11.5a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm-3 1a1 1 0 100-2 1 1 0 000 2zm0 4a1 1 0 100-2 1 1 0 000 2zm0 4a1 1 0 100-2 1 1 0 000 2z"/></svg>
+    </button>
+    <button data-action="ol" title="Ordered List (Ctrl+Shift+])" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 11.5a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5z"/><path d="M1.713 11.865v-.474H2c.217 0 .363-.137.363-.317 0-.185-.158-.31-.361-.31-.223 0-.367.152-.373.31h-.59c.016-.467.373-.787.986-.787.588-.002.954.291.957.703a.595.595 0 01-.492.594v.033a.615.615 0 01.569.631c.003.533-.502.8-1.051.8-.656 0-1-.37-1.008-.794h.582c.008.178.186.306.422.309.254 0 .424-.145.422-.35-.002-.195-.155-.348-.414-.348h-.3zm-.004-4.699h-.604v-.035c0-.408.295-.844.958-.844.583 0 .96.326.96.756 0 .389-.257.617-.476.848l-.537.572v.03h1.054V9H1.143v-.395l.957-.99c.138-.142.293-.304.293-.508 0-.18-.147-.32-.342-.32a.33.33 0 00-.342.338v.041zM2.564 5h-.635V2.924h-.031l-.598.42v-.567l.629-.443h.635V5z"/></svg>
+    </button>
+    <button data-action="task" title="Task List" class="ctx-icon-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 1a.5.5 0 00-.5.5v1a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-1a.5.5 0 00-.5-.5h-1zM3 2.5H2v-1h1v1z"/><path d="M5 2.5a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm0 4a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm0 4a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zM3.854 11.354l2-2a.5.5 0 00-.708-.708L3.5 10.293l-.646-.647a.5.5 0 00-.708.708l1 1a.5.5 0 00.708 0zM2 6.5a.5.5 0 01.5-.5h1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-1a.5.5 0 01-.5-.5v-1z"/></svg>
+    </button>
+  </div>
+  
+  <!-- Paragraph submenu -->
+  <div class="ctx-submenu-item">
+    <span class="ctx-submenu-label">Paragraph</span>
+    <div class="ctx-submenu">
+      <button data-action="paragraph" data-shortcut="Ctrl+0">Paragraph</button>
+      <button data-action="h1" data-shortcut="Ctrl+1">Heading 1</button>
+      <button data-action="h2" data-shortcut="Ctrl+2">Heading 2</button>
+      <button data-action="h3" data-shortcut="Ctrl+3">Heading 3</button>
+      <button data-action="h4" data-shortcut="Ctrl+4">Heading 4</button>
+      <button data-action="h5" data-shortcut="Ctrl+5">Heading 5</button>
+      <button data-action="h6" data-shortcut="Ctrl+6">Heading 6</button>
+    </div>
+  </div>
+  
+  <!-- Insert submenu -->
+  <div class="ctx-submenu-item">
+    <span class="ctx-submenu-label">Insert</span>
+    <div class="ctx-submenu">
+      <button data-action="image" data-shortcut="Ctrl+Shift+I">Image</button>
+      <button data-action="link">Link Reference</button>
+      <button data-action="hr">Horizontal Line</button>
+      <button data-action="table" data-shortcut="Ctrl+T">Table</button>
+      <button data-action="codeblock" data-shortcut="Ctrl+Shift+K">Code Fences</button>
+      <button data-action="toc">Table of Contents</button>
+      <button data-action="mathblock" data-shortcut="Ctrl+Shift+M">Math Block</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <!-- ── GRAPH CANVAS MODAL ──────────────────────────────────────────────────── -->
