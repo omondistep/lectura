@@ -431,15 +431,17 @@ html, body {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 12px;
   border-radius: 4px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   transition: background .1s, color .1s;
+  font-size: 13px;
 }
 .sidebar-tab:hover { background: var(--bg-hover); color: var(--text-dim); }
 .sidebar-tab.active { color: var(--text); background: var(--bg-hover); }
+.sidebar-tab span { font-weight: 500; }
 .sidebar-tab-spacer { flex: 1; }
 
 /* ── search ───────────────────────────────────────────────────────────────── */

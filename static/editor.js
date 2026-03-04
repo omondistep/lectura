@@ -156,7 +156,8 @@ let currentFolder = "";
 let isDirty = false;
 let autoSaveTimer = null;
 const AUTOSAVE_DELAY = 2000;
-let sidebarMode = "tree";
+let sidebarMode = "files";
+let filesViewMode = "tree"; // tree or list
 
 // ── theme compartment ──────────────────────────────────────────────────────────
 const themeCompartment = new Compartment();
@@ -1235,11 +1236,57 @@ function switchSidebarMode(mode) {
   document.querySelectorAll(".sidebar-tab[data-mode]").forEach(t => {
     t.classList.toggle("active", t.dataset.mode === mode);
   });
+  
+  // Handle files mode with sub-views (tree/list)
   document.querySelectorAll(".sidebar-content").forEach(panel => {
-    panel.style.display = panel.dataset.for === mode ? "" : "none";
+    const panelMode = panel.dataset.for;
+    if (mode === "files") {
+      // For files mode, show tree or list based on filesViewMode
+      panel.style.display = (panelMode === "tree" || panelMode === "list") && panelMode === filesViewMode ? "" : "none";
+    } else {
+      // For other modes, match directly
+      panel.style.display = panelMode === mode ? "" : "none";
+    }
   });
-  if (mode === "list") populateFileList();
+  
+  // Update bottom controls visibility
+  const isFilesMode = mode === "files";
+  const isOutlineMode = mode === "outline";
+  const isCloudMode = mode === "git" || mode === "gdrive";
+  
+  document.querySelectorAll(".bottom-controls-group").forEach(group => {
+    if (group.dataset.for === "outline") {
+      group.style.display = isOutlineMode ? "flex" : "none";
+    } else if (group.dataset.for === "files") {
+      group.style.display = isFilesMode ? "flex" : "none";
+    }
+  });
+  
+  // Hide bottom controls for cloud modes
+  const bottomControls = document.getElementById("sidebar-bottom-controls");
+  if (bottomControls) {
+    bottomControls.style.display = isCloudMode ? "none" : "";
+  }
+  
+  // Update view toggle icon
+  updateViewToggleIcon();
+  
+  if (mode === "files" && filesViewMode === "list") populateFileList();
   if (mode === "outline") updateOutline();
+}
+
+function updateViewToggleIcon() {
+  const treeIcon = document.querySelector(".view-icon-tree");
+  const listIcon = document.querySelector(".view-icon-list");
+  if (!treeIcon || !listIcon) return;
+  
+  if (filesViewMode === "tree") {
+    treeIcon.style.display = "";
+    listIcon.style.display = "none";
+  } else if (filesViewMode === "list") {
+    treeIcon.style.display = "none";
+    listIcon.style.display = "";
+  }
 }
 
 // ── File list (flat mode) ────────────────────────────────────────────────────
@@ -3386,6 +3433,9 @@ async function setWorkspace(folderPath) {
     el.title = workspacePath;
   }
   
+  // Update bottom folder name
+  updateBottomFolderName();
+  
   // Update sidebar header (Typora-style: show folder name in sidebar)
   const sidebarHeader = document.getElementById("sidebar-header");
   const sidebarFolderName = document.getElementById("sidebar-folder-name");
@@ -3512,9 +3562,63 @@ function applyPreferences() {
 }
 
 applyPreferences();
+
+// ── Bottom control bar event listeners ──────────────────────────────────────
+document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", toggleSidebar);
+document.getElementById("btn-bottom-toggle-editor")?.addEventListener("click", () => {
+  const editorPane = document.getElementById("editor-pane");
+  editorPane.classList.toggle("hidden-pane");
+  document.body.classList.toggle("editor-hidden", editorPane.classList.contains("hidden-pane"));
+});
+
+document.getElementById("btn-bottom-new-file")?.addEventListener("click", () => {
+  closeAllMenus();
+  newFile();
+});
+
+document.getElementById("btn-bottom-folder-menu")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  const folderDialog = document.getElementById("folder-dialog");
+  if (folderDialog && !folderDialog.classList.contains("hidden")) {
+    closeFolderDialog();
+  } else {
+    openFolderDialog();
+  }
+});
+
+document.getElementById("btn-bottom-view-toggle")?.addEventListener("click", () => {
+  if (filesViewMode === "tree") {
+    filesViewMode = "list";
+    populateFileList();
+  } else {
+    filesViewMode = "tree";
+  }
+  
+  // Update the displayed content
+  document.querySelectorAll(".sidebar-content").forEach(panel => {
+    if (panel.dataset.for === "tree" || panel.dataset.for === "list") {
+      panel.style.display = panel.dataset.for === filesViewMode ? "" : "none";
+    }
+  });
+  
+  updateViewToggleIcon();
+});
+
+function updateBottomFolderName() {
+  const folderNameEl = document.getElementById("bottom-folder-name");
+  const workspaceName = document.getElementById("workspace-name")?.textContent || "No folder";
+  if (folderNameEl) {
+    folderNameEl.textContent = workspaceName;
+  }
+}
+
 loadWorkspace();
 // Lazy load file list after UI is ready
-setTimeout(() => loadFileList(), 100);
+setTimeout(() => {
+  loadFileList();
+  updateBottomFolderName();
+  switchSidebarMode("files");
+}, 100);
 // Initialize Mermaid early
 initMermaid();
 
