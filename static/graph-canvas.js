@@ -54,34 +54,34 @@ export class GraphCanvas {
     if (this.showGrid) {
       const g = this._svgG("gc-grid");
       for (let x = left; x <= this.w - right; x += this.gridSize)
-        g.appendChild(this._svgEl("line", { x1: x, y1: top, x2: x, y2: this.h - bottom, stroke: "#2a2a2a", "stroke-width": 0.5 }));
+        g.appendChild(this._svgEl("line", { x1: x, y1: top, x2: x, y2: this.h - bottom, stroke: "#e0e0e0", "stroke-width": 0.5 }));
       for (let y = top; y <= this.h - bottom; y += this.gridSize)
-        g.appendChild(this._svgEl("line", { x1: left, y1: y, x2: this.w - right, y2: y, stroke: "#2a2a2a", "stroke-width": 0.5 }));
+        g.appendChild(this._svgEl("line", { x1: left, y1: y, x2: this.w - right, y2: y, stroke: "#e0e0e0", "stroke-width": 0.5 }));
       this.svg.prepend(g);
     }
 
     const ag = this._svgG("gc-axis");
-    ag.appendChild(this._svgEl("line", { x1: left, y1: this.h - bottom, x2: this.w - right, y2: this.h - bottom, stroke: "#888", "stroke-width": 1.5 }));
-    ag.appendChild(this._svgEl("line", { x1: left, y1: top, x2: left, y2: this.h - bottom, stroke: "#888", "stroke-width": 1.5 }));
-    ag.appendChild(this._svgEl("polygon", { points: `${this.w - right},${this.h - bottom} ${this.w - right - 8},${this.h - bottom - 4} ${this.w - right - 8},${this.h - bottom + 4}`, fill: "#888" }));
-    ag.appendChild(this._svgEl("polygon", { points: `${left},${top} ${left - 4},${top + 8} ${left + 4},${top + 8}`, fill: "#888" }));
+    ag.appendChild(this._svgEl("line", { x1: left, y1: this.h - bottom, x2: this.w - right, y2: this.h - bottom, stroke: "#333", "stroke-width": 1.5 }));
+    ag.appendChild(this._svgEl("line", { x1: left, y1: top, x2: left, y2: this.h - bottom, stroke: "#333", "stroke-width": 1.5 }));
+    ag.appendChild(this._svgEl("polygon", { points: `${this.w - right},${this.h - bottom} ${this.w - right - 8},${this.h - bottom - 4} ${this.w - right - 8},${this.h - bottom + 4}`, fill: "#333" }));
+    ag.appendChild(this._svgEl("polygon", { points: `${left},${top} ${left - 4},${top + 8} ${left + 4},${top + 8}`, fill: "#333" }));
 
     // Title
     if (this.title) {
-      const t = this._svgEl("text", { x: (left + this.w - right) / 2, y: top - 4, fill: "#ccc", "font-size": "15", "text-anchor": "middle", "font-family": "sans-serif", "font-weight": "bold" });
+      const t = this._svgEl("text", { x: (left + this.w - right) / 2, y: top - 4, fill: "#222", "font-size": "15", "text-anchor": "middle", "font-family": "sans-serif", "font-weight": "bold" });
       t.textContent = this.title;
       ag.appendChild(t);
     }
     // X-axis label
     if (this.xLabel) {
-      const t = this._svgEl("text", { x: (left + this.w - right) / 2, y: this.h - bottom + 30, fill: "#aaa", "font-size": "12", "text-anchor": "middle", "font-family": "sans-serif" });
+      const t = this._svgEl("text", { x: (left + this.w - right) / 2, y: this.h - bottom + 30, fill: "#555", "font-size": "12", "text-anchor": "middle", "font-family": "sans-serif" });
       t.textContent = this.xLabel;
       ag.appendChild(t);
     }
     // Y-axis label
     if (this.yLabel) {
       const cx = left - 30, cy = (top + this.h - bottom) / 2;
-      const t = this._svgEl("text", { x: cx, y: cy, fill: "#aaa", "font-size": "12", "text-anchor": "middle", "font-family": "sans-serif", transform: `rotate(-90, ${cx}, ${cy})` });
+      const t = this._svgEl("text", { x: cx, y: cy, fill: "#555", "font-size": "12", "text-anchor": "middle", "font-family": "sans-serif", transform: `rotate(-90, ${cx}, ${cy})` });
       t.textContent = this.yLabel;
       ag.appendChild(t);
     }
@@ -377,7 +377,7 @@ export class GraphCanvas {
 
         g.appendChild(this._svgEl("rect", {
           x: el.x, y: el.y, width: boxW, height: boxH,
-          fill: "rgba(10,10,10,0.8)", stroke: el.color, "stroke-width": 1, rx: 3,
+          fill: "rgba(255,255,255,0.9)", stroke: el.color, "stroke-width": 1, rx: 3,
         }));
 
         const t = this._svgEl("text", {

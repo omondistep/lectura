@@ -703,7 +703,7 @@ const ACTIONS = {
 // VIM MODE
 // ═══════════════════════════════════════════════════════════════════════════════
 const vimCompartment = new Compartment();
-let vimEnabled = localStorage.getItem("sc-vim") === "true";
+let vimEnabled = localStorage.getItem("sc-vim") !== "false";
 
 const vimIndicator = document.getElementById("vim-mode-indicator");
 function updateVimIndicator(modeName) {
@@ -1178,6 +1178,7 @@ function toggleSidebar() {
   document.body.classList.toggle("sidebar-collapsed", sidebar.classList.contains("collapsed"));
 }
 
+
 document.getElementById("btn-sidebar").addEventListener("click", toggleSidebar);
 document.getElementById("btn-toggle-sidebar")?.addEventListener("click", () => { closeAllMenus(); toggleSidebar(); });
 document.getElementById("btn-refresh-files").addEventListener("click", loadFileList);
@@ -1264,7 +1265,7 @@ async function populateFileList() {
   }
   // files may be objects {path, preview} or strings — normalize
   const paths = files.map(f => typeof f === "string" ? f : f.path);
-  paths.sort(naturalSort);
+  paths.sort(getSortComparator());
   paths.forEach(filePath => {
     const li = document.createElement("li");
     const fileName = filePath.split("/").pop();
@@ -1400,7 +1401,7 @@ function naturalSort(a, b) {
 }
 
 function renderTree(node, container) {
-  Object.keys(node.children).sort(naturalSort).forEach(folderName => {
+  Object.keys(node.children).sort(getSortComparator()).forEach(folderName => {
     const folderNode = node.children[folderName];
     const folderPath = folderNode.path || folderName;
     const isExpanded = expandedFolders.has(folderPath);
@@ -1473,7 +1474,7 @@ function renderTree(node, container) {
     }
   });
 
-  node.files.sort((a, b) => naturalSort(a.name, b.name)).forEach(file => {
+  node.files.sort(getFileSortComparator()).forEach(file => {
     const li = document.createElement("li");
     li.className = "tree-file";
     if (file.path === currentFile) li.classList.add("active-file");
@@ -1777,6 +1778,10 @@ document.querySelector('.sidebar-content[data-for="tree"]').addEventListener("co
   if (e.target.closest("#file-list")) return; // already handled by file-list listener
   handleSidebarContextMenu(e);
 });
+document.querySelector('.sidebar-content[data-for="list"]')?.addEventListener("contextmenu", (e) => {
+  if (e.target.closest("#file-list-flat")) return;
+  handleSidebarContextMenu(e);
+});
 
 function showContextMenu(x, y, context) {
   const menuEmpty = document.getElementById("menu-empty");
@@ -1785,7 +1790,14 @@ function showContextMenu(x, y, context) {
   menuEmpty.style.display = "none";
   menuFile.style.display = "none";
   if (menuFolder) menuFolder.style.display = "none";
-  if (context === "empty") menuEmpty.style.display = "block";
+  if (context === "empty") {
+    menuEmpty.style.display = "block";
+    // Update view toggle tick marks
+    const listBtn = menuEmpty.querySelector('[data-action="view-list"] .ctx-check');
+    const treeBtn = menuEmpty.querySelector('[data-action="view-tree"] .ctx-check');
+    if (listBtn) listBtn.textContent = filesViewMode === "list" ? "✓" : "";
+    if (treeBtn) treeBtn.textContent = filesViewMode === "tree" ? "✓" : "";
+  }
   else if (context === "folder" && menuFolder) menuFolder.style.display = "block";
   else menuFile.style.display = "block";
   contextMenu.classList.remove("hidden");
@@ -1862,69 +1874,52 @@ contextMenu.addEventListener("click", async (e) => {
     case "new-folder-from-file": {
       if (action === "new-folder-from-file") {
         const parent = target ? target.substring(0, target.lastIndexOf("/")) : "";
-        await createFolder(parent);
+        createFolderInline(parent);
         break;
       }
-      
-      // Use native file dialog in Electron (like Typora)
-      if (window.electronAPI?.createNewFileDialog) {
-        const folder = target && isFolder ? target : (target ? target.substring(0, target.lastIndexOf("/")) : "");
-        const defaultPath = folder ? `${folder}/untitled.md` : "untitled.md";
-        const filePath = await window.electronAPI.createNewFileDialog(defaultPath);
-        
-        if (filePath) {
-          const r = await fetch(`/files/${encodeURIComponent(filePath)}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: "" })
-          });
-          
-          if (r.ok) {
-            currentFile = filePath;
-            const fileName = filePath.split("/").pop();
-            document.getElementById("filename-input").value = fileName;
-            setContent("");
-            switchToEditorView();
-            await loadFileList();
-            setStatus(`Created ${fileName}`);
-            view.focus();
-          } else {
-            setStatus("Failed to create file", true);
-          }
-        }
-        break;
-      }
-      
-      // Fallback for web mode
-      const folder = target && isFolder ? target : (target ? target.substring(0, target.lastIndexOf("/")) : "");
+
+      // Inline file creation in sidebar (like the + button)
+      const folder = target && isFolder ? target : (target ? target.substring(0, target.lastIndexOf("/")) : (currentFolder || ""));
       const res = await fetch("/files");
       const { files } = await res.json();
       let counter = 1;
       let fileName = "untitled.md";
       let fullPath = folder ? `${folder}/${fileName}` : fileName;
-      while (files.includes(fullPath)) {
+      const fileList = files.map(f => typeof f === 'string' ? f : f.path);
+      while (fileList.includes(fullPath)) {
         fileName = `untitled-${counter}.md`;
         fullPath = folder ? `${folder}/${fileName}` : fileName;
         counter++;
       }
-      
+
       const r = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: "" })
       });
-      
+
       if (r.ok) {
         currentFile = fullPath;
-        document.getElementById("filename-input").value = fileName;
         setContent("");
-        switchToEditorView();
+        isDirty = false;
+        updateDirtyBadge();
+        updateBottomFileName();
+        if (folder) {
+          expandedFolders.add(folder);
+          saveExpandedFolders();
+        }
         await loadFileList();
-        setStatus(`Created ${fileName}`);
+
+        // Find the file in sidebar and make it editable
         setTimeout(() => {
-          const input = document.getElementById("filename-input");
-          input.select();
-          view.focus();
+          const fileEl = document.querySelector(`li.tree-file[data-file-path="${fullPath}"]`);
+          if (fileEl) {
+            fileEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            const nameSpan = fileEl.querySelector(".file-name");
+            if (nameSpan) {
+              makeFileNameEditable(fileEl, fullPath, fileName);
+            }
+          }
         }, 100);
       } else {
         setStatus("Failed to create file", true);
@@ -1934,66 +1929,44 @@ contextMenu.addEventListener("click", async (e) => {
     case "new-file-in-folder": {
       if (!target) break;
       const folder = target.replace(/\/$/, "");
-      
-      // Use native file dialog in Electron (like Typora)
-      if (window.electronAPI?.createNewFileDialog) {
-        const defaultPath = `${folder}/untitled.md`;
-        const filePath = await window.electronAPI.createNewFileDialog(defaultPath);
-        
-        if (filePath) {
-          const r = await fetch(`/files/${encodeURIComponent(filePath)}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: "" })
-          });
-          
-          if (r.ok) {
-            currentFile = filePath;
-            const fileName = filePath.split("/").pop();
-            document.getElementById("filename-input").value = fileName;
-            setContent("");
-            expandedFolders.add(folder);
-            saveExpandedFolders();
-            await loadFileList();
-            setStatus(`Created ${fileName}`);
-          } else {
-            setStatus("Failed to create file", true);
-          }
-        }
-        break;
-      }
-      
-      // Fallback for web mode
+
       const res = await fetch("/files");
       const { files } = await res.json();
+      const fileList2 = files.map(f => typeof f === 'string' ? f : f.path);
       let counter = 1;
       let fileName = "untitled.md";
       let fullPath = `${folder}/${fileName}`;
-      while (files.includes(fullPath)) {
+      while (fileList2.includes(fullPath)) {
         fileName = `untitled-${counter}.md`;
         fullPath = `${folder}/${fileName}`;
         counter++;
       }
-      
+
       const r = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: "" })
       });
-      
+
       if (r.ok) {
         currentFile = fullPath;
-        document.getElementById("filename-input").value = fileName;
         setContent("");
-        switchToEditorView();
+        isDirty = false;
+        updateDirtyBadge();
+        updateBottomFileName();
         expandedFolders.add(folder);
         saveExpandedFolders();
         await loadFileList();
-        setStatus(`Created ${fileName}`);
+
         setTimeout(() => {
-          const input = document.getElementById("filename-input");
-          input.select();
-          view.focus();
+          const fileEl = document.querySelector(`li.tree-file[data-file-path="${fullPath}"]`);
+          if (fileEl) {
+            fileEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            const nameSpan = fileEl.querySelector(".file-name");
+            if (nameSpan) {
+              makeFileNameEditable(fileEl, fullPath, fileName);
+            }
+          }
         }, 100);
       } else {
         setStatus("Failed to create file", true);
@@ -2003,7 +1976,7 @@ contextMenu.addEventListener("click", async (e) => {
     case "new-folder":
     case "new-subfolder": {
       const parent = isFolder && target ? target.replace(/\/$/, "") : "";
-      await createFolder(parent);
+      createFolderInline(parent);
       break;
     }
     case "open": {
@@ -2094,14 +2067,17 @@ contextMenu.addEventListener("click", async (e) => {
       break;
     }
     case "copy-path": {
-      if (!target) break;
-      try { await navigator.clipboard.writeText(`notes/${target}`); setStatus("Path copied"); }
-      catch { prompt("Copy path:", `notes/${target}`); }
+      const pathTarget = target || currentFile;
+      if (!pathTarget) { setStatus("No file selected"); break; }
+      const fullCopyPath = workspacePath ? `${workspacePath}/${pathTarget}` : `notes/${pathTarget}`;
+      try { await navigator.clipboard.writeText(fullCopyPath); setStatus("Path copied"); }
+      catch { prompt("Copy path:", fullCopyPath); }
       break;
     }
     case "reveal": {
-      if (!target) break;
-      const res = await fetch(`/reveal/${encodeURIComponent(target)}`, { method: "POST" });
+      const revealTarget = target || currentFile;
+      if (!revealTarget) { setStatus("No file selected"); break; }
+      const res = await fetch(`/reveal/${encodeURIComponent(revealTarget)}`, { method: "POST" });
       if (res.ok) {
         setStatus("Opened in file manager");
       } else {
@@ -2115,13 +2091,45 @@ contextMenu.addEventListener("click", async (e) => {
       break;
     }
     case "open-in-new-window": {
-      if (!target) break;
       if (window.electronAPI?.openInNewWindow) {
-        const fullPath = workspacePath ? `${workspacePath}/${target}` : target;
-        window.electronAPI.openInNewWindow(fullPath);
-        setStatus("Opened in new window");
-      } else {
-        setStatus("Open in new window only available in desktop app", true);
+        const filePath = target || currentFile;
+        if (filePath) {
+          const fullPath = workspacePath ? `${workspacePath}/${filePath}` : filePath;
+          window.electronAPI.openInNewWindow(fullPath);
+          setStatus("Opened in new window");
+        }
+      } else if (target || currentFile) {
+        const filePath = target || currentFile;
+        window.open(`${window.location.origin}?file=${encodeURIComponent(filePath)}`, "_blank");
+      }
+      break;
+    }
+    case "search": {
+      document.getElementById("search-input")?.focus();
+      break;
+    }
+    case "view-list": {
+      if (filesViewMode !== "list") {
+        filesViewMode = "list";
+        populateFileList();
+        document.querySelectorAll(".sidebar-content").forEach(panel => {
+          if (panel.dataset.for === "tree" || panel.dataset.for === "list") {
+            panel.style.display = panel.dataset.for === filesViewMode ? "" : "none";
+          }
+        });
+        updateViewToggleIcon();
+      }
+      break;
+    }
+    case "view-tree": {
+      if (filesViewMode !== "tree") {
+        filesViewMode = "tree";
+        document.querySelectorAll(".sidebar-content").forEach(panel => {
+          if (panel.dataset.for === "tree" || panel.dataset.for === "list") {
+            panel.style.display = panel.dataset.for === filesViewMode ? "" : "none";
+          }
+        });
+        updateViewToggleIcon();
       }
       break;
     }
@@ -2476,9 +2484,16 @@ function closeGraphCanvas() {
 document.querySelectorAll("#graph-toolbar .gc-tool").forEach(btn => {
   btn.addEventListener("click", () => {
     if (!graphCanvasInstance) return;
-    graphCanvasInstance.tool = btn.dataset.tool;
-    document.querySelectorAll("#graph-toolbar .gc-tool").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
+    const clickedTool = btn.dataset.tool;
+    // Toggle: clicking the active tool deselects it (returns to select mode)
+    if (graphCanvasInstance.tool === clickedTool && clickedTool !== "select") {
+      graphCanvasInstance.tool = "select";
+    } else {
+      graphCanvasInstance.tool = clickedTool;
+    }
+    document.querySelectorAll("#graph-toolbar .gc-tool").forEach(b => {
+      b.classList.toggle("active", b.dataset.tool === graphCanvasInstance.tool);
+    });
   });
 });
 
@@ -3540,34 +3555,7 @@ document.getElementById("folder-open-btn")?.addEventListener("click", () => {
 
 // ── Bottom sidebar context menus ─────────────────────────────────────────────
 function showFolderContextMenu(e) {
-  const menu = document.createElement("div");
-  menu.className = "context-menu";
-  menu.style.position = "fixed";
-  menu.style.left = e.clientX + "px";
-  menu.style.top = e.clientY + "px";
-  
-  menu.innerHTML = `
-    <div class="context-menu-item" data-action="new-file">New File</div>
-    <div class="context-menu-item" data-action="search">Search</div>
-    <div class="context-menu-item" data-action="reveal">Reveal in File Explorer</div>
-    <div class="context-menu-sep"></div>
-    <div class="context-menu-item" data-action="open-folder">Open Folder...</div>
-    <div class="context-menu-item" data-action="refresh">Refresh Folder</div>
-  `;
-  
-  document.body.appendChild(menu);
-  
-  menu.addEventListener("click", (ev) => {
-    const action = ev.target.dataset.action;
-    if (action === "new-file") newFile();
-    else if (action === "search") document.getElementById("search-input")?.focus();
-    else if (action === "reveal") revealInExplorer();
-    else if (action === "open-folder") openFolderDialog();
-    else if (action === "refresh") loadFileList();
-    menu.remove();
-  });
-  
-  setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
+  showSidebarMorePopup({ x: e.clientX, y: e.clientY }, true);
 }
 
 function showFolderOptionsMenu(e) {
@@ -3884,6 +3872,265 @@ function showRecentLocationsMenu(e) {
   
   setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
 }
+
+// ── Sort mode for file tree ──────────────────────────────────────────────────
+let fileSortMode = localStorage.getItem("lectura-sort-mode") || "name";
+
+function getSortComparator() {
+  switch (fileSortMode) {
+    case "name": return naturalSort;
+    case "name-desc": return (a, b) => naturalSort(b, a);
+    case "modified": return (a, b) => (b._mtime || 0) - (a._mtime || 0);
+    case "created": return (a, b) => (b._ctime || 0) - (a._ctime || 0);
+    default: return naturalSort;
+  }
+}
+
+function getFileSortComparator() {
+  switch (fileSortMode) {
+    case "name": return (a, b) => naturalSort(a.name, b.name);
+    case "name-desc": return (a, b) => naturalSort(b.name, a.name);
+    case "modified": return (a, b) => (b.mtime || 0) - (a.mtime || 0);
+    case "created": return (a, b) => (b.ctime || 0) - (a.ctime || 0);
+    default: return (a, b) => naturalSort(a.name, b.name);
+  }
+}
+
+// ── Inline folder creation in sidebar (Typora-style) ────────────────────────
+async function createFolderInline(parentPath = "") {
+  const container = parentPath
+    ? document.querySelector(`li.tree-folder[data-folder-path="${parentPath}"] > ul`)
+    : document.getElementById("file-list");
+  if (!container) {
+    // Fallback: prompt
+    const name = prompt("Folder name:", "New Folder");
+    if (!name) return;
+    const fullPath = parentPath ? `${parentPath}/${name}` : name;
+    const r = await fetch(`/folders/${encodeURIComponent(fullPath)}`, { method: "POST" });
+    if (r.ok) { expandedFolders.add(fullPath); saveExpandedFolders(); loadFileList(); setStatus(`Created folder "${name}"`); }
+    else setStatus("Failed to create folder", true);
+    return;
+  }
+
+  // Expand the parent folder first
+  if (parentPath) {
+    expandedFolders.add(parentPath);
+    saveExpandedFolders();
+    await loadFileList();
+    // Re-find the container after refresh
+    const updatedContainer = document.querySelector(`li.tree-folder[data-folder-path="${parentPath}"] > ul`);
+    if (updatedContainer) return createFolderInlineInContainer(updatedContainer, parentPath);
+  }
+
+  createFolderInlineInContainer(container, parentPath);
+}
+
+function createFolderInlineInContainer(container, parentPath) {
+  const li = document.createElement("li");
+  li.className = "tree-folder new-folder-inline";
+
+  const header = document.createElement("div");
+  header.className = "folder-header";
+  header.innerHTML = `
+    <span class="folder-arrow">▶</span>
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0; color: var(--text-dim);">
+      <path d="M1 2.5A1.5 1.5 0 012.5 1h3.379a1.5 1.5 0 011.06.44l1.122 1.12A1.5 1.5 0 009.121 3H13.5A1.5 1.5 0 0115 4.5v8a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-10z"/>
+    </svg>
+  `;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "inline-rename-input";
+  input.value = "New Folder";
+  input.style.cssText = "background: var(--bg-input); border: 1px solid var(--accent); padding: 2px 4px; border-radius: 3px; font-size: 12px; flex: 1; min-width: 0; margin-left: 4px; color: var(--text); outline: none;";
+  header.appendChild(input);
+  li.appendChild(header);
+
+  // Insert at the top of the container
+  container.insertBefore(li, container.firstChild);
+
+  input.focus();
+  input.select();
+
+  const finish = async () => {
+    const name = input.value.trim();
+    li.remove();
+    if (!name) return;
+    const fullPath = parentPath ? `${parentPath}/${name}` : name;
+    const r = await fetch(`/folders/${encodeURIComponent(fullPath)}`, { method: "POST" });
+    if (r.ok) {
+      expandedFolders.add(fullPath);
+      saveExpandedFolders();
+      await loadFileList();
+      setStatus(`Created folder "${name}"`);
+    } else {
+      setStatus("Failed to create folder", true);
+    }
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); finish(); }
+    else if (e.key === "Escape") { li.remove(); }
+  });
+  input.addEventListener("blur", finish);
+}
+
+// ── Three-dots "More" popup (Typora-style) ──────────────────────────────────
+function showSidebarMorePopup(anchorRect, fromContextMenu) {
+  // Remove any existing popup
+  document.querySelector(".sidebar-more-popup")?.remove();
+
+  const popup = document.createElement("div");
+  popup.className = "sidebar-more-popup";
+
+  // Get recent folders/locations
+  const recentLocations = JSON.parse(localStorage.getItem("lectura-recent-locations") || "[]");
+
+  let recentHTML = "";
+  if (recentLocations.length > 0) {
+    recentLocations.slice(0, 8).forEach(loc => {
+      const locName = loc.split("/").pop() || loc;
+      recentHTML += `
+        <div class="popup-item recent-location-item" data-location="${loc}" title="${loc}">
+          <span class="recent-loc-icon">📁</span>
+          <span class="recent-file-name">${locName}</span>
+          <span class="recent-loc-indicator" style="margin-left:auto; opacity:0.4;">●</span>
+        </div>`;
+    });
+  } else {
+    // Show workspace as a recent location
+    const wsName = workspacePath ? workspacePath.split("/").pop() : "notes";
+    recentHTML = `
+      <div class="popup-item recent-location-item" data-location="" title="${workspacePath || 'notes'}">
+        <span class="recent-loc-icon">📁</span>
+        <span class="recent-file-name">${wsName}</span>
+        <span class="recent-loc-indicator" style="margin-left:auto; opacity:0.4;">●</span>
+      </div>`;
+  }
+
+  // Sort button helpers
+  const isActive = (mode) => fileSortMode === mode ? "active" : "";
+
+  popup.innerHTML = `
+    <div class="popup-header">
+      <span>Action</span>
+      <button class="popup-close" title="Close">&times;</button>
+    </div>
+    <div class="popup-item" data-action="new-file">New File</div>
+    <div class="popup-item" data-action="search">Search</div>
+    <div class="popup-item" data-action="reveal">Reveal in File Explorer</div>
+    <div class="popup-item" data-action="open-folder">Open Folder...</div>
+    <div class="popup-item" data-action="refresh">Refresh Folder</div>
+    <div class="popup-sep"></div>
+    <div class="sort-row">
+      <span class="popup-section-title">Sort</span>
+      <button class="sort-btn ${isActive("name")}" data-sort="name" title="Sort by Name (A→Z)">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.082 5.629L9.664 7H8.598l1.789-5.332h1.234L13.402 7h-1.12l-.419-1.371h-1.781zm1.57-.785L11 2.687h-.047l-.652 2.157h1.351z"/><path d="M12.96 14H9.028v-.691l2.579-3.72v-.054H9.098v-.867h3.785v.691l-2.567 3.72v.054h2.645V14zM4.5 2.5a.5.5 0 00-1 0v9.793l-1.146-1.147a.5.5 0 00-.708.708l2 2a.5.5 0 00.708 0l2-2a.5.5 0 00-.708-.708L4.5 12.293V2.5z"/></svg>
+      </button>
+      <button class="sort-btn ${isActive("modified")}" data-sort="modified" title="Sort by Date Modified">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 01.5.5V1h8V.5a.5.5 0 011 0V1h1a2 2 0 012 2v11a2 2 0 01-2 2H2a2 2 0 01-2-2V3a2 2 0 012-2h1V.5a.5.5 0 01.5-.5zM1 4v10a1 1 0 001 1h12a1 1 0 001-1V4H1z"/></svg>
+      </button>
+      <button class="sort-btn ${isActive("created")}" data-sort="created" title="Sort by Date Created">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5a.5.5 0 00-1 0V7H3.5a.5.5 0 000 1H7v3.5a.5.5 0 001 0V8h3.5a.5.5 0 000-1H8V3.5z"/><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm7-8A7 7 0 111 8a7 7 0 0114 0z"/></svg>
+      </button>
+      <button class="sort-btn ${isActive("name-desc")}" data-sort="name-desc" title="Sort by Name (Z→A)">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.082 5.629L9.664 7H8.598l1.789-5.332h1.234L13.402 7h-1.12l-.419-1.371h-1.781zm1.57-.785L11 2.687h-.047l-.652 2.157h1.351z"/><path d="M12.96 14H9.028v-.691l2.579-3.72v-.054H9.098v-.867h3.785v.691l-2.567 3.72v.054h2.645V14zM4.5 13.5a.5.5 0 01-1 0V3.707L2.354 4.854a.5.5 0 11-.708-.708l2-2a.5.5 0 01.708 0l2 2a.5.5 0 01-.708.708L4.5 3.707V13.5z"/></svg>
+      </button>
+    </div>
+    <div class="popup-sep"></div>
+    <div class="popup-section-title">Recent Locations</div>
+    ${recentHTML}
+  `;
+
+  // Position
+  popup.style.position = "fixed";
+  document.body.appendChild(popup);
+
+  const popupW = popup.offsetWidth;
+  const popupH = popup.offsetHeight;
+
+  let posX, posY;
+  if (fromContextMenu) {
+    posX = anchorRect.x;
+    posY = anchorRect.y;
+  } else {
+    // Open upward from the button
+    posX = anchorRect.right - popupW;
+    posY = anchorRect.top - popupH - 4;
+  }
+
+  // Clamp to viewport
+  if (posX + popupW > window.innerWidth) posX = window.innerWidth - popupW - 8;
+  if (posY + popupH > window.innerHeight) posY = window.innerHeight - popupH - 8;
+  if (posX < 0) posX = 8;
+  if (posY < 0) posY = 8;
+
+  popup.style.left = posX + "px";
+  popup.style.top = posY + "px";
+
+  // Close button
+  popup.querySelector(".popup-close").addEventListener("click", () => popup.remove());
+
+  // Action items
+  popup.addEventListener("click", (ev) => {
+    const item = ev.target.closest(".popup-item[data-action]");
+    if (!item) return;
+    const action = item.dataset.action;
+    if (action === "new-file") {
+      document.getElementById("btn-bottom-new-file")?.click();
+    } else if (action === "search") {
+      document.getElementById("search-input")?.focus();
+    } else if (action === "reveal") {
+      revealInExplorer();
+    } else if (action === "open-folder") {
+      openFolderDialog();
+    } else if (action === "refresh") {
+      loadFileList();
+      showToast("Folder refreshed");
+    }
+    popup.remove();
+  });
+
+  // Sort buttons
+  popup.querySelectorAll(".sort-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      fileSortMode = btn.dataset.sort;
+      localStorage.setItem("lectura-sort-mode", fileSortMode);
+      popup.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      loadFileList();
+    });
+  });
+
+  // Recent location items
+  popup.querySelectorAll(".recent-location-item[data-location]").forEach(item => {
+    item.addEventListener("click", (ev) => {
+      const loc = item.dataset.location;
+      if (loc) {
+        // Navigate into this folder
+        currentFolder = loc;
+        expandedFolders.add(loc);
+        saveExpandedFolders();
+        loadFileList();
+      }
+      popup.remove();
+    });
+  });
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener("click", (ev) => {
+      if (!popup.contains(ev.target)) popup.remove();
+    }, { once: true });
+  }, 0);
+}
+
+// Three-dots button click
+document.getElementById("btn-bottom-more")?.addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  const rect = btn.getBoundingClientRect();
+  showSidebarMorePopup(rect, false);
+});
 
 loadWorkspace();
 // Lazy load file list after UI is ready

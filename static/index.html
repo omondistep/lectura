@@ -1,13 +1,27 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lectura</title>
-  <link rel="preload" href="/static/style.css" as="style">
-  <link rel="preload" href="/static/editor.js" as="script">
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="color-scheme" content="dark light">
+  <!-- Apply saved theme instantly to prevent white flash -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('sc-theme') || 'dark';
+      var dark = ['dark','nord','phantom','cobalt','forest','jade','lavender','sunset','drake','ursine','lapis'];
+      var attr = dark.indexOf(t) !== -1 || t.indexOf('dark') !== -1 ? 'dark' : (t === 'light' ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', attr);
+      if (t !== 'dark' && t !== 'light') {
+        var link = document.createElement('link');
+        link.id = 'loaded-theme-css';
+        link.rel = 'stylesheet';
+        link.href = '/static/themes/' + t + '.css';
+        document.head.appendChild(link);
+      }
+    })();
+  </script>
 
   <script type="importmap">
   {
@@ -359,24 +373,6 @@
 
     <!-- Bottom control bar (Typora-style) -->
     <div id="sidebar-bottom-controls">
-      <!-- Controls for Outline mode -->
-      <div class="bottom-controls-group" data-for="outline" style="display:none">
-        <button id="btn-bottom-toggle-sidebar" class="bottom-control-btn" title="Toggle Sidebar">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
-          </svg>
-        </button>
-        <button id="btn-bottom-toggle-editor" class="bottom-control-btn" title="Toggle Editor">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M4.5 11.5A.5.5 0 0 1 5 11h10a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 3 7h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 1 3h10a.5.5 0 0 1 0 1H1a.5.5 0 0 1-.5-.5z"/>
-          </svg>
-          <span>/</span>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M11.5 4.5A.5.5 0 0 1 11 5H1a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5zm2 4a.5.5 0 0 1-.5.5H3a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5zm2 4a.5.5 0 0 1-.5.5H5a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5z"/>
-          </svg>
-        </button>
-      </div>
-
       <!-- Controls for Files mode (tree/list) -->
       <div class="bottom-controls-group" data-for="files">
         <button id="btn-bottom-new-file" class="bottom-control-btn" title="New File">
@@ -393,6 +389,13 @@
           </svg>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="view-icon-list" style="display:none">
             <path d="M1 2.5A1.5 1.5 0 012.5 1h3.379a1.5 1.5 0 011.06.44l1.122 1.12A1.5 1.5 0 009.121 3H13.5A1.5 1.5 0 0115 4.5v8a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-10z"/>
+          </svg>
+        </button>
+        <button id="btn-bottom-more" class="bottom-control-btn" title="More Actions">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="8" cy="3" r="1.5"/>
+            <circle cx="8" cy="8" r="1.5"/>
+            <circle cx="8" cy="13" r="1.5"/>
           </svg>
         </button>
       </div>
@@ -413,36 +416,56 @@
   <!-- editor pane (now on right) -->
   <div id="editor-pane">
     <div id="cm-editor"></div>
-    
-    <!-- Status bar moved to editor pane -->
-    <footer id="statusbar">
-      <div class="status-left">
-        <span id="vim-mode-indicator" class="vim-mode hidden"></span>
-        <span id="doc-status" class="doc-status new" title="New document">● New</span>
-        <span id="status-msg">Ready</span>
-      </div>
-      <div class="status-center">
-        <span id="folder-status" class="folder-status"></span>
-      </div>
-      <div class="status-right">
-        <span id="reading-time">~1 min read</span>
-        <span id="word-count">0 words</span>
-        <span id="char-count">0 chars</span>
-      </div>
-    </footer>
   </div>
 </div>
+
+<!-- Global status bar (full-width, below main, like Typora) -->
+<footer id="statusbar">
+  <div class="status-left">
+    <button id="btn-bottom-toggle-sidebar" class="statusbar-toggle-btn" title="Toggle Sidebar">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+      </svg>
+    </button>
+    <button id="btn-bottom-toggle-editor" class="statusbar-toggle-btn" title="Toggle Editor">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M4.5 11.5A.5.5 0 0 1 5 11h10a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 3 7h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 1 3h10a.5.5 0 0 1 0 1H1a.5.5 0 0 1-.5-.5z"/>
+      </svg>
+      <span>/</span>
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M11.5 4.5A.5.5 0 0 1 11 5H1a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5zm2 4a.5.5 0 0 1-.5.5H3a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5zm2 4a.5.5 0 0 1-.5.5H5a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5z"/>
+      </svg>
+    </button>
+    <span class="status-sep">│</span>
+    <span id="vim-mode-indicator" class="vim-mode hidden"></span>
+    <span id="doc-status" class="doc-status new" title="New document">● New</span>
+    <span id="status-msg">Ready</span>
+  </div>
+  <div class="status-center">
+    <span id="folder-status" class="folder-status"></span>
+  </div>
+  <div class="status-right">
+    <span id="reading-time">~1 min read</span>
+    <span id="word-count">0 words</span>
+    <span id="char-count">0 chars</span>
+  </div>
+</footer>
 
 <!-- context menu (file tree) -->
 <div id="context-menu" class="context-menu hidden">
   <div id="menu-empty" class="menu-section">
-    <button data-action="new-file">New Note</button>
-    <button data-action="new-folder">New Folder</button>
-    <div class="ctx-sep"></div>
     <button data-action="open-in-new-window">Open in New Window</button>
     <div class="ctx-sep"></div>
-    <button data-action="refresh">Refresh</button>
-    <button data-action="reveal">Show in Explorer</button>
+    <button data-action="new-file">New File</button>
+    <button data-action="new-folder">New Folder</button>
+    <div class="ctx-sep"></div>
+    <button data-action="search">Search</button>
+    <div class="ctx-sep"></div>
+    <button data-action="view-list" class="ctx-view-toggle"><span class="ctx-check"></span>Articles (List View)</button>
+    <button data-action="view-tree" class="ctx-view-toggle"><span class="ctx-check"></span>File Tree (Tree View)</button>
+    <div class="ctx-sep"></div>
+    <button data-action="copy-path">Copy File Path</button>
+    <button data-action="reveal">Open File Location</button>
   </div>
   <div id="menu-file" class="menu-section" style="display:none">
     <button data-action="open">Open</button>

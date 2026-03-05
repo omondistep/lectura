@@ -3,10 +3,12 @@ const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 
-// Disable GPU acceleration to prevent crashes on Linux
-app.disableHardwareAcceleration();
-app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-software-rasterizer');
+// Only disable GPU if needed (env var override)
+if (process.env.LECTURA_DISABLE_GPU) {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+}
 
 let mainWindow;
 let pythonProcess;
@@ -32,7 +34,8 @@ function createWindow() {
     width: 1400,
     height: 900,
     title: 'Lectura',
-    show: true,
+    show: false,
+    backgroundColor: '#0d1117',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -44,15 +47,51 @@ function createWindow() {
   // Hide native menu bar
   Menu.setApplicationMenu(null);
 
-  setTimeout(() => {
-    console.log('[Electron] Loading URL...');
-    mainWindow.loadURL('http://localhost:8000');
+  // Show window once content is painted (no white flash)
+  mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.focus();
-  }, 3000);
+  });
+
+  // Poll for Python server readiness instead of fixed 3s delay
+  waitForServer('http://127.0.0.1:8000', 50).then(() => {
+    console.log('[Electron] Server ready, loading URL...');
+    mainWindow.loadURL('http://127.0.0.1:8000');
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+}
+
+function waitForServer(url, intervalMs, maxAttempts = 100) {
+  const http = require('http');
+  return new Promise((resolve) => {
+    let attempts = 0;
+    const check = () => {
+      attempts++;
+      const req = http.get(url, (res) => {
+        res.resume();
+        resolve();
+      });
+      req.on('error', () => {
+        if (attempts < maxAttempts) {
+          setTimeout(check, intervalMs);
+        } else {
+          // Give up and try loading anyway
+          resolve();
+        }
+      });
+      req.setTimeout(200, () => {
+        req.destroy();
+        if (attempts < maxAttempts) {
+          setTimeout(check, intervalMs);
+        } else {
+          resolve();
+        }
+      });
+    };
+    check();
   });
 }
 
