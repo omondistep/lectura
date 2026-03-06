@@ -1020,6 +1020,7 @@ setTimeout(() => {
       Vim.handleKey(view.contentDOM, 'i');
     } catch (e) {}
   }
+  updateSidebarWidth();
 }, 100);
 
 // Vim mode polling — only poll when vim is enabled
@@ -1290,6 +1291,7 @@ function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   sidebar.classList.toggle("collapsed");
   document.body.classList.toggle("sidebar-collapsed", sidebar.classList.contains("collapsed"));
+  updateSidebarWidth();
 }
 
 
@@ -3592,6 +3594,7 @@ document.addEventListener("mousemove", (e) => {
   const sidebar = document.getElementById("sidebar");
   const newWidth = Math.min(Math.max(e.clientX, 160), 500);
   sidebar.style.width = newWidth + "px";
+  document.documentElement.style.setProperty('--sidebar-w', newWidth + 'px');
 });
 
 document.addEventListener("mouseup", () => {
@@ -3602,6 +3605,12 @@ document.addEventListener("mouseup", () => {
     document.body.style.userSelect = "";
   }
 });
+
+function updateSidebarWidth() {
+  const sidebar = document.getElementById("sidebar");
+  const width = sidebar.classList.contains("collapsed") ? 0 : parseInt(sidebar.style.width || getComputedStyle(sidebar).width);
+  document.documentElement.style.setProperty('--sidebar-w', width + 'px');
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HISTORY PERSISTENCE
