@@ -1440,7 +1440,6 @@ li.tree-file:hover .del-btn,
   flex-direction: column;
   min-width: 0;
   background: var(--bg-editor);
-  border-left: 1px solid var(--border-dim);
 }
 #editor-pane.hidden-pane { display: none !important; }
 
