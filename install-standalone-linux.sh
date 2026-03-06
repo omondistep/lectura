@@ -1,15 +1,14 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════════
-# Lectura Installer for Arch Linux
-# Installs as a standalone Electron desktop app with isolated Python venv
-# Uses pacman for system dependencies
+# Lectura Standalone Installer for Linux
+# Installs as a browser-based app with Python backend
 # ═══════════════════════════════════════════════════════════════════════════════
 set -e
 
 INSTALL_DIR="$HOME/.local/share/lectura"
 BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
-APP_VERSION="2.0.0"
+APP_VERSION="1.0.0"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -22,7 +21,7 @@ NC='\033[0m'
 print_banner() {
     echo ""
     echo -e "${CYAN}${BOLD}================================================${NC}"
-    echo -e "${CYAN}${BOLD}     Lectura Installer for Arch Linux v${APP_VERSION}${NC}"
+    echo -e "${CYAN}${BOLD}   Lectura Standalone Installer for Linux v${APP_VERSION}${NC}"
     echo -e "${CYAN}${BOLD}================================================${NC}"
     echo ""
 }
@@ -32,50 +31,29 @@ print_ok()   { echo -e "${GREEN}[+]${NC} $1"; }
 print_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 print_err()  { echo -e "${RED}[-]${NC} $1"; }
 
-# ── Check we're on Arch ──────────────────────────────────────────────────────
-check_arch() {
-    if ! command -v pacman &>/dev/null; then
-        print_err "This installer is for Arch Linux (pacman not found)."
-        print_err "Use a different installer for your distribution."
-        exit 1
-    fi
-    print_ok "Arch Linux detected"
-}
-
-# ── Install system dependencies via pacman ───────────────────────────────────
+# ── Install system dependencies ──────────────────────────────────────────────
 install_dependencies() {
     print_step "Checking system dependencies..."
 
-    local missing=()
-
-    command -v python3 &>/dev/null || missing+=(python)
-    command -v pip &>/dev/null || missing+=(python-pip)
-    command -v node &>/dev/null || missing+=(nodejs)
-    command -v npm &>/dev/null || missing+=(npm)
+    if ! command -v python3 &>/dev/null; then
+        print_err "Python 3 is required but not found."
+        print_err "Install with your package manager:"
+        print_err "  Ubuntu/Debian: sudo apt install python3 python3-pip python3-venv"
+        print_err "  Fedora:        sudo dnf install python3 python3-pip"
+        print_err "  Arch:          sudo pacman -S python python-pip"
+        exit 1
+    fi
 
     # Check python venv module
-    if command -v python3 &>/dev/null; then
-        python3 -m venv --help &>/dev/null 2>&1 || missing+=(python)
+    if ! python3 -m venv --help &>/dev/null 2>&1; then
+        print_err "Python venv module is required but not found."
+        print_err "Install with: sudo apt install python3-venv (Ubuntu/Debian)"
+        exit 1
     fi
 
-    if [ ${#missing[@]} -gt 0 ]; then
-        # Deduplicate
-        local unique_missing=($(printf '%s\n' "${missing[@]}" | sort -u))
-        print_step "Installing missing packages: ${unique_missing[*]}"
-        sudo pacman -S --needed --noconfirm "${unique_missing[@]}"
-        print_ok "System packages installed"
-    else
-        print_ok "All system dependencies already installed"
-    fi
-
-    # Verify
     local python_ver
     python_ver=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     print_ok "Python $python_ver found"
-
-    local node_ver
-    node_ver=$(node -v)
-    print_ok "Node.js $node_ver found"
 }
 
 # ── Copy project files ───────────────────────────────────────────────────────
@@ -95,20 +73,22 @@ install_files() {
 
     # Core app files
     cp "$SOURCE_DIR/main.py" "$INSTALL_DIR/"
-    cp "$SOURCE_DIR/electron-main.js" "$INSTALL_DIR/"
-    cp "$SOURCE_DIR/preload.js" "$INSTALL_DIR/"
-    cp "$SOURCE_DIR/package.json" "$INSTALL_DIR/"
     cp "$SOURCE_DIR/requirements.txt" "$INSTALL_DIR/"
 
     # Static assets
     cp -r "$SOURCE_DIR/static" "$INSTALL_DIR/"
-    cp -r "$SOURCE_DIR/build" "$INSTALL_DIR/"
 
     # Config and secrets (if they exist)
     cp "$SOURCE_DIR/config.json" "$INSTALL_DIR/" 2>/dev/null || true
     cp "$SOURCE_DIR/github_secrets.json" "$INSTALL_DIR/" 2>/dev/null || true
     cp "$SOURCE_DIR/dropbox_secrets.json" "$INSTALL_DIR/" 2>/dev/null || true
     cp "$SOURCE_DIR/gdrive_secrets.json" "$INSTALL_DIR/" 2>/dev/null || true
+
+    # Copy icon if available
+    if [ -f "$SOURCE_DIR/build/icon.png" ]; then
+        mkdir -p "$INSTALL_DIR/build"
+        cp "$SOURCE_DIR/build/icon.png" "$INSTALL_DIR/build/"
+    fi
 
     # Create notes directory
     mkdir -p "$INSTALL_DIR/notes"
@@ -128,21 +108,28 @@ setup_python() {
     print_ok "Python dependencies installed"
 }
 
-# ── Install Electron dependencies ────────────────────────────────────────────
-setup_electron() {
-    print_step "Installing Electron dependencies..."
-    cd "$INSTALL_DIR"
-    npm install --silent 2>/dev/null
-    print_ok "Electron installed"
-}
-
 # ── Create launcher ──────────────────────────────────────────────────────────
 create_launcher() {
     cat > "$BIN_DIR/lectura" << 'LAUNCHER'
 #!/bin/bash
 cd "$HOME/.local/share/lectura"
-export PATH="$HOME/.local/share/lectura/venv/bin:$PATH"
-npm start 2>/dev/null
+source venv/bin/activate
+
+echo "Starting Lectura..."
+echo "Open your browser to: http://127.0.0.1:8000"
+
+# Open browser if available
+if command -v xdg-open &>/dev/null; then
+    xdg-open "http://127.0.0.1:8000" &>/dev/null &
+elif command -v firefox &>/dev/null; then
+    firefox "http://127.0.0.1:8000" &>/dev/null &
+elif command -v chromium &>/dev/null; then
+    chromium "http://127.0.0.1:8000" &>/dev/null &
+elif command -v google-chrome &>/dev/null; then
+    google-chrome "http://127.0.0.1:8000" &>/dev/null &
+fi
+
+python main.py
 LAUNCHER
 
     chmod +x "$BIN_DIR/lectura"
@@ -151,6 +138,11 @@ LAUNCHER
 
 # ── Create desktop entry ────────────────────────────────────────────────────
 create_desktop_entry() {
+    local icon_path="$INSTALL_DIR/build/icon.png"
+    if [ ! -f "$icon_path" ]; then
+        icon_path="text-editor"  # fallback to system icon
+    fi
+
     cat > "$DESKTOP_DIR/lectura.desktop" << DESKTOP
 [Desktop Entry]
 Version=1.0
@@ -158,7 +150,7 @@ Type=Application
 Name=Lectura
 Comment=Markdown Note-Taking App
 Exec=$BIN_DIR/lectura
-Icon=$INSTALL_DIR/build/icon.png
+Icon=$icon_path
 Terminal=false
 Categories=Office;TextEditor;Utility;
 StartupNotify=true
@@ -173,28 +165,18 @@ DESKTOP
     print_ok "Desktop entry created"
 }
 
-# ── Build distributable package (optional) ───────────────────────────────────
-offer_build() {
-    echo ""
-    read -p "Build distributable pacman package now? [y/N]: " build_choice
-    if [[ "$build_choice" =~ ^[Yy]$ ]]; then
-        print_step "Building Arch Linux package..."
-        cd "$INSTALL_DIR"
-        npm run build-linux
-        print_ok "Package built in: $INSTALL_DIR/dist/"
-    fi
-}
-
 # ── PATH check ───────────────────────────────────────────────────────────────
 check_path() {
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
         echo ""
         print_warn "Add this to your ~/.bashrc or ~/.zshrc:"
         echo -e "    ${BOLD}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
+        echo ""
+        print_warn "Or reload your shell: source ~/.bashrc"
     fi
 }
 
-# ── Uninstall instructions ───────────────────────────────────────────────────
+# ── Summary ──────────────────────────────────────────────────────────────────
 print_summary() {
     echo ""
     echo -e "${GREEN}${BOLD}================================================${NC}"
@@ -203,6 +185,7 @@ print_summary() {
     echo ""
     echo -e "  ${BOLD}Launch:${NC}    lectura"
     echo -e "  ${BOLD}Or:${NC}        Search 'Lectura' in your applications"
+    echo -e "  ${BOLD}URL:${NC}       http://127.0.0.1:8000"
     echo ""
     echo -e "  ${BOLD}Uninstall:${NC}"
     echo "    rm -rf $INSTALL_DIR"
@@ -213,13 +196,10 @@ print_summary() {
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 print_banner
-check_arch
 install_dependencies
 install_files
 setup_python
-setup_electron
 create_launcher
 create_desktop_entry
-offer_build
 check_path
 print_summary
