@@ -1483,6 +1483,8 @@ li.tree-file:hover .del-btn,
   font-size: var(--preview-font-size);
   color: var(--text);
   width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
   background: var(--bg-preview);
   scroll-behavior: smooth;
   position: relative;

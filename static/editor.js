@@ -3033,11 +3033,11 @@ document.addEventListener("mousemove", (e) => {
   const maxWidth = mainWidth * 0.7;
   
   if (x >= minWidth && x <= maxWidth) {
-    const previewWidth = (x / mainWidth) * 100;
-    const editorWidth = 100 - previewWidth;
+    const editorWidth = (x / mainWidth) * 100;
+    const previewWidth = 100 - editorWidth;
     
-    previewPane.style.flex = `0 0 ${previewWidth}%`;
     editorPane.style.flex = `0 0 ${editorWidth}%`;
+    previewPane.style.flex = `0 0 ${previewWidth}%`;
   }
 });
 
