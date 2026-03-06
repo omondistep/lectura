@@ -32,6 +32,9 @@ dist/
 *.swp
 *.swo
 
+# Kiro CLI settings
+.kiro/
+
 # OS files
 .DS_Store
 Thumbs.db
