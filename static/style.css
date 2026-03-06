@@ -961,16 +961,18 @@ li.tree-folder {
 }
 
 li.tree-folder > .folder-header {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0;
   padding: 3px 10px;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 4px;
   transition: background .08s;
   user-select: none;
   white-space: nowrap;
   overflow: hidden;
+  max-width: calc(100% - 8px);
+  margin: 2px 4px;
 }
 li.tree-folder > .folder-header:hover { background: var(--bg-hover); }
 
@@ -1053,13 +1055,14 @@ ul.tree-children {
 
 /* tree file */
 li.tree-file {
-  display: flex;
+  display: inline-flex;
   align-items: flex-start;
   padding: 8px 12px;
   cursor: pointer;
   transition: background .08s;
   border-radius: 4px;
   margin: 2px 4px;
+  max-width: calc(100% - 8px);
 }
 li.tree-file:hover { background: var(--bg-hover); }
 li.tree-file.active-file { 
