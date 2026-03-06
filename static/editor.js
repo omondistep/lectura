@@ -1012,8 +1012,15 @@ const view = new EditorView({
 
 registerVimCommands();
 
-// Focus editor on load
-setTimeout(() => view.focus(), 100);
+// Focus editor on load and activate INSERT if Vim enabled
+setTimeout(() => {
+  view.focus();
+  if (vimEnabled) {
+    try {
+      Vim.handleKey(view.contentDOM, 'i');
+    } catch (e) {}
+  }
+}, 100);
 
 // Vim mode polling — only poll when vim is enabled
 let lastVimMode = "normal";
@@ -2969,6 +2976,14 @@ function togglePreview() {
     previewPane.style.cursor = "default";
     // Focus editor when switching to editor mode
     view.focus();
+    // Auto-activate INSERT mode if Vim is enabled
+    if (vimEnabled) {
+      setTimeout(() => {
+        try {
+          Vim.handleKey(view.contentDOM, 'i');
+        } catch (e) {}
+      }, 50);
+    }
   }
   
   // Hide/show Vim indicator based on editor visibility

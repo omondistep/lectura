@@ -961,7 +961,7 @@ li.tree-folder {
 }
 
 li.tree-folder > .folder-header {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0;
   padding: 3px 10px;
@@ -971,6 +971,7 @@ li.tree-folder > .folder-header {
   user-select: none;
   white-space: nowrap;
   overflow: hidden;
+  width: fit-content;
   max-width: calc(100% - 8px);
   margin: 2px 4px;
 }
@@ -1055,13 +1056,14 @@ ul.tree-children {
 
 /* tree file */
 li.tree-file {
-  display: inline-flex;
+  display: flex;
   align-items: flex-start;
   padding: 8px 12px;
   cursor: pointer;
   transition: background .08s;
   border-radius: 4px;
   margin: 2px 4px;
+  width: fit-content;
   max-width: calc(100% - 8px);
 }
 li.tree-file:hover { background: var(--bg-hover); }
