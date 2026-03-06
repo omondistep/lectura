@@ -252,7 +252,11 @@ function doRenderPreview() {
   const html = md.render(processed);
   
   const previewEl = document.getElementById("preview");
+  const oldScrollTop = previewEl.scrollTop;
   previewEl.innerHTML = html;
+  
+  // Restore scroll position after content update
+  previewEl.scrollTop = oldScrollTop;
 
   // Wire flashcard buttons
   previewEl.querySelectorAll(".flashcard-flip").forEach(btn => {
@@ -1011,6 +1015,35 @@ const view = new EditorView({
 });
 
 registerVimCommands();
+
+// Synchronized scrolling between editor and preview
+let isScrollingSynced = true;
+const editorScroller = view.scrollDOM;
+const previewEl = document.getElementById("preview");
+
+editorScroller.addEventListener("scroll", () => {
+  if (!isScrollingSynced) return;
+  isScrollingSynced = false;
+  
+  const editorScrollRatio = editorScroller.scrollTop / (editorScroller.scrollHeight - editorScroller.clientHeight);
+  const previewScrollTop = editorScrollRatio * (previewEl.scrollHeight - previewEl.clientHeight);
+  
+  previewEl.scrollTop = previewScrollTop;
+  
+  setTimeout(() => { isScrollingSynced = true; }, 50);
+});
+
+previewEl.addEventListener("scroll", () => {
+  if (!isScrollingSynced) return;
+  isScrollingSynced = false;
+  
+  const previewScrollRatio = previewEl.scrollTop / (previewEl.scrollHeight - previewEl.clientHeight);
+  const editorScrollTop = previewScrollRatio * (editorScroller.scrollHeight - editorScroller.clientHeight);
+  
+  editorScroller.scrollTop = editorScrollTop;
+  
+  setTimeout(() => { isScrollingSynced = true; }, 50);
+});
 
 // Focus editor on load and activate INSERT if Vim enabled
 setTimeout(() => {
