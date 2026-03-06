@@ -1880,14 +1880,19 @@ li.tree-file:hover .del-btn,
   -webkit-app-region: no-drag;
 }
 
+/* Hide sidebar controls when sidebar is collapsed */
+#sidebar.collapsed ~ footer .bottom-control-btn {
+  display: none;
+}
+
 #btn-bottom-toggle-sidebar {
   position: absolute;
-  left: max(var(--sidebar-w), 200px);
+  left: var(--sidebar-w);
 }
 
 #btn-bottom-toggle-editor {
   position: absolute;
-  left: max(calc(var(--sidebar-w) + 40px), 240px);
+  left: calc(var(--sidebar-w) + 40px);
 }
 
 /* Items after toggle buttons need left margin */
