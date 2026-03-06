@@ -1916,16 +1916,6 @@ li.tree-file:hover .del-btn,
   position: absolute;
   left: calc(var(--sidebar-w) + 100px);
 }
-
-#doc-status {
-  position: absolute;
-  left: calc(var(--sidebar-w) + 170px);
-}
-
-#status-msg {
-  position: absolute;
-  left: calc(var(--sidebar-w) + 220px);
-}
 .statusbar-toggle-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
