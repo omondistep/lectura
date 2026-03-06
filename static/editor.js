@@ -1012,6 +1012,9 @@ const view = new EditorView({
 
 registerVimCommands();
 
+// Focus editor on load
+setTimeout(() => view.focus(), 100);
+
 // Vim mode polling — only poll when vim is enabled
 let lastVimMode = "normal";
 let vimPollId = null;
@@ -2964,6 +2967,8 @@ function togglePreview() {
     previewEditorHandle.classList.add("hidden-pane");
     if (toggleBtn) toggleBtn.textContent = "Editor View";
     previewPane.style.cursor = "default";
+    // Focus editor when switching to editor mode
+    view.focus();
   }
   
   // Hide/show Vim indicator based on editor visibility
