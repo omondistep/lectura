@@ -1375,46 +1375,6 @@ li.tree-file:hover .del-btn,
 .cm-cursor       { border-left-color: var(--accent) !important; }
 .cm-selectionBackground { background: rgba(88,166,255,.15) !important; }
 
-/* Vim welcome message */
-#vim-welcome {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-editor);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
-.vim-welcome-content {
-  text-align: center;
-  color: var(--text);
-}
-
-.vim-welcome-content h2 {
-  font-size: 24px;
-  margin: 0 0 20px 0;
-  color: var(--accent);
-}
-
-.vim-welcome-content p {
-  margin: 8px 0;
-  color: var(--text-muted);
-}
-
-.vim-welcome-content kbd {
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 6px;
-  font-family: var(--font-code);
-  font-size: 12px;
-  color: var(--accent);
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════════
    PREVIEW PANE
    ═══════════════════════════════════════════════════════════════════════════════ */
