@@ -3571,8 +3571,18 @@ function toggleHelp() {
 
 document.getElementById("btn-help")?.addEventListener("click", () => { closeAllMenus(); toggleHelp(); });
 document.getElementById("btn-close-help")?.addEventListener("click", () => helpPanel.classList.remove("open"));
+document.getElementById("btn-about")?.addEventListener("click", () => { 
+  closeAllMenus(); 
+  document.getElementById("about-overlay").classList.remove("hidden");
+});
+document.getElementById("btn-close-about")?.addEventListener("click", () => {
+  document.getElementById("about-overlay").classList.add("hidden");
+});
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && helpPanel.classList.contains("open")) helpPanel.classList.remove("open");
+  if (e.key === "Escape" && !document.getElementById("about-overlay").classList.contains("hidden")) {
+    document.getElementById("about-overlay").classList.add("hidden");
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
