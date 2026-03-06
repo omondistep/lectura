@@ -985,7 +985,7 @@ const customKeymap = keymap.of([
 
 const view = new EditorView({
   state: EditorState.create({
-    doc: "# Welcome to Lectura\n\n**Click anywhere on this page to start editing**, or press **F7** to switch between reader and editor views.\n\nYou can also:\n- Press **Ctrl+N** to create a new note\n- Press **Ctrl+O** to open an existing note\n- Use the sidebar to browse your notes\n\nStart typing your notes here...\n",
+    doc: "",
     extensions: [
       vimCompartment.of(vimEnabled ? vim() : []),
       history(),
@@ -2944,7 +2944,7 @@ document.getElementById("publish-overlay")?.addEventListener("click", e => { if 
 const previewPane = document.getElementById("preview-pane");
 const editorPane = document.getElementById("editor-pane");
 const previewEditorHandle = document.getElementById("preview-editor-resize-handle");
-let viewMode = 1; // 0: both, 1: reader only (default), 2: editor only
+let viewMode = 2; // 0: both, 1: reader only, 2: editor only (default)
 
 function switchToEditorView() {
   if (viewMode !== 2) {
@@ -4551,14 +4551,6 @@ setTimeout(() => {
 }, 100);
 // Initialize Mermaid early
 initMermaid();
-
-// Set initial view to reader mode
-setTimeout(() => {
-  if (viewMode === 1) {
-    togglePreview();
-    togglePreview(); // Get to reader mode
-  }
-}, 50);
 
 // Check URL parameters
 const urlParams = new URLSearchParams(window.location.search);
