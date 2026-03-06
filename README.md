@@ -6,6 +6,14 @@ A modern, self-hosted Markdown note-taking application featuring real-time previ
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)
 
+## 📸 Screenshots
+
+![Lectura Interface](static/images/MSPPREVIEW.png)
+*Split-pane interface with live preview and comprehensive Vim support*
+
+![Lectura Dark Theme](static/images/Screenshotfrom2026-02-2721-33-14.png)
+*Multiple themes with unique typography and clean, distraction-free design*
+
 ## ✨ Features
 
 ### 📝 **Editor & Preview**
@@ -51,6 +59,15 @@ A modern, self-hosted Markdown note-taking application featuring real-time previ
 ## 🚀 Quick Start
 
 **📖 For detailed installation instructions, see [INSTALL.md](INSTALL.md)**
+
+### 🎯 Try It Now (2-Minute Setup)
+
+**One-line install for Linux/macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/omondistep/lectura/main/install-standalone-linux.sh | bash
+```
+
+**Windows users:** Download and run `install-standalone-windows.bat`
 
 ### Option 1: Standalone (Recommended)
 Lightweight, browser-based installation.
