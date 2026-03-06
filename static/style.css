@@ -461,16 +461,19 @@ html, body {
 #sidebar-resize-handle {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 6px;
+  right: 0;
+  width: 4px;
   height: 100%;
   cursor: col-resize;
   z-index: 50;
+  background: var(--border-dim);
+  opacity: 0.3;
+  transition: opacity .15s, background .15s;
 }
 #sidebar-resize-handle:hover,
 #sidebar-resize-handle.dragging {
   background: var(--accent);
-  opacity: .4;
+  opacity: .6;
 }
 
 .context-menu-sep {
