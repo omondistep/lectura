@@ -1885,6 +1885,16 @@ li.tree-file:hover .del-btn,
   display: none;
 }
 
+/* Hide folder name by default, show on sidebar hover */
+#btn-bottom-folder-name {
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+#sidebar:hover ~ footer #btn-bottom-folder-name {
+  opacity: 1;
+}
+
 #btn-bottom-toggle-sidebar {
   position: absolute;
   left: var(--sidebar-w);
