@@ -457,10 +457,6 @@ html, body {
   border-right: none;
 }
 
-#sidebar.collapsed #sidebar-bottom-controls {
-  display: none;
-}
-
 /* resize handle */
 #sidebar-resize-handle {
   position: absolute;
@@ -475,79 +471,6 @@ html, body {
 #sidebar-resize-handle.dragging {
   background: var(--accent);
   opacity: .4;
-}
-
-/* ── sidebar bottom controls (Typora-style) ──────────────────────────────── */
-#sidebar-bottom-controls {
-  border-top: 1px solid var(--border-dim);
-  background: var(--bg-surface);
-  flex-shrink: 0;
-  padding: 6px 8px;
-  min-height: 36px;
-}
-
-.bottom-controls-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bottom-control-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 5px 8px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  transition: background .1s, color .1s;
-  white-space: nowrap;
-  -webkit-app-region: no-drag;
-}
-
-.bottom-control-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.bottom-control-btn svg {
-  flex-shrink: 0;
-}
-
-.folder-name-btn {
-  flex: 1;
-  justify-content: flex-start;
-  min-width: 0;
-  font-weight: 500;
-  border: 1px solid transparent;
-}
-
-.folder-name-btn:hover {
-  border-color: var(--border);
-}
-
-.file-name-btn {
-  flex: 1;
-  justify-content: flex-start;
-  min-width: 0;
-  font-weight: 400;
-  border: 1px solid transparent;
-  font-size: 12px;
-}
-
-.file-name-btn:hover {
-  background: var(--bg-hover);
-}
-
-#bottom-folder-name,
-#bottom-file-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text);
 }
 
 .context-menu-sep {
@@ -1921,6 +1844,43 @@ li.tree-file:hover .del-btn,
 }
 .statusbar-toggle-btn svg { flex-shrink: 0; }
 .statusbar-toggle-btn span { color: var(--text-muted); font-size: 10px; }
+
+/* Bottom control buttons in statusbar */
+.bottom-control-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  transition: background .1s, color .1s;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+
+.bottom-control-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.bottom-control-btn svg {
+  flex-shrink: 0;
+}
+
+.file-name-btn {
+  max-width: 200px;
+}
+
+#bottom-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
 
 .doc-status {
   font-size: 10px;
