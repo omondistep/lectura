@@ -4,6 +4,13 @@
  * Green-accented modern theme
  */
 
+body {
+  /* Vue uses Source Sans Pro */
+  --font-prose: "Source Sans Pro", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ui: "Source Sans Pro", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-code: "Monaco", "Consolas", "Courier New", monospace;
+}
+
 #preview {
   background-color: #ffffff;
   color: #2c3e50;

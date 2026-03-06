@@ -27,6 +27,10 @@ body {
   --border-dim: #e1e4e8;
   --accent: #0366d6;
   --red: #cb2431;
+  
+  /* GitHub theme uses system fonts */
+  --font-prose: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
 }
 
 /* Dark mode variant (when body has data-theme="dark") */

@@ -19,6 +19,10 @@ body {
   --text-muted: #6a6a6a;
   --accent: #569cd6;
   --accent-2: #4ec9b0;
+  
+  /* Drake uses elegant serif for prose */
+  --font-prose: "Georgia", "Noto Serif", "Times New Roman", serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
 #preview {

@@ -25,6 +25,10 @@ body {
   --border-dim: #434c5e;
   --accent: #88c0d0;
   --red: #bf616a;
+  
+  /* Nord uses clean sans-serif */
+  --font-prose: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-ui: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 /* Light variant */

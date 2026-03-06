@@ -63,6 +63,11 @@ content {
 body {
   margin: 0 auto;
   background-color: var(--bg-color);
+  
+  /* Seniva uses Inter sans-serif */
+  --font-prose: 'Inter', 'Source Sans 3', 'Segoe UI', sans-serif;
+  --font-ui: 'Inter', 'Source Sans 3', 'Segoe UI', sans-serif;
+  --font-code: 'Fira Code', 'Inconsolata', 'Cascadia Code', 'Consolas', monospace;
 }
 
 p {
