@@ -1871,8 +1871,18 @@ li.tree-file:hover .del-btn,
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  transition: background .1s, color .1s, margin-left .15s ease;
+  transition: background .1s, color .1s;
   -webkit-app-region: no-drag;
+}
+
+#btn-bottom-toggle-sidebar {
+  position: absolute;
+  left: 500px;
+}
+
+#btn-bottom-toggle-editor {
+  position: absolute;
+  left: 540px;
 }
 .statusbar-toggle-btn:hover {
   background: var(--bg-hover);
