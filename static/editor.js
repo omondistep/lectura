@@ -1021,29 +1021,38 @@ let isScrollingSynced = true;
 const editorScroller = view.scrollDOM;
 const previewEl = document.getElementById("preview");
 
-editorScroller.addEventListener("scroll", () => {
+function syncEditorToPreview() {
   if (!isScrollingSynced) return;
   isScrollingSynced = false;
   
-  const editorScrollRatio = editorScroller.scrollTop / (editorScroller.scrollHeight - editorScroller.clientHeight);
-  const previewScrollTop = editorScrollRatio * (previewEl.scrollHeight - previewEl.clientHeight);
+  const editorMaxScroll = Math.max(0, editorScroller.scrollHeight - editorScroller.clientHeight);
+  const previewMaxScroll = Math.max(0, previewEl.scrollHeight - previewEl.clientHeight);
   
-  previewEl.scrollTop = previewScrollTop;
+  if (editorMaxScroll > 0 && previewMaxScroll > 0) {
+    const editorScrollRatio = editorScroller.scrollTop / editorMaxScroll;
+    previewEl.scrollTop = editorScrollRatio * previewMaxScroll;
+  }
   
-  setTimeout(() => { isScrollingSynced = true; }, 50);
-});
+  requestAnimationFrame(() => { isScrollingSynced = true; });
+}
 
-previewEl.addEventListener("scroll", () => {
+function syncPreviewToEditor() {
   if (!isScrollingSynced) return;
   isScrollingSynced = false;
   
-  const previewScrollRatio = previewEl.scrollTop / (previewEl.scrollHeight - previewEl.clientHeight);
-  const editorScrollTop = previewScrollRatio * (editorScroller.scrollHeight - editorScroller.clientHeight);
+  const editorMaxScroll = Math.max(0, editorScroller.scrollHeight - editorScroller.clientHeight);
+  const previewMaxScroll = Math.max(0, previewEl.scrollHeight - previewEl.clientHeight);
   
-  editorScroller.scrollTop = editorScrollTop;
+  if (editorMaxScroll > 0 && previewMaxScroll > 0) {
+    const previewScrollRatio = previewEl.scrollTop / previewMaxScroll;
+    editorScroller.scrollTop = previewScrollRatio * editorMaxScroll;
+  }
   
-  setTimeout(() => { isScrollingSynced = true; }, 50);
-});
+  requestAnimationFrame(() => { isScrollingSynced = true; });
+}
+
+editorScroller.addEventListener("scroll", syncEditorToPreview);
+previewEl.addEventListener("scroll", syncPreviewToEditor);
 
 // Focus editor on load and activate INSERT if Vim enabled
 setTimeout(() => {
