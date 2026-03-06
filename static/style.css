@@ -1884,6 +1884,11 @@ li.tree-file:hover .del-btn,
   position: absolute;
   left: 540px;
 }
+
+/* Items after toggle buttons need left margin */
+#btn-bottom-toggle-editor + .status-sep {
+  margin-left: 50px;
+}
 .statusbar-toggle-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
