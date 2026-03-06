@@ -50,7 +50,7 @@ body[data-theme="light"],
 
 .cm-gutters {
   background-color: var(--bg-sidebar) !important;
-  border-right: 1px solid var(--border) !important;
+  border-right: 1px dashed var(--border) !important;
 }
 
 .cm-activeLineGutter {

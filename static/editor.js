@@ -1914,29 +1914,36 @@ function showContextMenu(x, y, context) {
   menuEmpty.style.display = "none";
   menuFile.style.display = "none";
   if (menuFolder) menuFolder.style.display = "none";
+  
+  const currentMode = document.querySelector(".sidebar-tab.active")?.dataset.mode;
+  const isSearchMode = currentMode === "search";
+  
   if (context === "empty") {
     menuEmpty.style.display = "block";
-    // Update view toggle tick marks
     const listBtn = menuEmpty.querySelector('[data-action="view-list"] .ctx-check');
     const treeBtn = menuEmpty.querySelector('[data-action="view-tree"] .ctx-check');
+    const searchBtn = menuEmpty.querySelector('[data-action="search"] .ctx-check');
     if (listBtn) listBtn.textContent = filesViewMode === "list" ? "✓" : "";
     if (treeBtn) treeBtn.textContent = filesViewMode === "tree" ? "✓" : "";
+    if (searchBtn) searchBtn.textContent = isSearchMode ? "✓" : "";
   }
   else if (context === "folder" && menuFolder) {
     menuFolder.style.display = "block";
-    // Update view toggle tick marks for folder menu too
     const listBtn = menuFolder.querySelector('[data-action="view-list"] .ctx-check');
     const treeBtn = menuFolder.querySelector('[data-action="view-tree"] .ctx-check');
+    const searchBtn = menuFolder.querySelector('[data-action="search"] .ctx-check');
     if (listBtn) listBtn.textContent = filesViewMode === "list" ? "✓" : "";
     if (treeBtn) treeBtn.textContent = filesViewMode === "tree" ? "✓" : "";
+    if (searchBtn) searchBtn.textContent = isSearchMode ? "✓" : "";
   }
   else {
     menuFile.style.display = "block";
-    // Update view toggle tick marks for file menu too
     const listBtn = menuFile.querySelector('[data-action="view-list"] .ctx-check');
     const treeBtn = menuFile.querySelector('[data-action="view-tree"] .ctx-check');
+    const searchBtn = menuFile.querySelector('[data-action="search"] .ctx-check');
     if (listBtn) listBtn.textContent = filesViewMode === "list" ? "✓" : "";
     if (treeBtn) treeBtn.textContent = filesViewMode === "tree" ? "✓" : "";
+    if (searchBtn) searchBtn.textContent = isSearchMode ? "✓" : "";
   }
   contextMenu.classList.remove("hidden");
   const rect = contextMenu.getBoundingClientRect();

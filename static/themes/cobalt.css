@@ -826,7 +826,7 @@ footer {
 .mac-seamless-mode #typora-sidebar {
     /* background-color: #f79f2a; */
     background-color: #090c12;
-    border-right: 1px solid #090c12;
+    border-right: 1px dashed #090c12;
     font-weight: 100;
 }
 
