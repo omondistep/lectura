@@ -1892,7 +1892,11 @@ li.tree-file:hover .del-btn,
 
 /* Items after toggle buttons need left margin */
 #btn-bottom-toggle-editor + .status-sep {
-  margin-left: calc(var(--sidebar-w) + 90px);
+  margin-left: 10px;
+}
+
+#vim-mode-indicator {
+  margin-left: 10px;
 }
 .statusbar-toggle-btn:hover {
   background: var(--bg-hover);
