@@ -15,7 +15,7 @@ body {
 :root {
   --menubar-h:   30px;
   --status-h:    24px;
-  --sidebar-w:   180px;
+  --sidebar-w:   280px;
   --radius:      6px;
 
   --font-ui:     -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
