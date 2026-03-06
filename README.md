@@ -1,6 +1,6 @@
 # Lectura
 
-A modern, self-hosted Markdown note-taking application inspired by Typora, featuring real-time preview, cloud sync, and comprehensive Vim support.
+A modern, self-hosted Markdown note-taking application featuring real-time preview, cloud sync, and comprehensive Vim support.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
@@ -13,7 +13,7 @@ A modern, self-hosted Markdown note-taking application inspired by Typora, featu
 - **Synchronized scrolling** - Editor and preview move together
 - **Resizable panes** - Adjust editor/preview ratio to your preference
 - **Focus modes** - Editor-only, preview-only, or split view
-- **Typora-inspired design** - Clean, distraction-free interface
+- **Clean, distraction-free interface** - Minimalist design for focused writing
 
 ### ⌨️ **Vim Integration**
 - **Full Vim support** - Complete Normal, Insert, Visual, and Command modes
@@ -199,7 +199,6 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- Inspired by [Typora](https://typora.io/) - The excellent markdown editor
 - Built with [CodeMirror 6](https://codemirror.net/) - Powerful code editor
 - Vim support via [@replit/codemirror-vim](https://github.com/replit/codemirror-vim)
 - Markdown rendering by [markdown-it](https://github.com/markdown-it/markdown-it)
