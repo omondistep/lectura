@@ -1012,13 +1012,6 @@ const view = new EditorView({
 
 registerVimCommands();
 
-// Initialize statusbar icon position
-setTimeout(() => {
-  const sidebar = document.getElementById("sidebar");
-  const sidebarWidth = sidebar.classList.contains("collapsed") ? 0 : parseInt(getComputedStyle(sidebar).width);
-  updateStatusbarIconPosition(sidebarWidth);
-}, 0);
-
 // Vim mode polling — only poll when vim is enabled
 let lastVimMode = "normal";
 let vimPollId = null;
@@ -1287,10 +1280,6 @@ function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   sidebar.classList.toggle("collapsed");
   document.body.classList.toggle("sidebar-collapsed", sidebar.classList.contains("collapsed"));
-  
-  // Update statusbar icon position
-  const sidebarWidth = sidebar.classList.contains("collapsed") ? 0 : parseInt(sidebar.style.width || getComputedStyle(sidebar).width);
-  updateStatusbarIconPosition(sidebarWidth);
 }
 
 
@@ -3583,7 +3572,6 @@ document.addEventListener("mousemove", (e) => {
   const sidebar = document.getElementById("sidebar");
   const newWidth = Math.min(Math.max(e.clientX, 160), 500);
   sidebar.style.width = newWidth + "px";
-  updateStatusbarIconPosition(newWidth);
 });
 
 document.addEventListener("mouseup", () => {
@@ -3594,12 +3582,6 @@ document.addEventListener("mouseup", () => {
     document.body.style.userSelect = "";
   }
 });
-
-function updateStatusbarIconPosition(sidebarWidth) {
-  const toggleSidebar = document.getElementById("btn-bottom-toggle-sidebar");
-  const toggleEditor = document.getElementById("btn-bottom-toggle-editor");
-  if (toggleSidebar) toggleSidebar.style.marginLeft = `${sidebarWidth}px`;
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HISTORY PERSISTENCE
