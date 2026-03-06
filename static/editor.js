@@ -4335,9 +4335,9 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
       const isCurrent = loc === workspacePath;
       pinnedHTML += `
         <div class="popup-item recent-location-item${isCurrent ? " current-loc" : ""}" data-location="${loc}" title="${loc}">
-          <span class="recent-loc-icon" style="color: var(--accent);">&#9733;</span>
+          <span class="recent-loc-icon" style="color: var(--accent);">📌</span>
           <span class="recent-file-name">${locName}</span>
-          <button class="pin-btn pinned" data-pin-path="${loc}" title="Unpin">&#9733;</button>
+          <button class="pin-btn pinned" data-pin-path="${loc}" title="Unpin">📌</button>
         </div>`;
     });
   }
@@ -4350,16 +4350,16 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
       const isCurrent = loc === workspacePath;
       recentHTML += `
         <div class="popup-item recent-location-item${isCurrent ? " current-loc" : ""}" data-location="${loc}" title="${loc}">
-          <span class="recent-loc-icon">&#128193;</span>
+          <span class="recent-loc-icon">📁</span>
           <span class="recent-file-name">${locName}</span>
-          <button class="pin-btn" data-pin-path="${loc}" title="Pin folder">&#9734;</button>
+          <button class="pin-btn" data-pin-path="${loc}" title="Pin folder">📌</button>
         </div>`;
     });
   } else if (pinnedFolders.length === 0) {
     const wsName = workspacePath ? workspacePath.split("/").pop() : "notes";
     recentHTML = `
       <div class="popup-item recent-location-item current-loc" data-location="" title="${workspacePath || 'notes'}">
-        <span class="recent-loc-icon">&#128193;</span>
+        <span class="recent-loc-icon">📁</span>
         <span class="recent-file-name">${wsName}</span>
       </div>`;
   }
