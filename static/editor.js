@@ -1058,12 +1058,35 @@ previewEl.addEventListener("scroll", syncPreviewToEditor);
 setTimeout(() => {
   view.focus();
   if (vimEnabled) {
+    showVimWelcome();
+  } else {
     try {
       Vim.handleKey(view.contentDOM, 'i');
     } catch (e) {}
   }
   updateSidebarWidth();
 }, 100);
+
+function showVimWelcome() {
+  const welcomeEl = document.createElement('div');
+  welcomeEl.id = 'vim-welcome';
+  welcomeEl.innerHTML = `
+    <div class="vim-welcome-content">
+      <h2>VIM - Vi IMproved</h2>
+      <p>Press <kbd>i</kbd> to enter Insert mode</p>
+      <p>Press <kbd>:</kbd> for Command mode</p>
+      <p>Press <kbd>?</kbd> for help</p>
+    </div>
+  `;
+  document.getElementById('cm-editor').appendChild(welcomeEl);
+}
+
+function hideVimWelcome() {
+  const welcomeEl = document.getElementById('vim-welcome');
+  if (welcomeEl) {
+    welcomeEl.remove();
+  }
+}
 
 // Vim mode polling — only poll when vim is enabled
 let lastVimMode = "normal";
@@ -1090,7 +1113,13 @@ function pollVimMode() {
       }
     }
   } catch (_) {}
-  if (mode !== lastVimMode) { lastVimMode = mode; updateVimIndicator(mode); }
+  if (mode !== lastVimMode) { 
+    lastVimMode = mode; 
+    updateVimIndicator(mode);
+    if (mode === "insert") {
+      hideVimWelcome();
+    }
+  }
   vimPollId = requestAnimationFrame(pollVimMode);
 }
 
