@@ -1,32 +1,57 @@
 # Lectura
 
-A self-hosted Markdown note-taking application with cloud sync support for GitHub, Dropbox, and Google Drive.
+A modern, self-hosted Markdown note-taking application inspired by Typora, featuring real-time preview, cloud sync, and comprehensive Vim support.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
 
-## Features
+## ✨ Features
 
-- 📝 **Markdown Editor** - Live preview with syntax highlighting
-- ☁️ **Cloud Sync** - OAuth login for GitHub, Dropbox, and Google Drive
-- 📁 **Folder Structure** - Organize notes in folders, synced to cloud
-- 🎨 **Multiple Themes** - Cobalt, Phantom, Seraph, Forest, and more
-- 🔍 **Search** - Full-text search across all notes
-- 📊 **Mermaid Diagrams** - Create flowcharts and diagrams
-- 🖼️ **Image Upload** - Drag and drop images
-- 📤 **Export** - Export to HTML and PDF
-- ⌨️ **Vim Mode** - Optional Vim keybindings
+### 📝 **Editor & Preview**
+- **Split-pane interface** - Editor on left, live preview on right
+- **Synchronized scrolling** - Editor and preview move together
+- **Resizable panes** - Adjust editor/preview ratio to your preference
+- **Focus modes** - Editor-only, preview-only, or split view
+- **Typora-inspired design** - Clean, distraction-free interface
 
-## Quick Install
+### ⌨️ **Vim Integration**
+- **Full Vim support** - Complete Normal, Insert, Visual, and Command modes
+- **Custom Ex commands** - `:w`, `:e`, `:new`, `:theme`, `:preview`, and more
+- **File navigation** - `:bn`, `:bp` to switch between files
+- **Mode indicator** - Visual feedback for current Vim mode
 
-Lectura offers two installation options:
+### 🎨 **Themes & Typography**
+- **15+ themes** - Dark, light, and specialty themes
+- **Font variations** - Each theme has distinct typography (serif, sans-serif)
+- **Live theme switching** - Change themes instantly without restart
+- **Custom CSS support** - Extend with your own themes
+
+### 📁 **File Management**
+- **Sidebar file browser** - Tree and list views
+- **Folder organization** - Nested folder support
+- **Pin/unpin folders** - Quick access to frequently used folders
+- **File search** - Find files quickly across your workspace
+- **Recent locations** - Easy access to recently opened folders
+
+### ☁️ **Cloud Sync**
+- **GitHub integration** - Sync notes to GitHub repositories
+- **Google Drive support** - Backup to Google Drive
+- **OAuth authentication** - Secure cloud connections
+- **Selective sync** - Choose what to sync
+
+### 🔧 **Advanced Features**
+- **Mermaid diagrams** - Create flowcharts, sequence diagrams, and more
+- **Math support** - LaTeX math rendering with KaTeX
+- **Image handling** - Drag and drop image uploads
+- **Export options** - HTML, PDF, and Markdown export
+- **Flashcards** - Built-in spaced repetition system
+- **Custom graph canvas** - Draw economic graphs and charts
+
+## 🚀 Quick Start
 
 ### Option 1: Standalone (Recommended)
 Lightweight, browser-based installation.
-
-#### Windows
-1. Download and extract the Lectura folder
-2. Right-click `install-standalone-windows.bat` → Run as Administrator
-3. Double-click the Lectura icon on your Desktop
 
 #### Linux
 ```bash
@@ -35,16 +60,15 @@ chmod +x install-standalone-linux.sh
 lectura
 ```
 
+#### Windows
+1. Download and extract the Lectura folder
+2. Right-click `install-standalone-windows.bat` → Run as Administrator
+3. Double-click the Lectura icon on your Desktop
+
 ### Option 2: Desktop App (Electron)
-Native desktop application with its own window.
+Native desktop application with system integration.
 
 **Requirements:** Node.js 16+ and Python 3.8+
-
-#### Windows
-```bash
-install-electron-windows.bat
-```
-Then launch from Desktop or Start Menu.
 
 #### Linux
 ```bash
@@ -53,45 +77,139 @@ chmod +x install-electron-linux.sh
 lectura-app
 ```
 
-See [INSTALL_OPTIONS.md](INSTALL_OPTIONS.md) for detailed comparison.
-
-## Requirements
-
-- Python 3.8 or higher
-- Internet connection (for cloud sync setup)
-
-## Cloud Setup
-
-See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed instructions on setting up:
-- GitHub OAuth
-- Dropbox OAuth
-- Google Drive OAuth
-
-## Usage
-
-1. Launch Lectura (opens at http://localhost:8000)
-2. Create notes in the left sidebar
-3. Click Settings (⚙) to connect cloud services
-4. Click Publish (▲) to sync all notes to connected services
-
-## Manual Installation
-
+#### Windows
 ```bash
+install-electron-windows.bat
+```
+
+### Manual Installation
+```bash
+git clone https://github.com/omondistep/lectura.git
+cd lectura
 pip install -r requirements.txt
 python main.py
 ```
 
 Open http://localhost:8000 in your browser.
 
-## Documentation
+## 📖 Usage
 
-- [Installation Guide](INSTALL.md)
-- [OAuth Setup Guide](OAUTH_SETUP.md)
+### Getting Started
+1. **Launch Lectura** - Opens at http://localhost:8000
+2. **Create your first note** - Click the + button or press `Ctrl+N`
+3. **Start writing** - Use the editor on the left, see preview on the right
+4. **Organize with folders** - Create folders to organize your notes
 
-## License
+### Keyboard Shortcuts
+| Action | Shortcut |
+|--------|----------|
+| New file | `Ctrl+N` |
+| Save file | `Ctrl+S` |
+| Open file | `Ctrl+O` |
+| Toggle sidebar | `Ctrl+Shift+L` |
+| Toggle preview | `F7` |
+| Focus mode | `F8` |
+| Bold text | `Ctrl+B` |
+| Italic text | `Ctrl+I` |
+| Insert link | `Ctrl+K` |
 
-MIT License - See LICENSE file for details
+### Vim Commands
+| Command | Action |
+|---------|--------|
+| `:w` | Save current file |
+| `:e filename` | Open file |
+| `:new` | Create new file |
+| `:bn` / `:bp` | Next/previous file |
+| `:theme name` | Switch theme |
+| `:preview` | Toggle preview pane |
+| `:help` | Open help panel |
 
-## Contributing
+## 🎨 Themes
 
-Contributions welcome! Please open an issue or submit a pull request.
+Lectura includes 15+ carefully crafted themes:
+
+**Built-in Themes:**
+- **Light/Dark** - Classic clean themes
+- **Cobalt** - Blue-accented dark theme
+- **Nord** - Arctic-inspired color palette
+- **Drake** - Elegant dark theme with serif fonts
+- **Vue** - Green-accented modern theme
+- **GitHub** - Familiar GitHub styling
+- **And many more...**
+
+Each theme features unique typography choices - some use serif fonts for a book-like reading experience, others use modern sans-serif fonts.
+
+## ☁️ Cloud Setup
+
+Connect your favorite cloud services for automatic backup and sync:
+
+1. **GitHub** - Sync notes to repositories
+2. **Google Drive** - Backup to your Drive
+3. **Dropbox** - Cross-device synchronization
+
+See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed setup instructions.
+
+## 🛠️ Configuration
+
+### Preferences
+Access via `File → Preferences` or `Ctrl+,`:
+
+- **Editor settings** - Font size, indentation, line endings
+- **Theme selection** - Choose from available themes
+- **Vim mode** - Enable/disable Vim keybindings
+- **Export options** - Configure export formats and locations
+- **Cloud sync** - Manage connected services
+
+### Custom Themes
+Create custom themes by adding CSS files to the `static/themes/` directory. Themes can override:
+- Color schemes
+- Typography (fonts, sizes, spacing)
+- Layout adjustments
+- Custom styling
+
+## 🔧 Development
+
+### Requirements
+- Python 3.8+
+- Modern web browser
+- Internet connection (for cloud features)
+
+### Project Structure
+```
+lectura/
+├── static/           # Frontend assets
+│   ├── editor.js    # Main editor logic
+│   ├── style.css    # Core styles
+│   └── themes/      # Theme files
+├── templates/       # HTML templates
+├── main.py         # Backend server
+└── requirements.txt # Python dependencies
+```
+
+### Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Inspired by [Typora](https://typora.io/) - The excellent markdown editor
+- Built with [CodeMirror 6](https://codemirror.net/) - Powerful code editor
+- Vim support via [@replit/codemirror-vim](https://github.com/replit/codemirror-vim)
+- Markdown rendering by [markdown-it](https://github.com/markdown-it/markdown-it)
+
+## 👨‍💻 Author
+
+**Made by a Kenyan**
+- Twitter: [@Stephenondiek](https://twitter.com/Stephenondiek)
+- GitHub: [@omondistep](https://github.com/omondistep)
+
+---
+
+*Lectura - Where words become wisdom* ✨
