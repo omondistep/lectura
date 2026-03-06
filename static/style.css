@@ -1871,7 +1871,7 @@ li.tree-file:hover .del-btn,
   align-items: center;
   gap: 2px;
   font-size: 10px;
-  transition: background .1s, color .1s;
+  transition: background .1s, color .1s, margin-left .15s ease;
   -webkit-app-region: no-drag;
 }
 .statusbar-toggle-btn:hover {
