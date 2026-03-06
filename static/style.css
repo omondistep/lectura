@@ -1865,12 +1865,12 @@ li.tree-file:hover .del-btn,
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 3px 6px;
+  padding: 5px 10px;
   border-radius: 3px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  font-size: 10px;
+  gap: 4px;
+  font-size: 11px;
   transition: background .1s, color .1s, margin-left .15s ease;
   -webkit-app-region: no-drag;
 }
@@ -1878,7 +1878,11 @@ li.tree-file:hover .del-btn,
   background: var(--bg-hover);
   color: var(--text);
 }
-.statusbar-toggle-btn svg { flex-shrink: 0; }
+.statusbar-toggle-btn svg { 
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+}
 .statusbar-toggle-btn span { color: var(--text-muted); font-size: 10px; }
 
 /* Bottom control buttons in statusbar */
