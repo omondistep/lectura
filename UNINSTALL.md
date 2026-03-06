@@ -1,6 +1,6 @@
 # Uninstallation Guide
 
-This guide covers complete removal of Lectura from Windows and Linux systems.
+This guide covers complete removal of Lectura from Windows, Linux, and macOS systems.
 
 ---
 
@@ -70,6 +70,79 @@ Follow the same steps as Standalone Version above.
 # Remove user notes and settings (if you want to start fresh)
 rmdir /s "%USERPROFILE%\Documents\Lectura"
 rmdir /s "%APPDATA%\Lectura"
+```
+
+---
+
+## 🍎 macOS Uninstallation
+
+### Both Standalone and Electron Versions
+
+#### Automatic Uninstall Script
+Create and run this script:
+
+```bash
+#!/bin/bash
+echo "Uninstalling Lectura..."
+
+# Remove installation directory
+if [ -d "$HOME/Library/Application Support/Lectura" ]; then
+    rm -rf "$HOME/Library/Application Support/Lectura"
+    echo "[+] Installation files removed"
+fi
+
+# Remove command line launcher
+if [ -f "/usr/local/bin/lectura" ]; then
+    sudo rm -f "/usr/local/bin/lectura"
+    echo "[+] Standalone launcher removed"
+fi
+
+if [ -f "/usr/local/bin/lectura-app" ]; then
+    sudo rm -f "/usr/local/bin/lectura-app"
+    echo "[+] Electron launcher removed"
+fi
+
+# Remove macOS app bundle
+if [ -d "/Applications/Lectura.app" ]; then
+    rm -rf "/Applications/Lectura.app"
+    echo "[+] macOS app removed"
+fi
+
+echo ""
+echo "Lectura has been completely uninstalled."
+```
+
+#### Manual Steps
+```bash
+# 1. Remove installation directory
+rm -rf "$HOME/Library/Application Support/Lectura"
+
+# 2. Remove command line launchers
+sudo rm -f /usr/local/bin/lectura
+sudo rm -f /usr/local/bin/lectura-app
+
+# 3. Remove macOS app bundle
+rm -rf /Applications/Lectura.app
+```
+
+### Clean User Data (Optional)
+
+```bash
+# Remove user notes and settings (if you want to start fresh)
+rm -rf ~/Documents/Lectura
+rm -rf ~/Library/Preferences/com.lectura.app.plist
+```
+
+### Remove Homebrew Dependencies (Optional)
+
+Only do this if you don't need these packages for other applications:
+
+```bash
+# Remove Python and Node.js (if installed via Homebrew)
+brew uninstall python node
+
+# Clean up Homebrew
+brew cleanup
 ```
 
 ---
@@ -173,7 +246,7 @@ dir "%LOCALAPPDATA%" | findstr Lectura
 dir "%APPDATA%" | findstr Lectura
 ```
 
-#### Linux
+#### macOS
 ```bash
 # Check if any Lectura processes are running
 ps aux | grep lectura
@@ -195,7 +268,7 @@ pip cache purge
 for /d /r . %d in (__pycache__) do @if exist "%d" rd /s /q "%d"
 ```
 
-#### Linux
+#### Linux/macOS
 ```bash
 # Clear pip cache
 pip cache purge
@@ -226,14 +299,15 @@ After uninstallation, you can reinstall Lectura by:
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Lectura"
 ```
 
-### "Permission Denied" Errors (Linux)
+### "Permission Denied" Errors (Linux/macOS)
 ```bash
 # Check file ownership
-ls -la ~/.local/share/lectura
+ls -la ~/.local/share/lectura  # Linux
+ls -la "$HOME/Library/Application Support/Lectura"  # macOS
 
 # Fix permissions if needed
-sudo chown -R $USER:$USER ~/.local/share/lectura
-rm -rf ~/.local/share/lectura
+sudo chown -R $USER:$USER ~/.local/share/lectura  # Linux
+sudo chown -R $USER:staff "$HOME/Library/Application Support/Lectura"  # macOS
 ```
 
 ### Lectura Still Running
@@ -248,6 +322,7 @@ pkill -f "python.*main.py"
 
 ### Files Won't Delete
 - **Close all browsers** that might have Lectura open
+- **Quit Lectura app** completely (macOS: Cmd+Q)
 - **Restart your computer** and try again
 - **Use safe mode** (Windows) if files are locked
 

@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide covers installation of Lectura on Windows and Linux systems.
+This guide covers installation of Lectura on Windows, Linux, and macOS systems.
 
 ## 📋 System Requirements
 
@@ -61,6 +61,67 @@ install-electron-windows.bat
 - System tray integration
 - Offline-first design
 - No browser dependency
+
+---
+
+## 🍎 macOS Installation
+
+### Option 1: Standalone (Recommended)
+Browser-based installation using Homebrew or system Python.
+
+#### Requirements
+```bash
+# Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Python 3
+brew install python
+```
+
+#### Installation
+```bash
+# 1. Download and extract Lectura
+curl -L https://github.com/omondistep/lectura/archive/main.zip -o lectura.zip
+unzip lectura.zip
+cd lectura-main
+
+# 2. Run installer
+chmod +x install-standalone-macos.sh
+./install-standalone-macos.sh
+```
+
+**Features:**
+- Creates native macOS app bundle in Applications
+- Command line launcher: `lectura`
+- Auto-opens in default browser
+- Integrates with macOS Spotlight search
+
+### Option 2: Desktop App (Electron)
+Native desktop application with full macOS integration.
+
+#### Requirements
+```bash
+# Install Node.js and Python
+brew install node python
+```
+
+#### Installation
+```bash
+# Download and install
+curl -L https://github.com/omondistep/lectura/archive/main.zip -o lectura.zip
+unzip lectura.zip
+cd lectura-main
+
+# Run installer
+chmod +x install-electron-macos.sh
+./install-electron-macos.sh
+```
+
+**Features:**
+- Native macOS window with system integration
+- Dock integration
+- Native notifications
+- Offline-first design
 
 ---
 

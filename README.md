@@ -4,7 +4,7 @@ A modern, self-hosted Markdown note-taking application featuring real-time previ
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)
 
 ## ✨ Features
 
@@ -67,6 +67,13 @@ lectura
 2. Right-click `install-standalone-windows.bat` → Run as Administrator
 3. Double-click the Lectura icon on your Desktop
 
+#### macOS
+```bash
+chmod +x install-standalone-macos.sh
+./install-standalone-macos.sh
+lectura
+```
+
 ### Option 2: Desktop App (Electron)
 Native desktop application with system integration.
 
@@ -82,6 +89,13 @@ lectura-app
 #### Windows
 ```bash
 install-electron-windows.bat
+```
+
+#### macOS
+```bash
+chmod +x install-electron-macos.sh
+./install-electron-macos.sh
+lectura-app
 ```
 
 ### Manual Installation
