@@ -1882,12 +1882,12 @@ li.tree-file:hover .del-btn,
 
 #btn-bottom-toggle-sidebar {
   position: absolute;
-  left: var(--sidebar-w);
+  left: max(var(--sidebar-w), 200px);
 }
 
 #btn-bottom-toggle-editor {
   position: absolute;
-  left: calc(var(--sidebar-w) + 40px);
+  left: max(calc(var(--sidebar-w) + 40px), 240px);
 }
 
 /* Items after toggle buttons need left margin */
