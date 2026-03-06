@@ -482,6 +482,7 @@ export class GraphCanvas {
       if (target) {
         this._selected = parseInt(target.dataset.id);
         this._dragOffset = { x: raw.x, y: raw.y };
+        this._dragMoved = false;
         this.render();
       } else {
         this._selected = null;
@@ -571,6 +572,10 @@ export class GraphCanvas {
     if (!this._drawing && this.tool === "select" && this._selected && this._dragOffset && e.buttons) {
       const dx = raw.x - this._dragOffset.x;
       const dy = raw.y - this._dragOffset.y;
+      if (!this._dragMoved && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+        this._dragMoved = true;
+        this._pushUndo();
+      }
       this._dragOffset = { x: raw.x, y: raw.y };
       const el = this.elements.find(el => el.id === this._selected);
       if (!el) return;
@@ -628,10 +633,8 @@ export class GraphCanvas {
     }
 
     if (this.tool === "select") {
-      if (this._selected && this._dragOffset) {
-        this._pushUndo();
-        this._dragOffset = null;
-      }
+      this._dragOffset = null;
+      this._dragMoved = false;
       return;
     }
 
@@ -764,7 +767,7 @@ export class GraphCanvas {
     const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     bg.setAttribute("width", this.w);
     bg.setAttribute("height", this.h);
-    bg.setAttribute("fill", "#1a1a2e");
+    bg.setAttribute("fill", "#ffffff");
     clone.prepend(bg);
     return new XMLSerializer().serializeToString(clone);
   }

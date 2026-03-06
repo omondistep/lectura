@@ -869,8 +869,8 @@ async def publish_all():
     dropbox_connected = DROPBOX_TOKEN_PATH.exists()
     gdrive_connected = GDRIVE_TOKEN_PATH.exists()
     
-    if not any([github_connected, dropbox_connected, gdrive_connected]):
-        raise HTTPException(400, "No cloud service connected. Login to GitHub, Dropbox, or Google Drive first.")
+    if not any([github_connected, gdrive_connected]):
+        raise HTTPException(400, "No cloud service connected. Sign in to GitHub or Google Drive first.")
     
     # Collect all files
     files = {}

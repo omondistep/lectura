@@ -10,10 +10,18 @@
   <script>
     (function() {
       var t = localStorage.getItem('sc-theme') || 'dark';
-      var dark = ['dark','nord','phantom','cobalt','forest','jade','lavender','sunset','drake','ursine','lapis'];
-      var attr = dark.indexOf(t) !== -1 || t.indexOf('dark') !== -1 ? 'dark' : (t === 'light' ? 'light' : 'dark');
-      document.documentElement.setAttribute('data-theme', attr);
-      if (t !== 'dark' && t !== 'light') {
+      // Migrate removed themes
+      var migrate = {phantom:'void',forest:'ember',jade:'ocean',seraph:'arctic',newsprint:'mocha'};
+      if (migrate[t]) { t = migrate[t]; localStorage.setItem('sc-theme', t); }
+      var inline = ['dark','light','midnight','void','ember','cobalt','coral','ocean','sunset','arctic','sakura','mocha','seniva','lavender'];
+      if (inline.indexOf(t) !== -1) {
+        document.documentElement.setAttribute('data-theme', t);
+      } else {
+        var dark = ['nord','drake','ursine','lapis'];
+        var attr = dark.indexOf(t) !== -1 || t.indexOf('dark') !== -1 ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', attr);
+      }
+      if (inline.indexOf(t) === -1) {
         var link = document.createElement('link');
         link.id = 'loaded-theme-css';
         link.rel = 'stylesheet';
@@ -172,24 +180,19 @@
         <button data-theme="light" class="theme-option">Light</button>
         <button data-theme="dark" class="theme-option">Dark</button>
         <div class="menu-sep"></div>
-        <button data-theme="phantom" class="theme-option">Phantom</button>
+        <button data-theme="midnight" class="theme-option">Midnight</button>
+        <button data-theme="void" class="theme-option">Void</button>
         <button data-theme="cobalt" class="theme-option">Cobalt</button>
-        <button data-theme="forest" class="theme-option">Forest</button>
-        <button data-theme="jade" class="theme-option">Jade</button>
-        <button data-theme="lavender" class="theme-option">Lavender</button>
+        <button data-theme="ember" class="theme-option">Ember</button>
+        <button data-theme="coral" class="theme-option">Coral</button>
+        <button data-theme="ocean" class="theme-option">Ocean</button>
         <button data-theme="sunset" class="theme-option">Sunset</button>
         <div class="menu-sep"></div>
-        <button data-theme="seraph" class="theme-option">Seraph</button>
-        <button data-theme="newsprint" class="theme-option">Newsprint</button>
+        <button data-theme="arctic" class="theme-option">Arctic</button>
+        <button data-theme="sakura" class="theme-option">Sakura</button>
+        <button data-theme="lavender" class="theme-option">Lavender</button>
         <button data-theme="seniva" class="theme-option">Seniva</button>
-        <div class="menu-sep"></div>
-        <button data-theme="github" class="theme-option">GitHub</button>
-        <button data-theme="nord" class="theme-option">Nord</button>
-        <button data-theme="drake" class="theme-option">Drake</button>
-        <button data-theme="pie" class="theme-option">Pie</button>
-        <button data-theme="ursine" class="theme-option">Ursine</button>
-        <button data-theme="lapis" class="theme-option">Lapis</button>
-        <button data-theme="vue" class="theme-option">Vue</button>
+        <button data-theme="mocha" class="theme-option">Mocha</button>
       </div>
     </div>
 
@@ -271,19 +274,14 @@
       </button>
     </div>
 
-    <!-- search (shared across modes) -->
-    <div id="search-box">
+    <!-- search (hidden but needed by JS) -->
+    <div id="search-box" style="display:none">
       <input id="search-input" type="search" placeholder="Search notes…" autocomplete="off" spellcheck="false" />
     </div>
 
-    <!-- workspace label -->
-    <div id="workspace-bar">
-      <span id="workspace-name" title="Click to open folder">No folder open</span>
-    </div>
-
-    <!-- sidebar header with folder name ( Typora-style) -->
-    <div id="sidebar-header" class="hidden">
-      <span id="sidebar-folder-name"></span>
+    <!-- workspace label (hidden, used by JS) -->
+    <div id="workspace-bar" style="display:none">
+      <span id="workspace-name">No folder open</span>
     </div>
 
     <!-- tree mode content -->
@@ -300,6 +298,15 @@
     <div class="sidebar-content" data-for="outline" style="display:none">
       <ul id="outline-list"></ul>
       <div id="outline-empty" class="sidebar-empty">No headings</div>
+    </div>
+
+    <!-- search mode content -->
+    <div class="sidebar-content" data-for="search" style="display:none">
+      <div id="search-panel-input-wrapper">
+        <input id="search-panel-input" type="search" placeholder="Search in files..." autocomplete="off" spellcheck="false" />
+      </div>
+      <ul id="search-panel-results"></ul>
+      <div id="search-panel-empty" class="sidebar-empty">No results</div>
     </div>
 
     <!-- git mode content -->
@@ -357,6 +364,15 @@
           Sign in with Google Drive
         </button>
       </div>
+      <div id="gdrive-files" class="hidden">
+        <div class="sidebar-sub-header">
+          <span>Google Drive Files</span>
+          <button id="btn-gdrive-refresh" title="Refresh">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.418A6 6 0 118 2v1z"/><path d="M8 4.466V.534a.25.25 0 01.41-.192l2.36 1.966a.25.25 0 010 .384L8.41 4.658A.25.25 0 018 4.466z"/></svg>
+          </button>
+        </div>
+        <ul id="gdrive-file-list"></ul>
+      </div>
     </div>
 
     <!-- search results (overlay on any mode) -->
@@ -380,8 +396,8 @@
             <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
           </svg>
         </button>
-        <button id="btn-bottom-file-name" class="bottom-control-btn file-name-btn" title="Current file">
-          <span id="bottom-file-name">No file open</span>
+        <button id="btn-bottom-folder-name" class="bottom-control-btn file-name-btn" title="Open folder actions">
+          <span id="bottom-folder-name">No folder</span>
         </button>
         <button id="btn-bottom-view-toggle" class="bottom-control-btn" title="Switch File List/Tree View">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="view-icon-tree">
@@ -429,11 +445,8 @@
     </button>
     <button id="btn-bottom-toggle-editor" class="statusbar-toggle-btn" title="Toggle Editor">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M4.5 11.5A.5.5 0 0 1 5 11h10a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 3 7h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 1 3h10a.5.5 0 0 1 0 1H1a.5.5 0 0 1-.5-.5z"/>
-      </svg>
-      <span>/</span>
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M11.5 4.5A.5.5 0 0 1 11 5H1a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5zm2 4a.5.5 0 0 1-.5.5H3a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5zm2 4a.5.5 0 0 1-.5.5H5a.5.5 0 0 1 0-1h10a.5.5 0 0 1 .5.5z"/>
+        <path d="M5.854 4.854a.5.5 0 1 0-.708-.708l-3.5 3.5a.5.5 0 0 0 0 .708l3.5 3.5a.5.5 0 0 0 .708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 0 1 .708-.708l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L13.293 8l-3.147-3.146z"/>
+        <path d="M7.975 1.046a.5.5 0 0 1 .45.54l-1.5 12a.5.5 0 1 1-.99-.124l1.5-12a.5.5 0 0 1 .54-.416z"/>
       </svg>
     </button>
     <span class="status-sep">│</span>
@@ -471,41 +484,38 @@
     <button data-action="open">Open</button>
     <button data-action="open-in-new-window">Open in New Window</button>
     <div class="ctx-sep"></div>
-    <button data-action="new-file">New Note</button>
-    <button data-action="new-folder-from-file">New Folder</button>
-    <button data-action="duplicate">Duplicate</button>
-    <div class="ctx-sep"></div>
-    <button data-action="rename">Rename</button>
-    <button data-action="move">Move…</button>
-    <div class="ctx-sep"></div>
-    <button data-action="copy">Copy</button>
-    <button data-action="cut">Cut</button>
-    <button data-action="paste">Paste</button>
-    <div class="ctx-sep"></div>
-    <button data-action="copy-path">Copy Path</button>
-    <button data-action="reveal">Show in Explorer</button>
-    <div class="ctx-sep"></div>
-    <button data-action="delete" class="ctx-danger">Move to Trash</button>
-  </div>
-  <div id="menu-folder" class="menu-section" style="display:none">
-    <button data-action="open">Open</button>
     <button data-action="open-in-new-window">Open in New Window</button>
     <div class="ctx-sep"></div>
-    <button data-action="new-file-in-folder">New Note Inside</button>
-    <button data-action="new-subfolder">New Subfolder</button>
-    <button data-action="duplicate">Duplicate</button>
+    <button data-action="new-file">New File</button>
+    <button data-action="new-folder">New Folder</button>
     <div class="ctx-sep"></div>
     <button data-action="rename">Rename</button>
-    <button data-action="move">Move…</button>
+    <button data-action="delete" class="ctx-danger">Delete</button>
     <div class="ctx-sep"></div>
-    <button data-action="copy">Copy</button>
-    <button data-action="cut">Cut</button>
-    <button data-action="paste">Paste</button>
+    <button data-action="search">Search</button>
     <div class="ctx-sep"></div>
-    <button data-action="copy-path">Copy Path</button>
-    <button data-action="reveal">Show in Explorer</button>
+    <button data-action="view-list" class="ctx-view-toggle"><span class="ctx-check"></span>Articles (List View)</button>
+    <button data-action="view-tree" class="ctx-view-toggle"><span class="ctx-check"></span>File Tree (Tree View)</button>
     <div class="ctx-sep"></div>
-    <button data-action="delete" class="ctx-danger">Move to Trash</button>
+    <button data-action="copy-path">Copy File Path</button>
+    <button data-action="reveal">Open File Location</button>
+  </div>
+  <div id="menu-folder" class="menu-section" style="display:none">
+    <button data-action="open-in-new-window">Open in New Window</button>
+    <div class="ctx-sep"></div>
+    <button data-action="new-file">New File</button>
+    <button data-action="new-folder">New Folder</button>
+    <div class="ctx-sep"></div>
+    <button data-action="rename">Rename</button>
+    <button data-action="delete" class="ctx-danger">Delete</button>
+    <div class="ctx-sep"></div>
+    <button data-action="search">Search</button>
+    <div class="ctx-sep"></div>
+    <button data-action="view-list" class="ctx-view-toggle"><span class="ctx-check"></span>Articles (List View)</button>
+    <button data-action="view-tree" class="ctx-view-toggle"><span class="ctx-check"></span>File Tree (Tree View)</button>
+    <div class="ctx-sep"></div>
+    <button data-action="copy-path">Copy File Path</button>
+    <button data-action="reveal">Open File Location</button>
   </div>
 </div>
 
@@ -631,7 +641,7 @@
 <div id="publish-overlay" class="hidden">
   <div id="publish-modal">
     <h2>Publish to Cloud</h2>
-    <p>All notes and folders will be synced to your connected cloud service.</p>
+    <p>All notes and folders will be synced to GitHub and/or Google Drive.</p>
     <div class="modal-actions">
       <button id="btn-confirm-publish">Publish All</button>
       <button id="btn-cancel-publish">Cancel</button>
@@ -913,6 +923,12 @@
       <button data-action="mathblock" data-shortcut="Ctrl+Shift+M">Math Block</button>
     </div>
   </div>
+  
+  <div class="ctx-separator"></div>
+  <button id="ctx-toggle-search" class="ctx-menu-item">
+    <span>Search</span>
+    <span id="ctx-search-check" style="display:none">✓</span>
+  </button>
 </div>
 </div>
 

@@ -133,7 +133,7 @@ async function initMermaid() {
   if (mermaidLoading) return;
   if (window.mermaid && !mermaidInitialized) {
     try {
-      const theme = (typeof currentTheme !== "undefined" && ["dark","cobalt","phantom","forest","jade","lavender","sunset"].includes(currentTheme)) ? "dark" : "default";
+      const theme = (typeof currentTheme !== "undefined" && ["dark","midnight","void","ember","cobalt","coral","ocean","sunset","nord","drake","ursine","lapis"].includes(currentTheme)) ? "dark" : "default";
       mermaid.initialize({ startOnLoad: false, theme, securityLevel: "loose" });
     } catch (e) { console.warn("Mermaid init:", e); }
     mermaidInitialized = true;
@@ -731,6 +731,91 @@ function registerVimCommands() {
     if (arg === "novim") { disableVim(); return; }
     Vim.handleEx(cm, `set ${arg}`);
   });
+
+  // :e [filename] — open a file by name, or prompt if no arg
+  Vim.defineEx("edit", "e", (cm, params) => {
+    const arg = (params.args || []).join(" ").trim();
+    if (arg) {
+      const name = arg.endsWith(".md") ? arg : arg + ".md";
+      openFile(name);
+    } else {
+      document.getElementById("search-input").focus();
+    }
+  });
+
+  // :new — create a new file
+  Vim.defineEx("new", "", () => {
+    document.getElementById("btn-new").click();
+  });
+
+  // :saveas [filename] — save with a new name
+  Vim.defineEx("saveas", "sav", (cm, params) => {
+    const arg = (params.args || []).join(" ").trim();
+    if (arg) {
+      const name = arg.endsWith(".md") ? arg : arg + ".md";
+      currentFile = name;
+      document.getElementById("filename-input").value = name;
+      saveFile();
+    } else {
+      saveAs();
+    }
+  });
+
+  // :bn / :bnext — open next file in sidebar
+  Vim.defineEx("bnext", "bn", () => {
+    navigateFiles(1);
+  });
+
+  // :bp / :bprev — open previous file in sidebar
+  Vim.defineEx("bprevious", "bp", () => {
+    navigateFiles(-1);
+  });
+
+  // :files — switch to files sidebar tab
+  Vim.defineEx("files", "", () => {
+    switchSidebarMode("files");
+    if (!document.getElementById("sidebar").classList.contains("collapsed")) return;
+    toggleSidebar();
+  });
+
+  // :outline — switch to outline sidebar tab
+  Vim.defineEx("outline", "", () => {
+    switchSidebarMode("outline");
+    if (document.getElementById("sidebar").classList.contains("collapsed")) toggleSidebar();
+  });
+
+  // :preview — toggle preview pane
+  Vim.defineEx("preview", "", () => {
+    togglePreview();
+  });
+
+  // :theme [name] — switch theme
+  Vim.defineEx("theme", "", (cm, params) => {
+    const name = (params.args || []).join(" ").trim();
+    if (name) {
+      applyTheme(name);
+      setStatus(`Theme: ${name}`);
+    } else {
+      setStatus("Usage: :theme <name>");
+    }
+  });
+
+  // :noh — clear search highlights
+  Vim.defineEx("nohlsearch", "noh", () => {
+    setStatus("");
+  });
+}
+
+// Navigate to next/previous file in the file list
+function navigateFiles(direction) {
+  const fileItems = [...document.querySelectorAll("li.tree-file")];
+  if (!fileItems.length) { setStatus("No files in sidebar", true); return; }
+  const paths = fileItems.map(li => li.dataset.filePath);
+  const idx = paths.indexOf(currentFile);
+  let next = idx + direction;
+  if (next < 0) next = paths.length - 1;
+  if (next >= paths.length) next = 0;
+  openFile(paths[next]);
 }
 
 function enableVim() {
@@ -738,6 +823,7 @@ function enableVim() {
   localStorage.setItem("sc-vim", "true");
   view.dispatch({ effects: vimCompartment.reconfigure(vim()) });
   updateVimIndicator("normal");
+  startVimPolling();
   setStatus("Vim mode enabled");
 }
 
@@ -746,6 +832,7 @@ function disableVim() {
   localStorage.setItem("sc-vim", "false");
   view.dispatch({ effects: vimCompartment.reconfigure([]) });
   updateVimIndicator("");
+  stopVimPolling();
   setStatus("Vim mode disabled");
 }
 
@@ -925,33 +1012,44 @@ const view = new EditorView({
 
 registerVimCommands();
 
-// Vim mode polling
+// Vim mode polling — only poll when vim is enabled
 let lastVimMode = "normal";
+let vimPollId = null;
+
 function pollVimMode() {
-  if (vimEnabled) {
-    let mode = "normal";
-    try {
-      const panel = view.dom.querySelector(".cm-vim-panel");
-      if (panel) {
-        const txt = panel.textContent.trim();
-        if (txt.includes("INSERT")) mode = "insert";
-        else if (txt.includes("VISUAL")) mode = "visual";
-        else if (txt.includes("REPLACE")) mode = "replace";
-      } else {
-        const cmVim = view.cm;
-        if (cmVim?.state?.vim) {
-          const vs = cmVim.state.vim;
-          if (vs.insertMode) mode = "insert";
-          else if (vs.visualMode) mode = "visual";
-          else if (vs.replaceMode) mode = "replace";
-        }
+  if (!vimEnabled) { vimPollId = null; return; }
+  let mode = "normal";
+  try {
+    const panel = view.dom.querySelector(".cm-vim-panel");
+    if (panel) {
+      const txt = panel.textContent.trim();
+      if (txt.includes("INSERT")) mode = "insert";
+      else if (txt.includes("VISUAL")) mode = "visual";
+      else if (txt.includes("REPLACE")) mode = "replace";
+      else if (txt.includes("COMMAND")) mode = "command";
+    } else {
+      const cmVim = view.cm;
+      if (cmVim?.state?.vim) {
+        const vs = cmVim.state.vim;
+        if (vs.insertMode) mode = "insert";
+        else if (vs.visualMode) mode = "visual";
+        else if (vs.replaceMode) mode = "replace";
       }
-    } catch (_) {}
-    if (mode !== lastVimMode) { lastVimMode = mode; updateVimIndicator(mode); }
-  }
-  requestAnimationFrame(pollVimMode);
+    }
+  } catch (_) {}
+  if (mode !== lastVimMode) { lastVimMode = mode; updateVimIndicator(mode); }
+  vimPollId = requestAnimationFrame(pollVimMode);
 }
-requestAnimationFrame(pollVimMode);
+
+function startVimPolling() {
+  if (vimPollId == null) vimPollId = requestAnimationFrame(pollVimMode);
+}
+
+function stopVimPolling() {
+  if (vimPollId != null) { cancelAnimationFrame(vimPollId); vimPollId = null; }
+}
+
+if (vimEnabled) startVimPolling();
 
 doRenderPreview();
 
@@ -963,15 +1061,21 @@ const lightCmTheme = EditorView.theme({}, { dark: false });
 const themeConfig = {
   dark: { cmTheme: oneDark, label: "Dark" },
   light: { cmTheme: lightCmTheme, label: "Light" },
+  // Dark inline themes
+  midnight: { cmTheme: oneDark, label: "Midnight" },
+  void: { cmTheme: oneDark, label: "Void" },
+  ember: { cmTheme: oneDark, label: "Ember" },
   cobalt: { cmTheme: oneDark, label: "Cobalt" },
-  seniva: { cmTheme: lightCmTheme, label: "Seniva" },
-  newsprint: { cmTheme: lightCmTheme, label: "Newsprint" },
-  phantom: { cmTheme: oneDark, label: "Phantom" },
-  seraph: { cmTheme: lightCmTheme, label: "Seraph" },
-  forest: { cmTheme: oneDark, label: "Forest" },
-  jade: { cmTheme: oneDark, label: "Jade" },
-  lavender: { cmTheme: oneDark, label: "Lavender" },
+  coral: { cmTheme: oneDark, label: "Coral" },
+  ocean: { cmTheme: oneDark, label: "Ocean" },
   sunset: { cmTheme: oneDark, label: "Sunset" },
+  // Light inline themes
+  arctic: { cmTheme: lightCmTheme, label: "Arctic" },
+  sakura: { cmTheme: lightCmTheme, label: "Sakura" },
+  mocha: { cmTheme: lightCmTheme, label: "Mocha" },
+  seniva: { cmTheme: lightCmTheme, label: "Seniva" },
+  lavender: { cmTheme: lightCmTheme, label: "Lavender" },
+  // External CSS themes (loaded dynamically)
   github: { cmTheme: lightCmTheme, label: "GitHub" },
   nord: { cmTheme: oneDark, label: "Nord" },
   drake: { cmTheme: oneDark, label: "Drake" },
@@ -985,7 +1089,7 @@ let currentTheme = "dark";
 let loadedThemes = {}; // Store dynamically loaded themes
 
 // Themes that have CSS files
-const themesWithCSS = ['cobalt', 'seniva', 'github', 'nord', 'drake', 'pie', 'ursine', 'lapis', 'vue'];
+const themesWithCSS = ['github', 'nord', 'drake', 'pie', 'ursine', 'lapis', 'vue'];
 
 // Apply theme - handles both built-in and loaded themes
 async function applyTheme(themeName) {
@@ -1007,8 +1111,8 @@ async function applyTheme(themeName) {
       link.href = `/static/themes/${themeName}.css`;
       
       // Determine if dark or light based on theme name patterns
-      const isDark = themeName.toLowerCase().includes('dark') || 
-                     ['nord', 'phantom', 'cobalt', 'forest', 'jade', 'lavender', 'sunset', 'drake', 'ursine', 'lapis'].includes(themeName.toLowerCase());
+      const isDark = themeName.toLowerCase().includes('dark') ||
+                     ['nord', 'midnight', 'void', 'ember', 'cobalt', 'coral', 'ocean', 'sunset', 'drake', 'ursine', 'lapis'].includes(themeName.toLowerCase());
       const themeAttr = isDark ? 'dark' : 'light';
       document.documentElement.setAttribute("data-theme", themeAttr);
     } else {
@@ -1232,8 +1336,12 @@ function switchSidebarMode(mode) {
   // Update view toggle icon
   updateViewToggleIcon();
   
+  // Update search check mark in context menu
+  updateSearchCheckMark();
+  
   if (mode === "files" && filesViewMode === "list") populateFileList();
   if (mode === "outline") updateOutline();
+  if (mode === "gdrive") checkGdriveStatus();
 }
 
 function updateViewToggleIcon() {
@@ -1352,6 +1460,14 @@ async function loadFileList() {
         const { files, folders } = await res.json();
         const ul = document.getElementById("file-list");
         ul.innerHTML = "";
+        
+        // Add root folder header
+        const rootFolderName = document.getElementById("workspace-name")?.textContent || "Files";
+        const rootHeader = document.createElement("li");
+        rootHeader.className = "root-folder-header";
+        rootHeader.innerHTML = `<span class="folder-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 012.5 2h2.764c.958 0 1.76.56 2.311 1.184C7.985 3.648 8.48 4 9 4h4.5A1.5 1.5 0 0115 5.5v7a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-9zM2.5 3a.5.5 0 00-.5.5V6h12v-.5a.5.5 0 00-.5-.5H9c-.964 0-1.71-.629-2.174-1.154C6.374 3.334 5.82 3 5.264 3H2.5zM14 7H2v5.5a.5.5 0 00.5.5h11a.5.5 0 00.5-.5V7z"/></svg></span><span class="folder-name">${rootFolderName}</span>`;
+        ul.appendChild(rootHeader);
+        
         const tree = buildTree(folders, files);
         renderTree(tree, ul);
       } finally {
@@ -1415,11 +1531,14 @@ function renderTree(node, container) {
 
     const arrow = document.createElement("span");
     arrow.className = "folder-arrow" + (isExpanded ? " expanded" : "");
-    arrow.textContent = "▶";
+    arrow.innerHTML = '<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 1.5l5 5-5 5V1.5z"/></svg>';
 
     const icon = document.createElement("span");
     icon.className = "folder-icon";
-    icon.textContent = isExpanded ? "📂 " : "📁 ";
+    icon.innerHTML = isExpanded 
+      ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M.54 3.87L.5 3a2 2 0 012-2h3.672a2 2 0 011.414.586l.828.828A2 2 0 009.828 3h3.982a2 2 0 011.992 2.181L15.546 8H14.54L14.8 5.181A1 1 0 0013.81 4H9.828a1 1 0 01-.707-.293L8.293 2.879A1 1 0 007.586 2.586L6.758 1.758A1 1 0 006.172 1.5H2.5a1 1 0 00-1 1l.04.87z"/><path d="M0 8a2 2 0 012-2h12a2 2 0 012 2v5a2 2 0 01-2 2H2a2 2 0 01-2-2V8z"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 012.5 2h2.764c.958 0 1.76.56 2.311 1.184C7.985 3.648 8.48 4 9 4h4.5A1.5 1.5 0 0115 5.5v7a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-9zM2.5 3a.5.5 0 00-.5.5V6h12v-.5a.5.5 0 00-.5-.5H9c-.964 0-1.71-.629-2.174-1.154C6.374 3.334 5.82 3 5.264 3H2.5zM14 7H2v5.5a.5.5 0 00.5.5h11a.5.5 0 00.5-.5V7z"/></svg>';
+
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "folder-name";
@@ -1431,7 +1550,7 @@ function renderTree(node, container) {
     header.addEventListener("click", () => {
       toggleFolderExpand(folderPath);
       // Update bottom to show folder name
-      const fileNameEl = document.getElementById("bottom-file-name");
+      const fileNameEl = document.getElementById("bottom-folder-name");
       if (fileNameEl) {
         fileNameEl.textContent = folderName;
       }
@@ -1483,6 +1602,11 @@ function renderTree(node, container) {
 
     const fileContent = document.createElement("div");
     fileContent.className = "file-content";
+    
+    const fileIcon = document.createElement("span");
+    fileIcon.className = "file-icon";
+    fileIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0H4zm0 1h5v3.5A1.5 1.5 0 0010.5 6H13v8a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1zm6.5 0v3a.5.5 0 00.5.5h3l-3.5-3.5z"/></svg>';
+    fileContent.appendChild(fileIcon);
     
     const span = document.createElement("span");
     span.className = "file-name";
@@ -1798,8 +1922,22 @@ function showContextMenu(x, y, context) {
     if (listBtn) listBtn.textContent = filesViewMode === "list" ? "✓" : "";
     if (treeBtn) treeBtn.textContent = filesViewMode === "tree" ? "✓" : "";
   }
-  else if (context === "folder" && menuFolder) menuFolder.style.display = "block";
-  else menuFile.style.display = "block";
+  else if (context === "folder" && menuFolder) {
+    menuFolder.style.display = "block";
+    // Update view toggle tick marks for folder menu too
+    const listBtn = menuFolder.querySelector('[data-action="view-list"] .ctx-check');
+    const treeBtn = menuFolder.querySelector('[data-action="view-tree"] .ctx-check');
+    if (listBtn) listBtn.textContent = filesViewMode === "list" ? "✓" : "";
+    if (treeBtn) treeBtn.textContent = filesViewMode === "tree" ? "✓" : "";
+  }
+  else {
+    menuFile.style.display = "block";
+    // Update view toggle tick marks for file menu too
+    const listBtn = menuFile.querySelector('[data-action="view-list"] .ctx-check');
+    const treeBtn = menuFile.querySelector('[data-action="view-tree"] .ctx-check');
+    if (listBtn) listBtn.textContent = filesViewMode === "list" ? "✓" : "";
+    if (treeBtn) treeBtn.textContent = filesViewMode === "tree" ? "✓" : "";
+  }
   contextMenu.classList.remove("hidden");
   const rect = contextMenu.getBoundingClientRect();
   let posX = x, posY = y;
@@ -2105,7 +2243,10 @@ contextMenu.addEventListener("click", async (e) => {
       break;
     }
     case "search": {
-      document.getElementById("search-input")?.focus();
+      switchSidebarMode("search");
+      setTimeout(() => {
+        triggerSearchPanel();
+      }, 100);
       break;
     }
     case "view-list": {
@@ -2253,6 +2394,73 @@ searchInput.addEventListener("input", () => {
     });
   }, 250);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEARCH PANEL (sidebar search mode)
+// ═══════════════════════════════════════════════════════════════════════════════
+let searchPanelDebounce = null;
+const searchPanelInput = document.getElementById("search-panel-input");
+const searchPanelResults = document.getElementById("search-panel-results");
+const searchPanelEmpty = document.getElementById("search-panel-empty");
+
+searchPanelInput?.addEventListener("input", () => {
+  clearTimeout(searchPanelDebounce);
+  const q = searchPanelInput.value.trim();
+  if (!q) {
+    searchPanelResults.innerHTML = "";
+    searchPanelEmpty.style.display = "none";
+    return;
+  }
+  searchPanelDebounce = setTimeout(async () => {
+    const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
+    const { results } = await res.json();
+    searchPanelResults.innerHTML = "";
+    
+    if (!results.length) {
+      searchPanelEmpty.style.display = "block";
+      return;
+    }
+    
+    searchPanelEmpty.style.display = "none";
+    results.forEach(({ name, snippet }) => {
+      const li = document.createElement("li");
+      
+      const fileDiv = document.createElement("div");
+      fileDiv.className = "search-result-file";
+      fileDiv.textContent = name;
+      
+      const snippetDiv = document.createElement("div");
+      snippetDiv.className = "search-result-snippet";
+      // Highlight the search term in snippet
+      const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      const highlighted = snippet.replace(regex, '<span class="search-result-match">$1</span>');
+      snippetDiv.innerHTML = highlighted;
+      
+      li.appendChild(fileDiv);
+      li.appendChild(snippetDiv);
+      li.addEventListener("click", () => openFile(name));
+      searchPanelResults.appendChild(li);
+    });
+  }, 300);
+});
+
+// Trigger search panel to load all files initially
+function triggerSearchPanel() {
+  if (!searchPanelInput) return;
+  const q = searchPanelInput.value.trim();
+  if (q) {
+    // If there's already a search term, trigger search
+    searchPanelInput.dispatchEvent(new Event('input'));
+  } else {
+    // Load all files by searching for empty string or common character
+    searchPanelInput.value = " ";
+    searchPanelInput.dispatchEvent(new Event('input'));
+    setTimeout(() => {
+      searchPanelInput.value = "";
+      searchPanelInput.focus();
+    }, 100);
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // IMPORT / EXPORT
@@ -2577,6 +2785,33 @@ editorCtxMenu.addEventListener("click", e => {
   if (ACTIONS[btn.dataset.action]) ACTIONS[btn.dataset.action]();
 });
 
+// Toggle search panel from context menu
+document.getElementById("ctx-toggle-search")?.addEventListener("click", () => {
+  editorCtxMenu.classList.add("hidden");
+  const currentMode = document.querySelector(".sidebar-tab.active")?.dataset.mode;
+  const searchCheck = document.getElementById("ctx-search-check");
+  
+  if (currentMode === "search") {
+    // Switch back to outline
+    switchSidebarMode("outline");
+    searchCheck.style.display = "none";
+  } else {
+    // Switch to search
+    switchSidebarMode("search");
+    searchCheck.style.display = "inline";
+    setTimeout(() => triggerSearchPanel(), 100);
+  }
+});
+
+// Update check mark when sidebar mode changes
+function updateSearchCheckMark() {
+  const currentMode = document.querySelector(".sidebar-tab.active")?.dataset.mode;
+  const searchCheck = document.getElementById("ctx-search-check");
+  if (searchCheck) {
+    searchCheck.style.display = currentMode === "search" ? "inline" : "none";
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PUBLISH
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2593,7 +2828,6 @@ document.getElementById("btn-confirm-publish")?.addEventListener("click", async 
   if (res.ok) {
     let msg = `Published ${data.published} notes`;
     if (data.results?.github) msg += ` • GitHub: ${data.results.github}`;
-    if (data.results?.dropbox) msg += ` • Dropbox: ${data.results.dropbox}`;
     if (data.results?.gdrive) msg += ` • Drive: ${data.results.gdrive}`;
     setStatus(msg);
   } else {
@@ -3032,8 +3266,84 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
 
 // Google Drive sign-in
 document.getElementById('btn-gdrive-signin')?.addEventListener('click', () => {
-  window.open("/gdrive/auth", "_blank", "width=600,height=700");
+  const popup = window.open("/gdrive/auth", "_blank", "width=600,height=700");
+  // Poll for popup close, then refresh gdrive status
+  if (popup) {
+    const check = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(check);
+        checkGdriveStatus();
+      }
+    }, 1000);
+  }
 });
+
+// Google Drive: check connection status and load files
+async function checkGdriveStatus() {
+  const authSection = document.getElementById("gdrive-auth");
+  const filesSection = document.getElementById("gdrive-files");
+  if (!authSection || !filesSection) return;
+  try {
+    const res = await fetch("/gdrive/status");
+    if (!res.ok) {
+      // Server error — show sign-in button as fallback
+      authSection.classList.remove("hidden");
+      filesSection.classList.add("hidden");
+      return;
+    }
+    const { connected } = await res.json();
+    if (connected) {
+      authSection.classList.add("hidden");
+      filesSection.classList.remove("hidden");
+      loadGdriveFiles();
+    } else {
+      authSection.classList.remove("hidden");
+      filesSection.classList.add("hidden");
+    }
+  } catch (_) {
+    // Network error — show sign-in button
+    authSection.classList.remove("hidden");
+    filesSection.classList.add("hidden");
+  }
+}
+
+async function loadGdriveFiles() {
+  const list = document.getElementById("gdrive-file-list");
+  list.innerHTML = "<li class='loading'>Loading…</li>";
+  try {
+    const res = await fetch("/gdrive/files");
+    list.innerHTML = "";
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      list.innerHTML = `<li class="no-results">${err.detail || "Error loading files"}</li>`;
+      return;
+    }
+    const { files } = await res.json();
+    if (!files.length) {
+      list.innerHTML = "<li class='no-results'>No .md files found</li>";
+      return;
+    }
+    files.forEach(name => {
+      const li = document.createElement("li");
+      li.textContent = name;
+      li.className = "file-item";
+      li.addEventListener("click", async () => {
+        const r = await fetch(`/gdrive/open/${encodeURIComponent(name)}`);
+        if (!r.ok) { setStatus("Failed to open", true); return; }
+        const { content } = await r.json();
+        setContent(content);
+        document.getElementById("filename-input").value = name;
+        currentFile = name;
+        setStatus(`Opened ${name} from Google Drive`);
+      });
+      list.appendChild(li);
+    });
+  } catch (e) {
+    list.innerHTML = "<li class='no-results'>Failed to connect</li>";
+  }
+}
+
+document.getElementById("btn-gdrive-refresh")?.addEventListener("click", loadGdriveFiles);
 
 // Handle OAuth callback (this would be called from the callback page)
 async function handleGitHubCallback(code, state) {
@@ -3306,10 +3616,10 @@ async function openCloudBrowser(provider) {
   const section = document.getElementById("cloud-section");
   const label = document.getElementById("cloud-label");
   const list = document.getElementById("cloud-file-list");
-  label.textContent = provider === "dropbox" ? "Dropbox" : "Google Drive";
+  label.textContent = "Google Drive";
   list.innerHTML = "<li class='loading'>Loading…</li>";
   section.classList.remove("hidden");
-  const url = provider === "dropbox" ? "/dropbox/files" : "/gdrive/files";
+  const url = "/gdrive/files";
   const res = await fetch(url);
   list.innerHTML = "";
   if (!res.ok) {
@@ -3329,7 +3639,7 @@ async function openCloudBrowser(provider) {
     return;
   }
   files.forEach(name => {
-    const openUrl = provider === "dropbox" ? `/dropbox/open/${encodeURIComponent(name)}` : `/gdrive/open/${encodeURIComponent(name)}`;
+    const openUrl = `/gdrive/open/${encodeURIComponent(name)}`;
     const li = document.createElement("li");
     li.textContent = name;
     li.style.cursor = "pointer";
@@ -3394,6 +3704,7 @@ async function loadWorkspace() {
     const data = await res.json();
     workspacePath = data.path;
     workspaceName = data.name;
+    if (workspacePath) addRecentLocation(workspacePath);
     const el = document.getElementById("workspace-name");
     if (el) {
       el.textContent = workspaceName;
@@ -3432,17 +3743,20 @@ async function setWorkspace(folderPath) {
   const data = await res.json();
   workspacePath = data.path;
   workspaceName = data.name;
-  
+
+  // Save to recent locations
+  addRecentLocation(workspacePath);
+
   // Update workspace bar
   const el = document.getElementById("workspace-name");
   if (el) {
     el.textContent = workspaceName;
     el.title = workspacePath;
   }
-  
+
   // Update bottom folder name
   updateBottomFolderName();
-  
+
   // Update sidebar header (Typora-style: show folder name in sidebar)
   const sidebarHeader = document.getElementById("sidebar-header");
   const sidebarFolderName = document.getElementById("sidebar-folder-name");
@@ -3452,13 +3766,13 @@ async function setWorkspace(folderPath) {
   } else {
     if (sidebarHeader) sidebarHeader.classList.add("hidden");
   }
-  
+
   // Update status bar folder display
   const folderStatus = document.getElementById("folder-status");
   if (folderStatus) {
     folderStatus.textContent = workspacePath ? workspaceName : "";
   }
-  
+
   // Reset editor state
   currentFile = "untitled.md";
   document.getElementById("filename-input").value = "untitled.md";
@@ -3466,6 +3780,29 @@ async function setWorkspace(folderPath) {
   loadFileList();
   setStatus(`Opened folder: ${workspacePath}`);
   return true;
+}
+
+function addRecentLocation(path) {
+  if (!path) return;
+  const recent = JSON.parse(localStorage.getItem("lectura-recent-locations") || "[]");
+  const filtered = recent.filter(p => p !== path);
+  filtered.unshift(path);
+  localStorage.setItem("lectura-recent-locations", JSON.stringify(filtered.slice(0, 10)));
+}
+
+function getPinnedFolders() {
+  return JSON.parse(localStorage.getItem("lectura-pinned-folders") || "[]");
+}
+
+function togglePinFolder(path) {
+  const pinned = getPinnedFolders();
+  const idx = pinned.indexOf(path);
+  if (idx >= 0) {
+    pinned.splice(idx, 1);
+  } else {
+    pinned.push(path);
+  }
+  localStorage.setItem("lectura-pinned-folders", JSON.stringify(pinned));
 }
 
 // ── Folder browser dialog ────────────────────────────────────────────────────
@@ -3783,22 +4120,14 @@ document.getElementById("btn-bottom-view-toggle")?.addEventListener("click", () 
 
 function updateBottomFolderName() {
   const folderNameEl = document.getElementById("bottom-folder-name");
-  const workspaceName = document.getElementById("workspace-name")?.textContent || "No folder";
+  const wsName = document.getElementById("workspace-name")?.textContent || "No folder";
   if (folderNameEl) {
-    folderNameEl.textContent = workspaceName;
+    folderNameEl.textContent = wsName;
   }
 }
 
 function updateBottomFileName() {
-  const fileNameEl = document.getElementById("bottom-file-name");
-  if (fileNameEl) {
-    if (currentFile) {
-      const fileName = currentFile.split("/").pop();
-      fileNameEl.textContent = fileName;
-    } else {
-      fileNameEl.textContent = "No file open";
-    }
-  }
+  // No longer needed - bottom shows folder name instead
 }
 
 function showRecentLocationsMenu(e) {
@@ -3983,28 +4312,43 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
   const popup = document.createElement("div");
   popup.className = "sidebar-more-popup";
 
-  // Get recent folders/locations
+  // Get recent folders/locations and pinned folders
   const recentLocations = JSON.parse(localStorage.getItem("lectura-recent-locations") || "[]");
+  const pinnedFolders = getPinnedFolders();
 
-  let recentHTML = "";
-  if (recentLocations.length > 0) {
-    recentLocations.slice(0, 8).forEach(loc => {
+  let pinnedHTML = "";
+  if (pinnedFolders.length > 0) {
+    pinnedFolders.forEach(loc => {
       const locName = loc.split("/").pop() || loc;
-      recentHTML += `
-        <div class="popup-item recent-location-item" data-location="${loc}" title="${loc}">
-          <span class="recent-loc-icon">📁</span>
+      const isCurrent = loc === workspacePath;
+      pinnedHTML += `
+        <div class="popup-item recent-location-item${isCurrent ? " current-loc" : ""}" data-location="${loc}" title="${loc}">
+          <span class="recent-loc-icon" style="color: var(--accent);">&#9733;</span>
           <span class="recent-file-name">${locName}</span>
-          <span class="recent-loc-indicator" style="margin-left:auto; opacity:0.4;">●</span>
+          <button class="pin-btn pinned" data-pin-path="${loc}" title="Unpin">&#9733;</button>
         </div>`;
     });
-  } else {
-    // Show workspace as a recent location
+  }
+
+  let recentHTML = "";
+  const recentFiltered = recentLocations.filter(p => !pinnedFolders.includes(p));
+  if (recentFiltered.length > 0) {
+    recentFiltered.slice(0, 8).forEach(loc => {
+      const locName = loc.split("/").pop() || loc;
+      const isCurrent = loc === workspacePath;
+      recentHTML += `
+        <div class="popup-item recent-location-item${isCurrent ? " current-loc" : ""}" data-location="${loc}" title="${loc}">
+          <span class="recent-loc-icon">&#128193;</span>
+          <span class="recent-file-name">${locName}</span>
+          <button class="pin-btn" data-pin-path="${loc}" title="Pin folder">&#9734;</button>
+        </div>`;
+    });
+  } else if (pinnedFolders.length === 0) {
     const wsName = workspacePath ? workspacePath.split("/").pop() : "notes";
     recentHTML = `
-      <div class="popup-item recent-location-item" data-location="" title="${workspacePath || 'notes'}">
-        <span class="recent-loc-icon">📁</span>
+      <div class="popup-item recent-location-item current-loc" data-location="" title="${workspacePath || 'notes'}">
+        <span class="recent-loc-icon">&#128193;</span>
         <span class="recent-file-name">${wsName}</span>
-        <span class="recent-loc-indicator" style="margin-left:auto; opacity:0.4;">●</span>
       </div>`;
   }
 
@@ -4037,9 +4381,10 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.082 5.629L9.664 7H8.598l1.789-5.332h1.234L13.402 7h-1.12l-.419-1.371h-1.781zm1.57-.785L11 2.687h-.047l-.652 2.157h1.351z"/><path d="M12.96 14H9.028v-.691l2.579-3.72v-.054H9.098v-.867h3.785v.691l-2.567 3.72v.054h2.645V14zM4.5 13.5a.5.5 0 01-1 0V3.707L2.354 4.854a.5.5 0 11-.708-.708l2-2a.5.5 0 01.708 0l2 2a.5.5 0 01-.708.708L4.5 3.707V13.5z"/></svg>
       </button>
     </div>
+    ${pinnedHTML ? `<div class="popup-sep"></div><div class="popup-section-title">Pinned</div>${pinnedHTML}` : ""}
     <div class="popup-sep"></div>
     <div class="popup-section-title">Recent Locations</div>
-    ${recentHTML}
+    ${recentHTML || '<div class="popup-item" style="opacity:0.5;pointer-events:none;font-size:12px;">No recent folders</div>'}
   `;
 
   // Position
@@ -4102,16 +4447,25 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
     });
   });
 
-  // Recent location items
+  // Pin/unpin buttons
+  popup.querySelectorAll(".pin-btn[data-pin-path]").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      togglePinFolder(btn.dataset.pinPath);
+      // Re-render popup
+      popup.remove();
+      const rect = document.getElementById("btn-bottom-more").getBoundingClientRect();
+      showSidebarMorePopup(rect, false);
+    });
+  });
+
+  // Recent location items — switch workspace
   popup.querySelectorAll(".recent-location-item[data-location]").forEach(item => {
     item.addEventListener("click", (ev) => {
+      if (ev.target.closest(".pin-btn")) return;
       const loc = item.dataset.location;
-      if (loc) {
-        // Navigate into this folder
-        currentFolder = loc;
-        expandedFolders.add(loc);
-        saveExpandedFolders();
-        loadFileList();
+      if (loc && loc !== workspacePath) {
+        setWorkspace(loc);
       }
       popup.remove();
     });
@@ -4127,6 +4481,13 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
 
 // Three-dots button click
 document.getElementById("btn-bottom-more")?.addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  const rect = btn.getBoundingClientRect();
+  showSidebarMorePopup(rect, false);
+});
+
+// Bottom folder name button click — opens same popup
+document.getElementById("btn-bottom-folder-name")?.addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   const rect = btn.getBoundingClientRect();
   showSidebarMorePopup(rect, false);
