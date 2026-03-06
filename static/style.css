@@ -1854,6 +1854,9 @@ li.tree-file:hover .del-btn,
   justify-content: center;
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .status-right {
   flex-shrink: 0;
