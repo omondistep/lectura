@@ -50,6 +50,8 @@ A modern, self-hosted Markdown note-taking application featuring real-time previ
 
 ## 🚀 Quick Start
 
+**📖 For detailed installation instructions, see [INSTALL.md](INSTALL.md)**
+
 ### Option 1: Standalone (Recommended)
 Lightweight, browser-based installation.
 
@@ -196,6 +198,12 @@ lectura/
 ## 📄 License
 
 MIT License - See [LICENSE](LICENSE) file for details.
+
+## 📚 Documentation
+
+- **[Installation Guide](INSTALL.md)** - Detailed setup instructions
+- **[Uninstallation Guide](UNINSTALL.md)** - Complete removal instructions
+- **[OAuth Setup Guide](OAUTH_SETUP.md)** - Cloud service configuration
 
 ## 🙏 Acknowledgments
 
