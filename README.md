@@ -8,10 +8,10 @@ A modern, self-hosted Markdown note-taking application featuring real-time previ
 
 ## 📸 Screenshots
 
-![Lectura Interface](static/images/MSPPREVIEW.png)
+![Lectura Interface](static/images/lectura-interface.png)
 *Split-pane interface with live preview and comprehensive Vim support*
 
-![Lectura Dark Theme](static/images/Screenshotfrom2026-02-2721-33-14.png)
+![Lectura Dark Theme](static/images/lectura-dark-theme.png)
 *Multiple themes with unique typography and clean, distraction-free design*
 
 ## ✨ Features
