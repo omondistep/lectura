@@ -3608,8 +3608,12 @@ document.addEventListener("mouseup", () => {
 
 function updateSidebarWidth() {
   const sidebar = document.getElementById("sidebar");
-  const width = sidebar.classList.contains("collapsed") ? 0 : parseInt(sidebar.style.width || getComputedStyle(sidebar).width);
-  document.documentElement.style.setProperty('--sidebar-w', width + 'px');
+  const isCollapsed = sidebar.classList.contains("collapsed");
+  const width = isCollapsed ? 0 : parseInt(sidebar.style.width || getComputedStyle(sidebar).width);
+  
+  // When collapsed, position toggles after the sidebar controls (around 200px)
+  const togglePosition = isCollapsed ? 200 : width;
+  document.documentElement.style.setProperty('--sidebar-w', togglePosition + 'px');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
