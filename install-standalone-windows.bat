@@ -2,23 +2,20 @@
 setlocal enabledelayedexpansion
 
 :: ============================================================================
-:: Lectura Installer for Windows
-:: Installs as a standalone Electron desktop app with isolated Python venv
+:: Lectura Standalone Installer for Windows
+:: Installs as a browser-based app with Python backend
 :: ============================================================================
 
 set "APP_NAME=Lectura"
-set "APP_VERSION=2.0.0"
+set "APP_VERSION=1.0.0"
 set "INSTALL_DIR=%LOCALAPPDATA%\Lectura"
 set "SHORTCUT_NAME=Lectura"
 
 echo.
 echo ================================================
-echo        Lectura Installer for Windows v%APP_VERSION%
+echo    Lectura Standalone Installer for Windows v%APP_VERSION%
 echo ================================================
 echo.
-
-:: ── Check for Admin (optional, not required) ────────────────────────────────
-:: Running as user is fine — installs to %LOCALAPPDATA%
 
 :: ── Check Python ────────────────────────────────────────────────────────────
 echo [*] Checking dependencies...
@@ -34,29 +31,6 @@ if %errorlevel% neq 0 (
 
 for /f "tokens=*" %%i in ('python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set PYTHON_VER=%%i
 echo [+] Python %PYTHON_VER% found
-
-:: ── Check Node.js ───────────────────────────────────────────────────────────
-where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [-] Node.js is required for the desktop app.
-    echo     Download from: https://nodejs.org/
-    pause
-    exit /b 1
-)
-
-for /f "tokens=*" %%i in ('node -v') do set NODE_VER=%%i
-echo [+] Node.js %NODE_VER% found
-
-:: ── Check npm ───────────────────────────────────────────────────────────────
-where npm >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [-] npm is required but not found.
-    echo     It should come with Node.js. Try reinstalling Node.js.
-    pause
-    exit /b 1
-)
-
-echo [+] npm found
 
 :: ── Install files ───────────────────────────────────────────────────────────
 echo.
@@ -75,14 +49,10 @@ echo [*] Copying files...
 
 :: Core app files
 copy "%SOURCE_DIR%main.py" "%INSTALL_DIR%\" >nul
-copy "%SOURCE_DIR%electron-main.js" "%INSTALL_DIR%\" >nul
-copy "%SOURCE_DIR%preload.js" "%INSTALL_DIR%\" >nul
-copy "%SOURCE_DIR%package.json" "%INSTALL_DIR%\" >nul
 copy "%SOURCE_DIR%requirements.txt" "%INSTALL_DIR%\" >nul
 
 :: Static assets
 xcopy "%SOURCE_DIR%static" "%INSTALL_DIR%\static\" /e /i /q >nul
-xcopy "%SOURCE_DIR%build" "%INSTALL_DIR%\build\" /e /i /q >nul
 
 :: Config and secrets (if they exist)
 if exist "%SOURCE_DIR%config.json" copy "%SOURCE_DIR%config.json" "%INSTALL_DIR%\" >nul
@@ -105,20 +75,27 @@ pip install -q -r requirements.txt
 call deactivate
 echo [+] Python dependencies installed
 
-:: ── Install Node dependencies ───────────────────────────────────────────────
-echo [*] Installing Electron dependencies...
-cd /d "%INSTALL_DIR%"
-call npm install --silent 2>nul
-echo [+] Electron installed
-
-:: ── Create launcher script ──────────────────────────────────────────────────
+:: ── Create launcher scripts ─────────────────────────────────────────────────
 echo [*] Creating launcher...
 
+:: Create batch launcher
 (
 echo @echo off
 echo cd /d "%INSTALL_DIR%"
-echo start "" /b npm start
-) > "%INSTALL_DIR%\lectura.bat"
+echo call venv\Scripts\activate.bat
+echo echo Starting Lectura...
+echo echo Open your browser to: http://127.0.0.1:8000
+echo start "" "http://127.0.0.1:8000"
+echo python main.py
+echo pause
+) > "%INSTALL_DIR%\Lectura.bat"
+
+:: Create VBS script to run without console window
+(
+echo Set WshShell = CreateObject^("WScript.Shell"^)
+echo WshShell.Run chr^(34^) ^& "%INSTALL_DIR%\Lectura.bat" ^& Chr^(34^), 1
+echo Set WshShell = Nothing
+) > "%INSTALL_DIR%\Lectura.vbs"
 
 echo [+] Launcher created
 
@@ -128,26 +105,54 @@ echo [*] Creating shortcuts...
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
 
-:: Use PowerShell to create .lnk shortcuts
-powershell -NoProfile -Command ^
-  "$ws = New-Object -ComObject WScript.Shell; ^
-   $s = $ws.CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%.lnk'); ^
-   $s.TargetPath = '%INSTALL_DIR%\lectura.bat'; ^
-   $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-   $s.IconLocation = '%INSTALL_DIR%\build\icon.ico'; ^
-   $s.WindowStyle = 7; ^
-   $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-   $s.Save()"
+:: Create icon if build directory exists
+if exist "%SOURCE_DIR%build\icon.ico" (
+    copy "%SOURCE_DIR%build\icon.ico" "%INSTALL_DIR%\" >nul
+    set "ICON_PATH=%INSTALL_DIR%\icon.ico"
+) else (
+    set "ICON_PATH="
+)
 
-powershell -NoProfile -Command ^
-  "$ws = New-Object -ComObject WScript.Shell; ^
-   $s = $ws.CreateShortcut('%STARTMENU%\%SHORTCUT_NAME%.lnk'); ^
-   $s.TargetPath = '%INSTALL_DIR%\lectura.bat'; ^
-   $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-   $s.IconLocation = '%INSTALL_DIR%\build\icon.ico'; ^
-   $s.WindowStyle = 7; ^
-   $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-   $s.Save()"
+:: Use PowerShell to create .lnk shortcuts
+if defined ICON_PATH (
+    powershell -NoProfile -Command ^
+      "$ws = New-Object -ComObject WScript.Shell; ^
+       $s = $ws.CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%.lnk'); ^
+       $s.TargetPath = 'wscript.exe'; ^
+       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
+       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
+       $s.IconLocation = '%ICON_PATH%'; ^
+       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
+       $s.Save()"
+
+    powershell -NoProfile -Command ^
+      "$ws = New-Object -ComObject WScript.Shell; ^
+       $s = $ws.CreateShortcut('%STARTMENU%\%SHORTCUT_NAME%.lnk'); ^
+       $s.TargetPath = 'wscript.exe'; ^
+       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
+       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
+       $s.IconLocation = '%ICON_PATH%'; ^
+       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
+       $s.Save()"
+) else (
+    powershell -NoProfile -Command ^
+      "$ws = New-Object -ComObject WScript.Shell; ^
+       $s = $ws.CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%.lnk'); ^
+       $s.TargetPath = 'wscript.exe'; ^
+       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
+       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
+       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
+       $s.Save()"
+
+    powershell -NoProfile -Command ^
+      "$ws = New-Object -ComObject WScript.Shell; ^
+       $s = $ws.CreateShortcut('%STARTMENU%\%SHORTCUT_NAME%.lnk'); ^
+       $s.TargetPath = 'wscript.exe'; ^
+       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
+       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
+       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
+       $s.Save()"
+)
 
 echo [+] Desktop and Start Menu shortcuts created
 
@@ -159,6 +164,7 @@ echo ================================================
 echo.
 echo   Launch:    Double-click "Lectura" on your Desktop
 echo              Or find "Lectura" in Start Menu
+echo              Or visit: http://127.0.0.1:8000
 echo.
 echo   Uninstall:
 echo     1. Delete: %INSTALL_DIR%
