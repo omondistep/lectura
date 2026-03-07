@@ -15,8 +15,9 @@ let pythonProcess;
 
 function startPython() {
   const isWin = os.platform() === 'win32';
-  const pythonCmd = isWin 
-    ? path.join(__dirname, 'venv', 'Scripts', 'python.exe')
+  // Use pythonw on Windows to avoid spawning a console window
+  const pythonCmd = isWin
+    ? path.join(__dirname, 'venv', 'Scripts', 'pythonw.exe')
     : path.join(__dirname, 'venv', 'bin', 'python3');
   
   pythonProcess = spawn(pythonCmd, ['main.py'], {
@@ -40,7 +41,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      devTools: false  // Disable developer tools
+      devTools: false,  // Disable developer tools
+      cache: false  // Disable cache
     }
   });
   console.log('[Electron] Window created');
