@@ -29,8 +29,8 @@ body {
 /* ── theme: dark ──────────────────────────────────────────────────────────── */
 :root, [data-theme="dark"] {
   --bg-app:      #0d1117;
-  --bg-editor:   #0d1117;
-  --bg-preview:  #0d1117;
+  --bg-editor:   #0a0e14;
+  --bg-preview:  #0f1419;
   --bg-surface:  #161b22;
   --bg-hover:    #1c2128;
   --bg-input:    #0d1117;
