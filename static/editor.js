@@ -778,7 +778,14 @@ let vimEnabled = localStorage.getItem("sc-vim") !== "false";
 
 const vimIndicator = document.getElementById("vim-mode-indicator");
 function updateVimIndicator(modeName) {
-  if (!vimEnabled || !modeName) { vimIndicator.classList.add("hidden"); return; }
+  // Check if editor is visible
+  const editorPane = document.getElementById("editor-pane");
+  const isEditorVisible = editorPane && !editorPane.classList.contains("hidden-pane");
+  
+  if (!vimEnabled || !modeName || !isEditorVisible) { 
+    vimIndicator.classList.add("hidden"); 
+    return; 
+  }
   vimIndicator.classList.remove("hidden");
   vimIndicator.className = "vim-mode vim-" + modeName.toLowerCase().replace(/[^a-z]/g, "");
   vimIndicator.textContent = modeName.toUpperCase();
