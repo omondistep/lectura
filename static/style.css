@@ -1506,7 +1506,7 @@ li.tree-file:hover .del-btn,
 
 /* Show hint when in reader mode */
 #editor-pane.hidden-pane ~ #preview-pane #preview::before {
-  content: "Click to edit";
+  content: "Press i to edit";
   position: fixed;
   bottom: 20px;
   right: 20px;
