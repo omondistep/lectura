@@ -3193,9 +3193,20 @@ document.getElementById("preview").addEventListener("click", (e) => {
     viewMode = 2; // Switch to editor only
     togglePreview();
     togglePreview(); // Call twice to get to editor mode
-    // Focus editor after a short delay
-    setTimeout(() => view.focus(), 100);
+    // Focus editor and enter insert mode if Vim is enabled
+    setTimeout(() => {
+      view.focus();
+      if (vimEnabled) {
+        // Simulate 'i' key to enter insert mode
+        view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', bubbles: true }));
+      }
+    }, 100);
   }
+});
+
+// Prevent right-click on preview from interfering with Vim
+document.getElementById("preview").addEventListener("contextmenu", (e) => {
+  e.stopPropagation();
 });
 
 // Preview-Editor resize functionality
@@ -3272,10 +3283,16 @@ document.addEventListener('keydown', (e) => {
       e.stopPropagation();
       
       if (viewMode === 1) {
-        // Reader to editor
+        // Reader to editor - enter insert mode automatically
         viewMode = 0;
         togglePreview();
-        setTimeout(() => view.focus(), 100);
+        setTimeout(() => {
+          view.focus();
+          if (vimEnabled) {
+            // Simulate 'i' key to enter insert mode
+            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', bubbles: true }));
+          }
+        }, 100);
       } else if (viewMode === 2) {
         // Editor to reader
         viewMode = 1;
