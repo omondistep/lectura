@@ -99,17 +99,26 @@
     <div class="menu-dropdown" data-menu="edit">
       <button class="menu-trigger">Edit</button>
       <div class="menu-panel">
-        <button data-action="bold" data-shortcut="Ctrl+B">Bold</button>
-        <button data-action="italic" data-shortcut="Ctrl+I">Italic</button>
-        <button data-action="underline" data-shortcut="Ctrl+U">Underline</button>
-        <button data-action="code" data-shortcut="Ctrl+E">Inline Code</button>
-        <button data-action="strikethrough" data-shortcut="Alt+Shift+5">Strikethrough</button>
-        <button data-action="highlight" data-shortcut="Ctrl+Shift+H">Highlight</button>
+        <button data-action="undo" data-shortcut="Ctrl+Z">Undo</button>
+        <button data-action="redo" data-shortcut="Ctrl+Y">Redo</button>
         <div class="menu-sep"></div>
-        <button data-action="link" data-shortcut="Ctrl+K">Hyperlink…</button>
-        <button data-action="image" data-shortcut="Ctrl+Shift+I">Image…</button>
+        <button data-action="cut" data-shortcut="Ctrl+X">Cut</button>
+        <button data-action="copy" data-shortcut="Ctrl+C">Copy</button>
+        <button data-action="paste" data-shortcut="Ctrl+V">Paste</button>
+        <button data-action="copy-as-markdown">Copy as Markdown</button>
         <div class="menu-sep"></div>
-        <button onclick="clearFormat()" data-shortcut="Ctrl+\">Clear Format</button>
+        <button data-action="select-all" data-shortcut="Ctrl+A">Select All</button>
+        <button data-action="select-line">Select Line</button>
+        <button data-action="select-word">Select Word</button>
+        <div class="menu-sep"></div>
+        <button data-action="delete-selection">Delete Selection</button>
+        <button data-action="delete-line" data-shortcut="Ctrl+Shift+K">Delete Line</button>
+        <div class="menu-sep"></div>
+        <button data-action="duplicate-line" data-shortcut="Ctrl+Shift+D">Duplicate Line</button>
+        <button data-action="move-line-up" data-shortcut="Alt+↑">Move Line Up</button>
+        <button data-action="move-line-down" data-shortcut="Alt+↓">Move Line Down</button>
+        <div class="menu-sep"></div>
+        <button data-action="find" data-shortcut="Ctrl+F">Find</button>
       </div>
     </div>
 
@@ -269,9 +278,6 @@
         </svg>
       </button>
       <div class="sidebar-tab-spacer"></div>
-      <button id="btn-refresh-files" class="sidebar-tab" title="Refresh">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.418A6 6 0 118 2v1z"/><path d="M8 4.466V.534a.25.25 0 01.41-.192l2.36 1.966a.25.25 0 010 .384L8.41 4.658A.25.25 0 018 4.466z"/></svg>
-      </button>
     </div>
 
     <!-- search (hidden but needed by JS) -->
@@ -436,7 +442,7 @@
         <path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
       </svg>
     </button>
-    <button id="btn-bottom-toggle-editor" class="statusbar-toggle-btn" title="Toggle Editor">
+    <button id="btn-bottom-toggle-editor" class="statusbar-toggle-btn" title="Toggle Editor (Ctrl+Shift+E)">
       <span style="font-family: monospace; font-size: 14px; font-weight: bold;">&lt;/&gt;</span>
     </button>
     <span class="status-sep">│</span>
@@ -461,6 +467,7 @@
     <div class="ctx-sep"></div>
     <button data-action="new-file">New File</button>
     <button data-action="new-folder">New Folder</button>
+    <button data-action="refresh">Refresh</button>
     <div class="ctx-sep"></div>
     <button data-action="search" class="ctx-view-toggle"><span class="ctx-check"></span>Search</button>
     <div class="ctx-sep"></div>

@@ -4,7 +4,7 @@
 
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, dropCursor, rectangularSelection, crosshairCursor } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
-import { defaultKeymap, historyKeymap, history, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, historyKeymap, history, indentWithTab, undo, redo, selectAll } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
@@ -17,10 +17,30 @@ const md = window.markdownit({
   linkify: true,
   typographer: true,
   breaks: true,
-  highlight(str, lang) {
-    return `<pre><code class="language-${lang || ''}">${md.utils.escapeHtml(str)}</code></pre>`;
-  }
 });
+
+// Inject data-source-line attributes on block-level elements for scroll sync
+const defaultRender = md.renderer.rules.fence;
+for (const rule of ["paragraph_open", "heading_open", "blockquote_open",
+                     "list_item_open", "table_open", "hr", "code_block",
+                     "bullet_list_open", "ordered_list_open"]) {
+  const original = md.renderer.rules[rule];
+  md.renderer.rules[rule] = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    if (token.map && token.map.length) {
+      token.attrSet("data-source-line", String(token.map[0]));
+    }
+    return original ? original(tokens, idx, options, env, self) : self.renderToken(tokens, idx, options);
+  };
+}
+// fence blocks
+md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  const line = token.map ? token.map[0] : null;
+  const lineAttr = line != null ? ` data-source-line="${line}"` : "";
+  const lang = token.info.trim();
+  return `<pre${lineAttr}><code class="language-${lang || ''}">${md.utils.escapeHtml(token.content)}</code></pre>`;
+};
 
 // Checkbox support
 md.core.ruler.after("inline", "checkbox", (state) => {
@@ -701,6 +721,52 @@ const ACTIONS = {
       view.dispatch({ changes: { from, to, insert: text } });
     } catch {}
   },
+  undo: () => undo(view),
+  redo: () => redo(view),
+  "select-all": () => selectAll(view),
+  "select-line": () => selectLine(),
+  "select-word": () => selectWord(),
+  "delete-selection": () => {
+    const { from, to } = view.state.selection.main;
+    if (from !== to) view.dispatch({ changes: { from, to, insert: "" } });
+  },
+  "delete-line": () => {
+    const line = view.state.doc.lineAt(view.state.selection.main.head);
+    const to = Math.min(line.to + 1, view.state.doc.length);
+    view.dispatch({ changes: { from: line.from, to, insert: "" } });
+  },
+  "duplicate-line": () => {
+    const line = view.state.doc.lineAt(view.state.selection.main.head);
+    view.dispatch({ changes: { from: line.to, insert: "\n" + line.text } });
+  },
+  "move-line-up": () => {
+    const line = view.state.doc.lineAt(view.state.selection.main.head);
+    if (line.number <= 1) return;
+    const prev = view.state.doc.line(line.number - 1);
+    const cursor = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: prev.from, to: line.to, insert: line.text + "\n" + prev.text },
+      selection: { anchor: prev.from + (cursor - line.from) },
+    });
+  },
+  "move-line-down": () => {
+    const line = view.state.doc.lineAt(view.state.selection.main.head);
+    if (line.number >= view.state.doc.lines) return;
+    const next = view.state.doc.line(line.number + 1);
+    const cursor = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: line.from, to: next.to, insert: next.text + "\n" + line.text },
+      selection: { anchor: line.from + next.text.length + 1 + (cursor - line.from) },
+    });
+  },
+  "find": () => {
+    document.getElementById("search-input")?.focus();
+  },
+  "copy-as-markdown": () => {
+    const { from, to } = view.state.selection.main;
+    const text = from !== to ? view.state.sliceDoc(from, to) : view.state.doc.toString();
+    navigator.clipboard.writeText(text);
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -951,7 +1017,7 @@ const customKeymap = keymap.of([
   { key: "Ctrl-Shift-q", run: () => { ACTIONS.blockquote(); return true; } },
   { key: "Ctrl-Shift-c", run: () => { ACTIONS.codeblock(); return true; } },
   { key: "Ctrl-Shift-m", run: () => { ACTIONS.mathblock(); return true; } },
-  { key: "Ctrl-Shift-k", run: () => { ACTIONS.codeblock(); return true; } },
+  { key: "Ctrl-Shift-k", run: () => { ACTIONS["delete-line"](); return true; } },
   { key: "Ctrl-b", run: () => { ACTIONS.bold(); return true; } },
   { key: "Ctrl-i", run: () => { ACTIONS.italic(); return true; } },
   { key: "Ctrl-u", run: () => { ACTIONS.underline(); return true; } },
@@ -974,6 +1040,7 @@ const customKeymap = keymap.of([
   { key: "Ctrl-\\", run: () => { clearFormat(); return true; } },
   { key: "Ctrl-Shift-l", run: () => { toggleSidebar(); return true; } },
   { key: "Ctrl-/", run: () => { togglePreview(); return true; } },
+  { key: "Ctrl-Shift-e", run: () => { toggleEditorPane(); return true; } },
   { key: "F7", run: () => { togglePreview(); return true; } },
   { key: "F8", run: () => { toggleFocusMode(); return true; } },
   { key: "F9", run: () => { toggleTypewriter(); return true; } },
@@ -983,7 +1050,9 @@ const customKeymap = keymap.of([
   { key: "Ctrl-Shift-]", run: () => { ACTIONS.ul(); return true; } },
   { key: "Ctrl-l", run: () => { selectLine(); return true; } },
   { key: "Ctrl-d", run: () => { selectWord(); return true; } },
-  { key: "Ctrl-Shift-d", run: () => { deleteWord(); return true; } },
+  { key: "Ctrl-Shift-d", run: () => { ACTIONS["duplicate-line"](); return true; } },
+  { key: "Alt-ArrowUp", run: () => { ACTIONS["move-line-up"](); return true; } },
+  { key: "Alt-ArrowDown", run: () => { ACTIONS["move-line-down"](); return true; } },
   { key: "Ctrl-,", run: () => { openSettings(); return true; } },
 ]);
 
@@ -1016,38 +1085,98 @@ const view = new EditorView({
 
 registerVimCommands();
 
-// Synchronized scrolling between editor and preview
+// Synchronized scrolling between editor and preview (line-based mapping)
 let isScrollingSynced = true;
 const editorScroller = view.scrollDOM;
 const previewEl = document.getElementById("preview");
 
+// Build a sorted list of { sourceLine, offsetTop } from data-source-line elements
+function buildLineMap() {
+  const els = previewEl.querySelectorAll("[data-source-line]");
+  const map = [];
+  for (const el of els) {
+    const line = parseInt(el.getAttribute("data-source-line"), 10);
+    if (!isNaN(line)) {
+      map.push({ line, top: el.offsetTop });
+    }
+  }
+  map.sort((a, b) => a.line - b.line);
+  return map;
+}
+
 function syncEditorToPreview() {
   if (!isScrollingSynced) return;
   isScrollingSynced = false;
-  
-  const editorMaxScroll = Math.max(0, editorScroller.scrollHeight - editorScroller.clientHeight);
-  const previewMaxScroll = Math.max(0, previewEl.scrollHeight - previewEl.clientHeight);
-  
-  if (editorMaxScroll > 0 && previewMaxScroll > 0) {
-    const editorScrollRatio = editorScroller.scrollTop / editorMaxScroll;
-    previewEl.scrollTop = editorScrollRatio * previewMaxScroll;
+
+  const lineMap = buildLineMap();
+  if (lineMap.length < 2) {
+    // Fall back to proportional scroll if not enough markers
+    const editorMax = Math.max(1, editorScroller.scrollHeight - editorScroller.clientHeight);
+    const previewMax = Math.max(1, previewEl.scrollHeight - previewEl.clientHeight);
+    previewEl.scrollTop = (editorScroller.scrollTop / editorMax) * previewMax;
+    requestAnimationFrame(() => { isScrollingSynced = true; });
+    return;
   }
-  
+
+  // Find which editor line is at the top of the viewport
+  const topPos = view.lineBlockAtHeight(editorScroller.scrollTop + view.documentTop);
+  const editorLine = view.state.doc.lineAt(topPos.from).number - 1; // 0-based
+
+  // Find bracketing entries in the line map
+  let lo = lineMap[0], hi = lineMap[lineMap.length - 1];
+  for (let i = 0; i < lineMap.length - 1; i++) {
+    if (lineMap[i].line <= editorLine && lineMap[i + 1].line > editorLine) {
+      lo = lineMap[i];
+      hi = lineMap[i + 1];
+      break;
+    }
+  }
+
+  // Interpolate preview scroll position between the two markers
+  const lineDelta = hi.line - lo.line;
+  const t = lineDelta > 0 ? (editorLine - lo.line) / lineDelta : 0;
+  previewEl.scrollTop = lo.top + t * (hi.top - lo.top);
+
   requestAnimationFrame(() => { isScrollingSynced = true; });
 }
 
 function syncPreviewToEditor() {
   if (!isScrollingSynced) return;
   isScrollingSynced = false;
-  
-  const editorMaxScroll = Math.max(0, editorScroller.scrollHeight - editorScroller.clientHeight);
-  const previewMaxScroll = Math.max(0, previewEl.scrollHeight - previewEl.clientHeight);
-  
-  if (editorMaxScroll > 0 && previewMaxScroll > 0) {
-    const previewScrollRatio = previewEl.scrollTop / previewMaxScroll;
-    editorScroller.scrollTop = previewScrollRatio * editorMaxScroll;
+
+  const lineMap = buildLineMap();
+  if (lineMap.length < 2) {
+    const editorMax = Math.max(1, editorScroller.scrollHeight - editorScroller.clientHeight);
+    const previewMax = Math.max(1, previewEl.scrollHeight - previewEl.clientHeight);
+    editorScroller.scrollTop = (previewEl.scrollTop / previewMax) * editorMax;
+    requestAnimationFrame(() => { isScrollingSynced = true; });
+    return;
   }
-  
+
+  const scrollTop = previewEl.scrollTop;
+
+  // Find bracketing entries by preview offset
+  let lo = lineMap[0], hi = lineMap[lineMap.length - 1];
+  for (let i = 0; i < lineMap.length - 1; i++) {
+    if (lineMap[i].top <= scrollTop && lineMap[i + 1].top > scrollTop) {
+      lo = lineMap[i];
+      hi = lineMap[i + 1];
+      break;
+    }
+  }
+
+  // Interpolate editor line from preview position
+  const topDelta = hi.top - lo.top;
+  const t = topDelta > 0 ? (scrollTop - lo.top) / topDelta : 0;
+  const targetLine = Math.round(lo.line + t * (hi.line - lo.line));
+
+  // Scroll editor to that line
+  const totalLines = view.state.doc.lines;
+  const clampedLine = Math.max(1, Math.min(targetLine + 1, totalLines));
+  const lineStart = view.state.doc.line(clampedLine).from;
+  const block = view.lineBlockAt(lineStart);
+  editorScroller.scrollTop = block.top - view.documentTop;
+
   requestAnimationFrame(() => { isScrollingSynced = true; });
 }
 
@@ -1331,15 +1460,30 @@ loadExpandedFolders();
 
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
+  const wasCollapsed = sidebar.classList.contains("collapsed");
+  
+  if (!wasCollapsed) {
+    // Save current width before collapsing
+    localStorage.setItem("sc-sidebar-width", sidebar.style.width || getComputedStyle(sidebar).width);
+  }
+  
   sidebar.classList.toggle("collapsed");
   document.body.classList.toggle("sidebar-collapsed", sidebar.classList.contains("collapsed"));
+  
+  if (wasCollapsed) {
+    // Restore saved width when expanding
+    const savedWidth = localStorage.getItem("sc-sidebar-width");
+    if (savedWidth) {
+      sidebar.style.width = savedWidth;
+    }
+  }
+  
   updateSidebarWidth();
 }
 
 
 document.getElementById("btn-sidebar").addEventListener("click", toggleSidebar);
 document.getElementById("btn-toggle-sidebar")?.addEventListener("click", () => { closeAllMenus(); toggleSidebar(); });
-document.getElementById("btn-refresh-files").addEventListener("click", loadFileList);
 
 // ── Sidebar mode switching ───────────────────────────────────────────────────
 document.querySelectorAll(".sidebar-tab[data-mode]").forEach(tab => {
@@ -2308,6 +2452,10 @@ contextMenu.addEventListener("click", async (e) => {
       setTimeout(() => {
         triggerSearchPanel();
       }, 100);
+      break;
+    }
+    case "refresh": {
+      loadFileList();
       break;
     }
     case "view-list": {
@@ -3682,8 +3830,18 @@ function saveEditorHistory() {
 }
 
 function restoreEditorHistory() {
-  // Disabled - don't auto-restore files on launch (Typora behavior)
-  return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
+    if (saved && saved.content && saved.file) {
+      currentFile = saved.file;
+      document.getElementById("filename-input").value = saved.file;
+      setContent(saved.content);
+      setStatus(`Restored ${saved.file}`);
+      updateBottomFileName();
+      return true;
+    }
+  } catch (e) {}
+  return false;
 }
 
 function scheduleHistorySave() {
@@ -3693,11 +3851,11 @@ function scheduleHistorySave() {
 
 window.addEventListener("beforeunload", (e) => {
   saveEditorHistory();
+  // Close all folders on exit (like Typora)
+  localStorage.removeItem("sc-expanded-folders");
   if (isDirty) { e.preventDefault(); e.returnValue = ""; }
 });
 
-// Disabled auto-restore
-// setTimeout(restoreEditorHistory, 100);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLOUD BROWSER
@@ -4124,24 +4282,23 @@ applyPreferences();
 
 // ── Bottom control bar event listeners ──────────────────────────────────────
 document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", toggleSidebar);
-document.getElementById("btn-bottom-toggle-editor")?.addEventListener("click", () => {
+function toggleEditorPane() {
   const editorPane = document.getElementById("editor-pane");
   const previewPane = document.getElementById("preview-pane");
-  
+
   // Toggle between editor-only and preview-only
   if (editorPane.classList.contains("hidden-pane")) {
-    // Currently showing preview-only, switch to editor-only
     editorPane.classList.remove("hidden-pane");
     previewPane.classList.add("hidden-pane");
   } else if (previewPane.classList.contains("hidden-pane")) {
-    // Currently showing editor-only, switch to preview-only
     editorPane.classList.add("hidden-pane");
     previewPane.classList.remove("hidden-pane");
   } else {
-    // Currently showing both, switch to preview-only
     editorPane.classList.add("hidden-pane");
   }
-});
+}
+
+document.getElementById("btn-bottom-toggle-editor")?.addEventListener("click", toggleEditorPane);
 
 document.getElementById("btn-bottom-new-file")?.addEventListener("click", async () => {
   closeAllMenus();
@@ -4584,9 +4741,52 @@ document.getElementById("btn-bottom-folder-name")?.addEventListener("click", (e)
 });
 
 loadWorkspace();
-// Lazy load file list after UI is ready
-setTimeout(() => {
-  loadFileList();
+// Apply on-launch preference
+setTimeout(async () => {
+  const prefs = JSON.parse(localStorage.getItem("lectura-prefs") || "{}");
+  const onLaunch = prefs.onLaunch || "new";
+
+  switch (onLaunch) {
+    case "new":
+      // Start with a blank untitled file — don't open last folder's file
+      currentFile = "untitled.md";
+      document.getElementById("filename-input").value = "untitled.md";
+      setContent("");
+      await loadFileList();
+      break;
+
+    case "restore-all":
+      // Restore last open file and folder
+      await loadFileList();
+      if (!restoreEditorHistory()) {
+        // Nothing to restore — fall back to blank
+        currentFile = "untitled.md";
+        document.getElementById("filename-input").value = "untitled.md";
+        setContent("");
+      }
+      break;
+
+    case "restore-folders":
+      // Restore last workspace/folder but start with blank file
+      await loadFileList();
+      currentFile = "untitled.md";
+      document.getElementById("filename-input").value = "untitled.md";
+      setContent("");
+      break;
+
+    case "custom":
+      // Custom folder — workspace is already loaded from config by loadWorkspace()
+      await loadFileList();
+      currentFile = "untitled.md";
+      document.getElementById("filename-input").value = "untitled.md";
+      setContent("");
+      break;
+
+    default:
+      await loadFileList();
+      break;
+  }
+
   updateBottomFolderName();
   updateBottomFileName();
   switchSidebarMode("files");
