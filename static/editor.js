@@ -1008,7 +1008,7 @@ const updateListener = EditorView.updateListener.of(update => {
 });
 
 const customKeymap = keymap.of([
-  { key: "Ctrl-0", run: () => { ACTIONS.paragraph(); return true; } },
+  { key: "Ctrl-Alt-0", run: () => { ACTIONS.paragraph(); return true; } },
   { key: "Ctrl-1", run: () => { ACTIONS.h1(); return true; } },
   { key: "Ctrl-2", run: () => { ACTIONS.h2(); return true; } },
   { key: "Ctrl-3", run: () => { ACTIONS.h3(); return true; } },
