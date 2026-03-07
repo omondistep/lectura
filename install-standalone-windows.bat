@@ -57,7 +57,6 @@ xcopy "%SOURCE_DIR%static" "%INSTALL_DIR%\static\" /e /i /q >nul
 :: Config and secrets (if they exist)
 if exist "%SOURCE_DIR%config.json" copy "%SOURCE_DIR%config.json" "%INSTALL_DIR%\" >nul
 if exist "%SOURCE_DIR%github_secrets.json" copy "%SOURCE_DIR%github_secrets.json" "%INSTALL_DIR%\" >nul
-if exist "%SOURCE_DIR%dropbox_secrets.json" copy "%SOURCE_DIR%dropbox_secrets.json" "%INSTALL_DIR%\" >nul
 if exist "%SOURCE_DIR%gdrive_secrets.json" copy "%SOURCE_DIR%gdrive_secrets.json" "%INSTALL_DIR%\" >nul
 
 :: Create notes directory
@@ -78,24 +77,14 @@ echo [+] Python dependencies installed
 :: ── Create launcher scripts ─────────────────────────────────────────────────
 echo [*] Creating launcher...
 
-:: Create batch launcher
+:: Create batch launcher — uses pythonw to avoid console window
 (
 echo @echo off
 echo cd /d "%INSTALL_DIR%"
 echo call venv\Scripts\activate.bat
-echo echo Starting Lectura...
-echo echo Open your browser to: http://127.0.0.1:8000
 echo start "" "http://127.0.0.1:8000"
-echo python main.py
-echo pause
+echo pythonw main.py
 ) > "%INSTALL_DIR%\Lectura.bat"
-
-:: Create VBS script to run without console window
-(
-echo Set WshShell = CreateObject^("WScript.Shell"^)
-echo WshShell.Run chr^(34^) ^& "%INSTALL_DIR%\Lectura.bat" ^& Chr^(34^), 1
-echo Set WshShell = Nothing
-) > "%INSTALL_DIR%\Lectura.vbs"
 
 echo [+] Launcher created
 
@@ -105,7 +94,7 @@ echo [*] Creating shortcuts...
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
 
-:: Create icon if build directory exists
+:: Copy icon if build directory exists
 if exist "%SOURCE_DIR%build\icon.ico" (
     copy "%SOURCE_DIR%build\icon.ico" "%INSTALL_DIR%\" >nul
     set "ICON_PATH=%INSTALL_DIR%\icon.ico"
@@ -113,45 +102,50 @@ if exist "%SOURCE_DIR%build\icon.ico" (
     set "ICON_PATH="
 )
 
-:: Use PowerShell to create .lnk shortcuts
+:: Use PowerShell to create .lnk shortcuts pointing directly to bat file
+:: WindowStyle 7 = minimized (hides the brief cmd window)
 if defined ICON_PATH (
-    powershell -NoProfile -Command ^
-      "$ws = New-Object -ComObject WScript.Shell; ^
-       $s = $ws.CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%.lnk'); ^
-       $s.TargetPath = 'wscript.exe'; ^
-       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
-       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-       $s.IconLocation = '%ICON_PATH%'; ^
-       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-       $s.Save()"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$ws = New-Object -ComObject WScript.Shell;" ^
+      "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\%SHORTCUT_NAME%.lnk');" ^
+      "$s.TargetPath = 'cmd.exe';" ^
+      "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+      "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
+      "$s.IconLocation = '%ICON_PATH%';" ^
+      "$s.WindowStyle = 7;" ^
+      "$s.Description = 'Lectura - Markdown Note-Taking App';" ^
+      "$s.Save()"
 
-    powershell -NoProfile -Command ^
-      "$ws = New-Object -ComObject WScript.Shell; ^
-       $s = $ws.CreateShortcut('%STARTMENU%\%SHORTCUT_NAME%.lnk'); ^
-       $s.TargetPath = 'wscript.exe'; ^
-       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
-       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-       $s.IconLocation = '%ICON_PATH%'; ^
-       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-       $s.Save()"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$ws = New-Object -ComObject WScript.Shell;" ^
+      "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Programs') + '\%SHORTCUT_NAME%.lnk');" ^
+      "$s.TargetPath = 'cmd.exe';" ^
+      "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+      "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
+      "$s.IconLocation = '%ICON_PATH%';" ^
+      "$s.WindowStyle = 7;" ^
+      "$s.Description = 'Lectura - Markdown Note-Taking App';" ^
+      "$s.Save()"
 ) else (
-    powershell -NoProfile -Command ^
-      "$ws = New-Object -ComObject WScript.Shell; ^
-       $s = $ws.CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%.lnk'); ^
-       $s.TargetPath = 'wscript.exe'; ^
-       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
-       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-       $s.Save()"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$ws = New-Object -ComObject WScript.Shell;" ^
+      "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\%SHORTCUT_NAME%.lnk');" ^
+      "$s.TargetPath = 'cmd.exe';" ^
+      "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+      "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
+      "$s.WindowStyle = 7;" ^
+      "$s.Description = 'Lectura - Markdown Note-Taking App';" ^
+      "$s.Save()"
 
-    powershell -NoProfile -Command ^
-      "$ws = New-Object -ComObject WScript.Shell; ^
-       $s = $ws.CreateShortcut('%STARTMENU%\%SHORTCUT_NAME%.lnk'); ^
-       $s.TargetPath = 'wscript.exe'; ^
-       $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
-       $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-       $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-       $s.Save()"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$ws = New-Object -ComObject WScript.Shell;" ^
+      "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Programs') + '\%SHORTCUT_NAME%.lnk');" ^
+      "$s.TargetPath = 'cmd.exe';" ^
+      "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+      "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
+      "$s.WindowStyle = 7;" ^
+      "$s.Description = 'Lectura - Markdown Note-Taking App';" ^
+      "$s.Save()"
 )
 
 echo [+] Desktop and Start Menu shortcuts created

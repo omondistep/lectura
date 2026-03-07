@@ -30,45 +30,53 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info("Starting Lectura")
 
-# ── optional heavy deps ────────────────────────────────────────────────────────
-try:
-    import fitz  # PyMuPDF
-    HAS_PYMUPDF = True
-except ImportError:
-    HAS_PYMUPDF = False
+# ── lazy-loaded optional heavy deps ───────────────────────────────────────────
+# These are imported on first use to speed up startup.
 
-try:
-    from docx import Document as DocxDocument
-    HAS_DOCX = True
-except ImportError:
-    HAS_DOCX = False
+def _get_fitz():
+    try:
+        import fitz
+        return fitz
+    except ImportError:
+        return None
 
-try:
-    import git
-    HAS_GIT = True
-except ImportError:
-    HAS_GIT = False
+def _get_docx():
+    try:
+        from docx import Document as DocxDocument
+        return DocxDocument
+    except ImportError:
+        return None
 
-try:
-    from weasyprint import HTML as WP_HTML
-    HAS_WEASYPRINT = True
-except ImportError:
-    HAS_WEASYPRINT = False
+def _get_git():
+    try:
+        import git
+        return git
+    except ImportError:
+        return None
 
-try:
-    import dropbox as dbx_sdk
-    HAS_DROPBOX = True
-except ImportError:
-    HAS_DROPBOX = False
+def _get_weasyprint():
+    try:
+        from weasyprint import HTML as WP_HTML
+        return WP_HTML
+    except ImportError:
+        return None
 
-try:
-    from google.oauth2.credentials import Credentials
-    from google_auth_oauthlib.flow import Flow
-    from googleapiclient.discovery import build as gdrive_build
-    from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-    HAS_GDRIVE = True
-except ImportError:
-    HAS_GDRIVE = False
+
+def _get_gdrive():
+    try:
+        from google.oauth2.credentials import Credentials
+        from google_auth_oauthlib.flow import Flow
+        from googleapiclient.discovery import build as gdrive_build
+        from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+        return {
+            "Credentials": Credentials,
+            "Flow": Flow,
+            "build": gdrive_build,
+            "MediaIoBaseUpload": MediaIoBaseUpload,
+            "MediaIoBaseDownload": MediaIoBaseDownload,
+        }
+    except ImportError:
+        return None
 
 # ── app setup ──────────────────────────────────────────────────────────────────
 BASE = Path(__file__).parent
@@ -98,9 +106,6 @@ NOTES = _init_notes_dir()
 GITHUB_SECRETS_PATH = BASE / "github_secrets.json"
 GITHUB_TOKEN_PATH = BASE / ".github_token.json"
 
-# Dropbox OAuth
-DROPBOX_SECRETS_PATH = BASE / "dropbox_secrets.json"
-DROPBOX_TOKEN_PATH = BASE / ".dropbox_token.json"
 
 # Google Drive OAuth
 GDRIVE_SECRETS_PATH = BASE / "gdrive_secrets.json"
@@ -171,11 +176,6 @@ class GitHubConfig(BaseModel):
         return v or "main"
 
 
-class DropboxConfig(BaseModel):
-    """Dropbox configuration model."""
-    enabled: bool = False
-    token: Optional[str] = ""
-
 
 class GDriveConfig(BaseModel):
     """Google Drive configuration model."""
@@ -186,8 +186,7 @@ class GDriveConfig(BaseModel):
 class AppConfig(BaseModel):
     """Application configuration model."""
     github: GitHubConfig = Field(default_factory=GitHubConfig)
-    dropbox: DropboxConfig = Field(default_factory=DropboxConfig)
-    gdrive: GDriveConfig = Field(default_factory=GDriveConfig)
+gdrive: GDriveConfig = Field(default_factory=GDriveConfig)
 
 
 # ── models ─────────────────────────────────────────────────────────────────────
@@ -506,7 +505,8 @@ async def export_html(name: str, body: HtmlBody):
 
 @app.post("/export/pdf/{name}")
 async def export_pdf(name: str, body: HtmlBody):
-    if not HAS_WEASYPRINT:
+    WP_HTML = _get_weasyprint()
+    if not WP_HTML:
         raise HTTPException(501, "WeasyPrint not installed")
     stem = name.removesuffix(".md")
     pdf_bytes = WP_HTML(string=body.html).write_pdf()
@@ -552,14 +552,16 @@ async def import_file(file: UploadFile = File(...)):
         return {"content": data.decode("utf-8", errors="replace")}
 
     if ext == ".pdf":
-        if not HAS_PYMUPDF:
+        fitz = _get_fitz()
+        if not fitz:
             raise HTTPException(501, "PyMuPDF not installed — run: pip install pymupdf")
         doc = fitz.open(stream=data, filetype="pdf")
         text = "\n\n".join(page.get_text() for page in doc)
         return {"content": text}
 
     if ext == ".docx":
-        if not HAS_DOCX:
+        DocxDocument = _get_docx()
+        if not DocxDocument:
             raise HTTPException(501, "python-docx not installed — run: pip install python-docx")
         doc = DocxDocument(io.BytesIO(data))
         lines = []
@@ -582,7 +584,8 @@ async def import_file(file: UploadFile = File(...)):
 
 @app.post("/publish/{name}")
 async def publish(name: str, body: PublishBody):
-    if not HAS_GIT:
+    git = _get_git()
+    if not git:
         raise HTTPException(501, "gitpython not installed")
     cfg = load_config()
     gh = cfg.get("github", {})
@@ -619,35 +622,18 @@ async def publish(name: str, body: PublishBody):
 
     results = {"published": name, "branch": branch}
 
-    # ── optional Dropbox sync ──────────────────────────────────────────────────
-    dbx_cfg = cfg.get("dropbox", {})
-    if dbx_cfg.get("enabled") and dbx_cfg.get("token"):
-        if not HAS_DROPBOX:
-            results["dropbox"] = "dropbox SDK not installed"
-        else:
-            try:
-                dbx = dbx_sdk.Dropbox(dbx_cfg["token"])
-                content_bytes = note_path.read_bytes()
-                dbx.files_upload(
-                    content_bytes,
-                    f"/Lectura/{name}",
-                    mode=dbx_sdk.files.WriteMode("overwrite"),
-                )
-                results["dropbox"] = "synced"
-            except Exception as e:
-                results["dropbox"] = f"error: {e}"
-
     # ── optional Google Drive sync ────────────────────────────────────────────
     gd_cfg = cfg.get("gdrive", {})
     if gd_cfg.get("enabled") and GDRIVE_TOKEN_PATH.exists():
-        if not HAS_GDRIVE:
+        gd = _get_gdrive()
+        if not gd:
             results["gdrive"] = "google SDK not installed"
         else:
             try:
-                creds = Credentials.from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
-                service = gdrive_build("drive", "v3", credentials=creds)
+                creds = gd["Credentials"].from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
+                service = gd["build"]("drive", "v3", credentials=creds)
                 file_metadata = {"name": name}
-                media = MediaIoBaseUpload(io.BytesIO(note_path.read_bytes()), mimetype="text/markdown")
+                media = gd["MediaIoBaseUpload"](io.BytesIO(note_path.read_bytes()), mimetype="text/markdown")
                 # check if file already exists
                 existing = service.files().list(
                     q=f"name='{name}' and trashed=false",
@@ -664,49 +650,17 @@ async def publish(name: str, body: PublishBody):
     return results
 
 
-# ── dropbox: list & open ───────────────────────────────────────────────────────
-
-@app.get("/dropbox/files")
-async def dropbox_list():
-    if not HAS_DROPBOX:
-        raise HTTPException(501, "dropbox SDK not installed")
-    cfg = load_config().get("dropbox", {})
-    if not cfg.get("enabled") or not cfg.get("token"):
-        raise HTTPException(400, "Dropbox not configured")
-    try:
-        dbx = dbx_sdk.Dropbox(cfg["token"])
-        result = dbx.files_list_folder("/Lectura")
-        files = [e.name for e in result.entries if isinstance(e, dbx_sdk.files.FileMetadata) and e.name.endswith(".md")]
-        return {"files": files}
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
-@app.get("/dropbox/open/{name}")
-async def dropbox_open(name: str):
-    if not HAS_DROPBOX:
-        raise HTTPException(501, "dropbox SDK not installed")
-    cfg = load_config().get("dropbox", {})
-    if not cfg.get("enabled") or not cfg.get("token"):
-        raise HTTPException(400, "Dropbox not configured")
-    try:
-        dbx = dbx_sdk.Dropbox(cfg["token"])
-        _, response = dbx.files_download(f"/Lectura/{name}")
-        return {"name": name, "content": response.content.decode("utf-8", errors="replace")}
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
 # ── google drive oauth ─────────────────────────────────────────────────────────
 
 @app.get("/gdrive/auth")
 async def gdrive_auth():
     """Start Google OAuth2 flow. Requires gdrive_client_secrets.json next to main.py."""
-    if not HAS_GDRIVE:
+    gd = _get_gdrive()
+    if not gd:
         raise HTTPException(501, "google SDK not installed")
     if not GDRIVE_SECRETS_PATH.exists():
         raise HTTPException(400, "gdrive_client_secrets.json not found. Download it from Google Cloud Console.")
-    flow = Flow.from_client_secrets_file(
+    flow = gd["Flow"].from_client_secrets_file(
         str(GDRIVE_SECRETS_PATH),
         scopes=GDRIVE_SCOPES,
         redirect_uri="http://localhost:8000/gdrive/callback",
@@ -717,9 +671,10 @@ async def gdrive_auth():
 
 @app.get("/gdrive/callback")
 async def gdrive_callback(code: str, state: str = ""):
-    if not HAS_GDRIVE:
+    gd = _get_gdrive()
+    if not gd:
         raise HTTPException(501, "google SDK not installed")
-    flow = Flow.from_client_secrets_file(
+    flow = gd["Flow"].from_client_secrets_file(
         str(GDRIVE_SECRETS_PATH),
         scopes=GDRIVE_SCOPES,
         redirect_uri="http://localhost:8000/gdrive/callback",
@@ -742,13 +697,14 @@ async def gdrive_status():
 
 @app.get("/gdrive/files")
 async def gdrive_list():
-    if not HAS_GDRIVE:
+    gd = _get_gdrive()
+    if not gd:
         raise HTTPException(501, "google SDK not installed")
     if not GDRIVE_TOKEN_PATH.exists():
         raise HTTPException(401, "Not authenticated with Google Drive")
     try:
-        creds = Credentials.from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
-        service = gdrive_build("drive", "v3", credentials=creds)
+        creds = gd["Credentials"].from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
+        service = gd["build"]("drive", "v3", credentials=creds)
         results = service.files().list(
             q="name contains '.md' and trashed=false",
             fields="files(id,name)"
@@ -760,13 +716,14 @@ async def gdrive_list():
 
 @app.get("/gdrive/open/{name}")
 async def gdrive_open(name: str):
-    if not HAS_GDRIVE:
+    gd = _get_gdrive()
+    if not gd:
         raise HTTPException(501, "google SDK not installed")
     if not GDRIVE_TOKEN_PATH.exists():
         raise HTTPException(401, "Not authenticated with Google Drive")
     try:
-        creds = Credentials.from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
-        service = gdrive_build("drive", "v3", credentials=creds)
+        creds = gd["Credentials"].from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
+        service = gd["build"]("drive", "v3", credentials=creds)
         results = service.files().list(
             q=f"name='{name}' and trashed=false",
             fields="files(id,name)"
@@ -776,7 +733,7 @@ async def gdrive_open(name: str):
         file_id = results[0]["id"]
         buf = io.BytesIO()
         request = service.files().get_media(fileId=file_id)
-        downloader = MediaIoBaseDownload(buf, request)
+        downloader = gd["MediaIoBaseDownload"](buf, request)
         done = False
         while not done:
             _, done = downloader.next_chunk()
@@ -821,44 +778,6 @@ async def github_status():
     return {"connected": GITHUB_TOKEN_PATH.exists()}
 
 
-# ── Dropbox OAuth ──────────────────────────────────────────────────────────────
-
-@app.get("/dropbox/auth")
-async def dropbox_auth():
-    if not DROPBOX_SECRETS_PATH.exists():
-        return HTMLResponse(f"<h1>Dropbox OAuth Not Configured</h1><p>Create {DROPBOX_SECRETS_PATH} with app_key and app_secret from Dropbox App Console</p>", 400)
-    secrets = json.loads(DROPBOX_SECRETS_PATH.read_text())
-    state = os.urandom(16).hex()
-    (BASE / ".dropbox_state.json").write_text(json.dumps({"state": state}))
-    auth_url = f"https://www.dropbox.com/oauth2/authorize?client_id={secrets['app_key']}&redirect_uri=http://localhost:8000/dropbox/callback&response_type=code&state={state}"
-    return RedirectResponse(auth_url)
-
-
-@app.get("/dropbox/callback")
-async def dropbox_callback(code: str, state: str):
-    if not HAS_DROPBOX:
-        raise HTTPException(501, "dropbox SDK not installed")
-    state_file = BASE / ".dropbox_state.json"
-    if not state_file.exists() or json.loads(state_file.read_text())["state"] != state:
-        return HTMLResponse("<h1>Invalid state</h1>", 400)
-    secrets = json.loads(DROPBOX_SECRETS_PATH.read_text())
-    
-    # Exchange code for token
-    data = f"code={code}&grant_type=authorization_code&redirect_uri=http://localhost:8000/dropbox/callback&client_id={secrets['app_key']}&client_secret={secrets['app_secret']}"
-    req = urllib.request.Request("https://api.dropboxapi.com/oauth2/token", data.encode(), headers={"Content-Type": "application/x-www-form-urlencoded"})
-    with urllib.request.urlopen(req) as resp:
-        token_data = json.loads(resp.read())
-    
-    DROPBOX_TOKEN_PATH.write_text(json.dumps({"access_token": token_data["access_token"]}))
-    (BASE / ".dropbox_state.json").unlink(missing_ok=True)
-    return HTMLResponse("<h1>✅ Dropbox Connected</h1><script>window.close()</script>")
-
-
-@app.get("/dropbox/status")
-async def dropbox_status():
-    return {"connected": DROPBOX_TOKEN_PATH.exists()}
-
-
 # ── Publish to Cloud ───────────────────────────────────────────────────────────
 
 @app.post("/publish")
@@ -866,7 +785,6 @@ async def publish_all():
     """Publish all notes to connected cloud service."""
     # Check which service is connected
     github_connected = GITHUB_TOKEN_PATH.exists()
-    dropbox_connected = DROPBOX_TOKEN_PATH.exists()
     gdrive_connected = GDRIVE_TOKEN_PATH.exists()
     
     if not any([github_connected, gdrive_connected]):
@@ -884,7 +802,8 @@ async def publish_all():
     results = {}
     
     # Publish to GitHub
-    if github_connected and HAS_GIT:
+    git = _get_git()
+    if github_connected and git:
         try:
             token_data = json.loads(GITHUB_TOKEN_PATH.read_text())
             token = token_data["access_token"]
@@ -916,45 +835,13 @@ async def publish_all():
         except Exception as e:
             results["github"] = f"Error: {e}"
     
-    # Publish to Dropbox
-    if dropbox_connected:
-        if not HAS_DROPBOX:
-            results["dropbox"] = "Error: Dropbox SDK not installed (pip install dropbox)"
-        else:
-            try:
-                token_data = json.loads(DROPBOX_TOKEN_PATH.read_text())
-                dbx = dbx_sdk.Dropbox(token_data["access_token"])
-                
-                # Create Lectura folder if needed
-                try:
-                    dbx.files_get_metadata("/Lectura")
-                except Exception:
-                    dbx.files_create_folder_v2("/Lectura")
-                
-                # Upload files preserving folder structure
-                for rel_path, content in files.items():
-                    dropbox_path = f"/Lectura/{rel_path}"
-                    # Create parent folders if needed
-                    parts = rel_path.split("/")
-                    if len(parts) > 1:
-                        for i in range(1, len(parts)):
-                            folder_path = f"/Lectura/{'/'.join(parts[:i])}"
-                            try:
-                                dbx.files_create_folder_v2(folder_path)
-                            except Exception:
-                                pass
-                    dbx.files_upload(content, dropbox_path, mode=dbx_sdk.files.WriteMode.overwrite)
-                results["dropbox"] = f"✅ Uploaded {len(files)} files to /Lectura/"
-            except Exception as e:
-                logger.error(f"Dropbox publish error: {e}")
-                results["dropbox"] = f"Error: {str(e)}"
-    
     # Publish to Google Drive
-    if gdrive_connected and HAS_GDRIVE:
+    gd = _get_gdrive()
+    if gdrive_connected and gd:
         try:
-            creds = Credentials.from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
-            service = gdrive_build("drive", "v3", credentials=creds)
-            
+            creds = gd["Credentials"].from_authorized_user_file(str(GDRIVE_TOKEN_PATH), GDRIVE_SCOPES)
+            service = gd["build"]("drive", "v3", credentials=creds)
+
             # Find or create root folder
             results_list = service.files().list(q="name='Lectura' and mimeType='application/vnd.google-apps.folder' and trashed=false", fields="files(id)").execute()
             if results_list.get("files"):
@@ -993,7 +880,7 @@ async def publish_all():
                     parent_id = root_id
                 
                 file_name = parts[-1]
-                media = MediaIoBaseUpload(io.BytesIO(content), mimetype="text/markdown")
+                media = gd["MediaIoBaseUpload"](io.BytesIO(content), mimetype="text/markdown")
                 file_meta = {"name": file_name, "parents": [parent_id]}
                 service.files().create(body=file_meta, media_body=media).execute()
             

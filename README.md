@@ -178,7 +178,6 @@ Connect your favorite cloud services for automatic backup and sync:
 
 1. **GitHub** - Sync notes to repositories
 2. **Google Drive** - Backup to your Drive
-3. **Dropbox** - Cross-device synchronization
 
 See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed setup instructions.
 
