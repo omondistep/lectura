@@ -778,14 +778,20 @@ let vimEnabled = localStorage.getItem("sc-vim") !== "false";
 
 const vimIndicator = document.getElementById("vim-mode-indicator");
 function updateVimIndicator(modeName) {
+  if (!vimEnabled || !modeName) { 
+    vimIndicator.classList.add("hidden"); 
+    return; 
+  }
+  
   // Check if editor is visible
   const editorPane = document.getElementById("editor-pane");
   const isEditorVisible = editorPane && !editorPane.classList.contains("hidden-pane");
   
-  if (!vimEnabled || !modeName || !isEditorVisible) { 
-    vimIndicator.classList.add("hidden"); 
-    return; 
+  if (!isEditorVisible) {
+    vimIndicator.classList.add("hidden");
+    return;
   }
+  
   vimIndicator.classList.remove("hidden");
   vimIndicator.className = "vim-mode vim-" + modeName.toLowerCase().replace(/[^a-z]/g, "");
   vimIndicator.textContent = modeName.toUpperCase();
@@ -3181,18 +3187,9 @@ function togglePreview() {
       setTimeout(() => {
         try {
           Vim.handleKey(view.contentDOM, 'i');
-          // Force update indicator after entering insert mode
-          setTimeout(() => updateVimIndicator("insert"), 10);
         } catch (e) {}
       }, 50);
     }
-  }
-  
-  // Hide Vim indicator when editor is not visible
-  const vimIndicator = document.getElementById("vim-mode-indicator");
-  if (vimIndicator) {
-    const shouldHide = viewMode === 1 || editorPane.classList.contains("hidden-pane");
-    vimIndicator.classList.toggle("hidden", shouldHide);
   }
 }
 
