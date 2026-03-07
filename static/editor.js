@@ -4287,17 +4287,15 @@ function toggleEditorPane() {
   const editorPane = document.getElementById("editor-pane");
   const previewPane = document.getElementById("preview-pane");
 
-  // Cycle: split → editor-only → preview-only → split
-  if (!editorPane.classList.contains("hidden-pane") && !previewPane.classList.contains("hidden-pane")) {
-    // Currently split → go to editor-only
-    previewPane.classList.add("hidden-pane");
-  } else if (previewPane.classList.contains("hidden-pane")) {
-    // Currently editor-only → go to preview-only
-    previewPane.classList.remove("hidden-pane");
-    editorPane.classList.add("hidden-pane");
-  } else {
-    // Currently preview-only → go back to split
+  // Toggle between editor-only and preview-only (no split)
+  if (editorPane.classList.contains("hidden-pane")) {
+    // Currently preview-only → switch to editor-only
     editorPane.classList.remove("hidden-pane");
+    previewPane.classList.add("hidden-pane");
+  } else {
+    // Currently editor-only (or split) → switch to preview-only
+    editorPane.classList.add("hidden-pane");
+    previewPane.classList.remove("hidden-pane");
   }
 }
 
