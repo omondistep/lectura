@@ -3181,6 +3181,8 @@ function togglePreview() {
       setTimeout(() => {
         try {
           Vim.handleKey(view.contentDOM, 'i');
+          // Force update indicator after entering insert mode
+          setTimeout(() => updateVimIndicator("insert"), 10);
         } catch (e) {}
       }, 50);
     }
@@ -3191,11 +3193,6 @@ function togglePreview() {
   if (vimIndicator) {
     const shouldHide = viewMode === 1 || editorPane.classList.contains("hidden-pane");
     vimIndicator.classList.toggle("hidden", shouldHide);
-  }
-  
-  // Update Vim indicator after mode change
-  if (viewMode === 2 && vimEnabled) {
-    setTimeout(() => updateVimIndicator("normal"), 50);
   }
 }
 
