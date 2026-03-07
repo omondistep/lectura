@@ -773,6 +773,7 @@ const ACTIONS = {
 // VIM MODE
 // ═══════════════════════════════════════════════════════════════════════════════
 const vimCompartment = new Compartment();
+// Vim enabled by default - users can disable with Ctrl+Alt+V
 let vimEnabled = localStorage.getItem("sc-vim") !== "false";
 
 const vimIndicator = document.getElementById("vim-mode-indicator");
