@@ -13,11 +13,26 @@
     "appId": "com.lectura.app",
     "productName": "Lectura",
     "files": [
-      "**/*",
+      "electron-main.js",
+      "preload.js",
+      "main.py",
+      "requirements.txt",
+      "static/**/*",
+      "build/**/*",
+      "!node_modules/**/*",
+      "!venv/**/*",
       "!notes/**/*",
       "!.git/**/*",
       "!__pycache__/**/*",
-      "!*.log"
+      "!*.log",
+      "!*.bat",
+      "!*.sh",
+      "!*.vbs",
+      "!.git_repo_cache/**/*",
+      "!.github_*",
+      "!.dropbox_*",
+      "!.gdrive_*",
+      "!screenshots/**/*"
     ],
     "linux": {
       "target": [
@@ -47,7 +62,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^28.3.3",
-    "electron-builder": "^24.13.3"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
   }
 }

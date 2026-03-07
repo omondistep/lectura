@@ -93,7 +93,6 @@ install_files() {
     # Config and secrets (if they exist)
     cp "$SOURCE_DIR/config.json" "$INSTALL_DIR/" 2>/dev/null || true
     cp "$SOURCE_DIR/github_secrets.json" "$INSTALL_DIR/" 2>/dev/null || true
-    cp "$SOURCE_DIR/dropbox_secrets.json" "$INSTALL_DIR/" 2>/dev/null || true
     cp "$SOURCE_DIR/gdrive_secrets.json" "$INSTALL_DIR/" 2>/dev/null || true
 
     # Create notes directory
@@ -116,9 +115,9 @@ setup_python() {
 
 # ── Install Electron dependencies ────────────────────────────────────────────
 setup_electron() {
-    print_step "Installing Electron dependencies..."
+    print_step "Installing Electron dependencies (this may take 2-5 minutes)..."
     cd "$INSTALL_DIR"
-    npm install --silent 2>/dev/null
+    npm install --progress=true
     print_ok "Electron installed"
 }
 

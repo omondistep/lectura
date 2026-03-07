@@ -87,7 +87,6 @@ xcopy "%SOURCE_DIR%build" "%INSTALL_DIR%\build\" /e /i /q >nul
 :: Config and secrets (if they exist)
 if exist "%SOURCE_DIR%config.json" copy "%SOURCE_DIR%config.json" "%INSTALL_DIR%\" >nul
 if exist "%SOURCE_DIR%github_secrets.json" copy "%SOURCE_DIR%github_secrets.json" "%INSTALL_DIR%\" >nul
-if exist "%SOURCE_DIR%dropbox_secrets.json" copy "%SOURCE_DIR%dropbox_secrets.json" "%INSTALL_DIR%\" >nul
 if exist "%SOURCE_DIR%gdrive_secrets.json" copy "%SOURCE_DIR%gdrive_secrets.json" "%INSTALL_DIR%\" >nul
 
 :: Create notes directory
@@ -106,29 +105,21 @@ call deactivate
 echo [+] Python dependencies installed
 
 :: ── Install Node dependencies ───────────────────────────────────────────────
-echo [*] Installing Electron dependencies...
+echo [*] Installing Electron dependencies (this may take 2-5 minutes)...
 cd /d "%INSTALL_DIR%"
-call npm install --silent 2>nul
+call npm install
 echo [+] Electron installed
 
 :: ── Create launcher script ──────────────────────────────────────────────────
 echo [*] Creating launcher...
 
-:: Create a proper executable launcher
+:: Create batch launcher — uses pythonw to avoid console window for the backend
 (
 echo @echo off
 echo cd /d "%INSTALL_DIR%"
 echo call venv\Scripts\activate.bat
-echo start "" /min npm start
-echo exit
+echo start "" npx electron .
 ) > "%INSTALL_DIR%\Lectura.bat"
-
-:: Create a VBS script to run without console window
-(
-echo Set WshShell = CreateObject^("WScript.Shell"^)
-echo WshShell.Run chr^(34^) ^& "%INSTALL_DIR%\Lectura.bat" ^& Chr^(34^), 0
-echo Set WshShell = Nothing
-) > "%INSTALL_DIR%\Lectura.vbs"
 
 echo [+] Launcher created
 
@@ -138,26 +129,29 @@ echo [*] Creating shortcuts...
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
 
-:: Use PowerShell to create .lnk shortcuts pointing to VBS (no console window)
-powershell -NoProfile -Command ^
-  "$ws = New-Object -ComObject WScript.Shell; ^
-   $s = $ws.CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%.lnk'); ^
-   $s.TargetPath = 'wscript.exe'; ^
-   $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
-   $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-   $s.IconLocation = '%INSTALL_DIR%\build\icon.ico'; ^
-   $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-   $s.Save()"
+:: Use PowerShell to create .lnk shortcuts pointing directly to the bat file
+:: WindowStyle 7 = minimized (hides the brief cmd window)
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ws = New-Object -ComObject WScript.Shell;" ^
+  "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\%SHORTCUT_NAME%.lnk');" ^
+  "$s.TargetPath = 'cmd.exe';" ^
+  "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+  "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
+  "$s.IconLocation = '%INSTALL_DIR%\build\icon.ico';" ^
+  "$s.WindowStyle = 7;" ^
+  "$s.Description = 'Lectura - Markdown Note-Taking App';" ^
+  "$s.Save()"
 
-powershell -NoProfile -Command ^
-  "$ws = New-Object -ComObject WScript.Shell; ^
-   $s = $ws.CreateShortcut('%STARTMENU%\%SHORTCUT_NAME%.lnk'); ^
-   $s.TargetPath = 'wscript.exe'; ^
-   $s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"'; ^
-   $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-   $s.IconLocation = '%INSTALL_DIR%\build\icon.ico'; ^
-   $s.Description = 'Lectura - Markdown Note-Taking App'; ^
-   $s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ws = New-Object -ComObject WScript.Shell;" ^
+  "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Programs') + '\%SHORTCUT_NAME%.lnk');" ^
+  "$s.TargetPath = 'cmd.exe';" ^
+  "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+  "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
+  "$s.IconLocation = '%INSTALL_DIR%\build\icon.ico';" ^
+  "$s.WindowStyle = 7;" ^
+  "$s.Description = 'Lectura - Markdown Note-Taking App';" ^
+  "$s.Save()"
 
 echo [+] Desktop and Start Menu shortcuts created
 
