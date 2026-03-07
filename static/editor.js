@@ -3182,7 +3182,13 @@ function togglePreview() {
   // Hide Vim indicator when editor is not visible
   const vimIndicator = document.getElementById("vim-mode-indicator");
   if (vimIndicator) {
-    vimIndicator.classList.toggle("hidden", viewMode === 1 || editorPane.classList.contains("hidden-pane"));
+    const shouldHide = viewMode === 1 || editorPane.classList.contains("hidden-pane");
+    vimIndicator.classList.toggle("hidden", shouldHide);
+  }
+  
+  // Update Vim indicator after mode change
+  if (viewMode === 2 && vimEnabled) {
+    setTimeout(() => updateVimIndicator("normal"), 50);
   }
 }
 
