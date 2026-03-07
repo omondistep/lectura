@@ -1392,7 +1392,6 @@ li.tree-file:hover .del-btn,
   flex-direction: column;
   min-width: 0;
   background: var(--bg-preview);
-  border-left: 1px dashed var(--border-dim);
 }
 
 .preview-pagination {
