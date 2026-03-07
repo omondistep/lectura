@@ -3179,10 +3179,10 @@ function togglePreview() {
     }
   }
   
-  // Hide/show Vim indicator based on editor visibility
+  // Hide Vim indicator when editor is not visible
   const vimIndicator = document.getElementById("vim-mode-indicator");
   if (vimIndicator) {
-    vimIndicator.classList.toggle("hidden", viewMode === 1);
+    vimIndicator.classList.toggle("hidden", viewMode === 1 || editorPane.classList.contains("hidden-pane"));
   }
 }
 
