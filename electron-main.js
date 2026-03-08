@@ -56,8 +56,11 @@ function createWindow() {
     mainWindow.focus();
   });
 
-  // Poll for Python server readiness instead of fixed 3s delay
-  waitForServer('http://127.0.0.1:8000', 50).then(() => {
+  // Show local UI instantly while Python starts up
+  mainWindow.loadFile(path.join(__dirname, 'static', 'index.html'));
+
+  // Once server is ready, reload from the live server
+  waitForServer('http://127.0.0.1:8000', 20).then(() => {
     console.log('[Electron] Server ready, loading URL...');
     mainWindow.loadURL('http://127.0.0.1:8000');
   });
@@ -81,7 +84,8 @@ function waitForServer(url, intervalMs, maxAttempts = 100) {
         if (attempts < maxAttempts) {
           setTimeout(check, intervalMs);
         } else {
-          // Give up and try loading anyway
+          console.error('[Electron] Server failed to start after max attempts');
+          dialog.showErrorBox('Lectura', 'Could not connect to the Python server. Please check that Python and dependencies are installed correctly.');
           resolve();
         }
       });
@@ -99,6 +103,7 @@ function waitForServer(url, intervalMs, maxAttempts = 100) {
 }
 
 ipcMain.handle('open-folder-dialog', async (event, defaultPath) => {
+  if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, {
     defaultPath: defaultPath || os.homedir(),
     properties: ['openDirectory']
@@ -110,6 +115,7 @@ ipcMain.handle('open-folder-dialog', async (event, defaultPath) => {
 });
 
 ipcMain.handle('create-new-file-dialog', async (event, defaultPath) => {
+  if (!mainWindow) return null;
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Create New File',
     defaultPath: defaultPath || 'untitled.md',
@@ -127,8 +133,7 @@ ipcMain.handle('create-new-file-dialog', async (event, defaultPath) => {
 });
 
 ipcMain.handle('create-new-folder-dialog', async (event, defaultPath) => {
-  // Native OS folder picker — user can right-click > "New Folder" inside the dialog
-  // then select it, just like Typora's "Open Folder"
+  if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Select or Create Folder',
     defaultPath: defaultPath || '',
@@ -139,6 +144,24 @@ ipcMain.handle('create-new-folder-dialog', async (event, defaultPath) => {
     return result.filePaths[0].replace(/\\/g, '/');
   }
   return null;
+});
+
+ipcMain.handle('open-in-new-window', async (event, filePath) => {
+  const newWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    title: 'Lectura',
+    backgroundColor: '#0d1117',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+      devTools: false
+    }
+  });
+  Menu.setApplicationMenu(null);
+  const encodedPath = encodeURIComponent(filePath);
+  newWindow.loadURL(`http://127.0.0.1:8000?open=${encodedPath}`);
 });
 
 app.on('ready', () => {

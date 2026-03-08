@@ -1836,38 +1836,10 @@ function renderTree(node, container) {
 
     li.addEventListener("click", () => openFile(file.path));
     
-    // Double-click to rename
+    // Double-click to rename inline
     li.addEventListener("dblclick", (e) => {
       e.stopPropagation();
-      const displayName = file.name.replace(/\.md$/, "");
-      const newName = prompt("Rename file:", displayName);
-      if (!newName || newName === displayName) return;
-      
-      // Use the rename logic from context menu
-      (async () => {
-        const r = await fetch(`/files/${encodeURIComponent(file.path)}`);
-        if (!r.ok) { setStatus("Failed to read file", true); return; }
-        const { content } = await r.json();
-        const parent = file.path.includes("/") ? file.path.substring(0, file.path.lastIndexOf("/")) : "";
-        const finalName = newName.endsWith(".md") ? newName : newName + ".md";
-        const newFull = parent ? `${parent}/${finalName}` : finalName;
-        
-        const createRes = await fetch(`/files/${encodeURIComponent(newFull)}`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
-        });
-        
-        if (!createRes.ok) { setStatus("Failed to create renamed file", true); return; }
-        
-        await fetch(`/files/${encodeURIComponent(file.path)}`, { method: "DELETE" });
-        
-        if (currentFile === file.path) {
-          currentFile = newFull;
-          document.getElementById("filename-input").value = finalName;
-        }
-        
-        await loadFileList();
-        setStatus(`Renamed to "${finalName}"`);
-      })();
+      makeFileNameEditable(li, file.path, file.name);
     });
     
     li.addEventListener("dragstart", (e) => {
@@ -2344,49 +2316,16 @@ contextMenu.addEventListener("click", async (e) => {
     case "rename": {
       if (isFolder) {
         const old = target.replace(/\/$/, "");
-        const newLeaf = prompt("Rename folder:", old.split("/").pop());
-        if (!newLeaf || newLeaf === old.split("/").pop()) break;
-        const parent = old.includes("/") ? old.substring(0, old.lastIndexOf("/")) : "";
-        const newFull = parent ? `${parent}/${newLeaf}` : newLeaf;
-        const r = await fetch(`/folders/${encodeURIComponent(old)}?new_name=${encodeURIComponent(newFull)}`, { method: "PUT" });
-        if (r.ok) { 
-          await loadFileList(); 
-          setStatus(`Renamed to "${newLeaf}"`); 
-        } else {
-          setStatus("Rename failed", true);
+        const folderEl = document.querySelector(`li.tree-folder[data-folder-path="${old}"]`);
+        if (folderEl) {
+          makeFolderNameEditable(folderEl, old, old.split("/").pop());
         }
       } else {
-        const displayName = target.split("/").pop().replace(/\.md$/, "");
-        const newLeaf = prompt("Rename note:", displayName);
-        if (!newLeaf || newLeaf === displayName) break;
-        const r = await fetch(`/files/${encodeURIComponent(target)}`);
-        if (!r.ok) { 
-          setStatus("Failed to read file", true); 
-          break; 
+        const fileName = target.split("/").pop();
+        const fileEl = document.querySelector(`li.tree-file[data-file-path="${target}"]`);
+        if (fileEl) {
+          makeFileNameEditable(fileEl, target, fileName);
         }
-        const { content } = await r.json();
-        const parent = target.includes("/") ? target.substring(0, target.lastIndexOf("/")) : "";
-        const finalName = newLeaf.endsWith(".md") ? newLeaf : newLeaf + ".md";
-        const newFull = parent ? `${parent}/${finalName}` : finalName;
-        
-        const createRes = await fetch(`/files/${encodeURIComponent(newFull)}`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
-        });
-        
-        if (!createRes.ok) {
-          setStatus("Failed to create renamed file", true);
-          break;
-        }
-        
-        await fetch(`/files/${encodeURIComponent(target)}`, { method: "DELETE" });
-        
-        if (currentFile === target) {
-          currentFile = newFull;
-          document.getElementById("filename-input").value = finalName;
-        }
-        
-        await loadFileList();
-        setStatus(`Renamed to "${finalName}"`);
       }
       break;
     }
@@ -3946,7 +3885,7 @@ setInterval(() => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ELECTRON
 // ═══════════════════════════════════════════════════════════════════════════════
-const isElectron = navigator.userAgent.toLowerCase().includes("electron");
+const isElectron = !!window.electronAPI?.isElectron;
 if (isElectron) {
   const quitBtn = document.getElementById("btn-quit");
   if (quitBtn) {
@@ -4277,6 +4216,50 @@ function makeFileNameEditable(fileEl, filePath, currentName) {
     showToast(`Renamed to "${finalName}"`);
   };
   
+  input.addEventListener("blur", finishEdit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      finishEdit();
+    } else if (e.key === "Escape") {
+      input.replaceWith(nameSpan);
+    }
+  });
+}
+
+function makeFolderNameEditable(folderEl, folderPath, currentName) {
+  const nameSpan = folderEl.querySelector(".folder-name");
+  if (!nameSpan) return;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "folder-name-input";
+  input.value = currentName;
+  input.style.cssText = "background: var(--bg-input); border: 1px solid var(--accent); padding: 2px 4px; border-radius: 3px; font-size: inherit; width: 100%; color: var(--text); outline: none;";
+
+  nameSpan.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const finishEdit = async () => {
+    const newName = input.value.trim();
+    if (!newName || newName === currentName) {
+      input.replaceWith(nameSpan);
+      return;
+    }
+
+    const parent = folderPath.includes("/") ? folderPath.substring(0, folderPath.lastIndexOf("/")) : "";
+    const newFull = parent ? `${parent}/${newName}` : newName;
+    const r = await fetch(`/folders/${encodeURIComponent(folderPath)}?new_name=${encodeURIComponent(newFull)}`, { method: "PUT" });
+    if (r.ok) {
+      await loadFileList();
+      setStatus(`Renamed to "${newName}"`);
+    } else {
+      input.replaceWith(nameSpan);
+      setStatus("Rename failed", true);
+    }
+  };
+
   input.addEventListener("blur", finishEdit);
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {

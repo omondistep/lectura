@@ -2522,10 +2522,32 @@ button:focus-visible, input:focus-visible {
   #modal, #publish-modal, #table-modal, #diagram-modal { max-width: 95%; padding: 20px; }
 }
 
+/* ── Phone (≤480px) ──────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  #menubar { font-size: 12px; }
+  .menu-trigger { padding: 6px 8px; font-size: 12px; }
+  #preview { padding: 12px 14px; max-width: 100%; }
+  #modal, #publish-modal, #table-modal, #diagram-modal {
+    max-width: 100%; padding: 14px; border-radius: 8px;
+  }
+  #editor-pane .cm-editor { font-size: 14px; }
+  #statusbar { font-size: 11px; }
+  #statusbar > span { padding: 0 4px; }
+}
+
+/* ── Large screens (≥1440px) ─────────────────────────────────────────────── */
+@media (min-width: 1440px) {
+  #preview { max-width: 960px; }
+}
+
+/* ── Touch devices ───────────────────────────────────────────────────────── */
 @media (hover: none) and (pointer: coarse) {
   .del-btn { opacity: 1; }
-  .menu-trigger { padding: 8px 12px; }
-  li.tree-file, li.tree-folder > .folder-header { min-height: 40px; }
+  .menu-trigger { padding: 10px 14px; min-height: 44px; }
+  li.tree-file, li.tree-folder > .folder-header { min-height: 44px; }
+  .submenu li { min-height: 44px; padding: 10px 16px; }
+  #statusbar button, .toolbar-btn { min-width: 44px; min-height: 44px; }
+  .sidebar-tab-btn { min-height: 44px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

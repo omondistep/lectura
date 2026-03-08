@@ -13,7 +13,9 @@ import logging
 import os
 import shutil
 import urllib.request
-import httpx
+def _get_httpx():
+    import httpx
+    return httpx
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -77,6 +79,254 @@ def _get_gdrive():
         }
     except ImportError:
         return None
+
+# ── PDF to Markdown conversion ────────────────────────────────────────────────
+
+import re as _re
+
+def _pdf_extract_image(page, img_info, fitz, images_dir: Path, prefix: str, counter: int) -> Optional[str]:
+    """Extract a single image from a PDF page and save it. Returns markdown image ref or None."""
+    try:
+        xref = img_info[0]
+        base_image = fitz.Pixmap(page.parent, xref)
+        # Convert CMYK to RGB
+        if base_image.n > 4:
+            base_image = fitz.Pixmap(fitz.csRGB, base_image)
+        ext = "png"
+        img_bytes = base_image.tobytes(ext)
+        fname = f"{prefix}_img_{counter}.{ext}"
+        dest = images_dir / fname
+        dest.write_bytes(img_bytes)
+        return f"![image](/static/images/{fname})"
+    except Exception:
+        return None
+
+
+def _pdf_table_to_markdown(table) -> str:
+    """Convert a PyMuPDF table object to a markdown table string."""
+    rows = table.extract()
+    if not rows or len(rows) < 1:
+        return ""
+    # Clean cells: replace None with empty string, strip whitespace and newlines
+    clean_rows = []
+    for row in rows:
+        clean_rows.append([str(cell).replace("\n", " ").strip() if cell else "" for cell in row])
+    if not clean_rows:
+        return ""
+    # Build markdown table
+    lines = []
+    header = clean_rows[0]
+    lines.append("| " + " | ".join(header) + " |")
+    lines.append("| " + " | ".join("---" for _ in header) + " |")
+    for row in clean_rows[1:]:
+        # Pad row to match header length
+        while len(row) < len(header):
+            row.append("")
+        lines.append("| " + " | ".join(row[:len(header)]) + " |")
+    return "\n".join(lines)
+
+
+def _pdf_to_markdown(fitz, data: bytes) -> str:
+    """Convert PDF bytes to structured Markdown with text, images, and tables."""
+    doc = fitz.open(stream=data, filetype="pdf")
+    images_dir = BASE / "static" / "images"
+    images_dir.mkdir(exist_ok=True)
+
+    # Check if table extraction is available (PyMuPDF >= 1.23.0)
+    has_tables = False
+    try:
+        if len(doc) > 0:
+            doc[0].find_tables()
+            has_tables = True
+    except (AttributeError, Exception):
+        pass
+
+    # First pass: collect all font sizes to determine heading thresholds
+    font_sizes: list[float] = []
+    for page in doc:
+        blocks = page.get_text("dict", flags=getattr(fitz, 'TEXT_PRESERVE_WHITESPACE', 1))["blocks"]
+        for block in blocks:
+            if block.get("type") != 0:
+                continue
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    size = round(span["size"], 1)
+                    text = span["text"].strip()
+                    if text:
+                        font_sizes.append(size)
+
+    if not font_sizes and not doc.page_count:
+        return ""
+
+    # Determine body size (most common) and heading thresholds
+    from collections import Counter
+    body_size = 0.0
+    heading_map: dict[float, int] = {}
+    if font_sizes:
+        size_counts = Counter(font_sizes)
+        body_size = size_counts.most_common(1)[0][0]
+        unique_sizes = sorted(set(s for s in font_sizes if s > body_size + 1.5), reverse=True)
+        for i, size in enumerate(unique_sizes[:3]):
+            heading_map[size] = i + 1
+
+    # Generate a unique prefix for images from this import
+    import time
+    img_prefix = f"pdf_{int(time.time())}"
+    img_counter = 0
+
+    # Second pass: build markdown
+    md_lines: list[str] = []
+    for page_idx, page in enumerate(doc):
+        if page_idx > 0:
+            md_lines.append("\n---\n")
+
+        # Extract tables for this page (to know which regions to skip in text)
+        table_rects: list = []
+        page_tables: list[str] = []
+        if has_tables:
+            try:
+                tables = page.find_tables()
+                for table in tables.tables:
+                    table_rects.append(fitz.Rect(table.bbox))
+                    md_table = _pdf_table_to_markdown(table)
+                    if md_table:
+                        page_tables.append((table.bbox[1], md_table))  # (y-position, markdown)
+            except Exception:
+                pass
+
+        # Extract images for this page
+        page_images: list[tuple] = []
+        try:
+            for img_info in page.get_images(full=True):
+                img_counter += 1
+                md_img = _pdf_extract_image(page, img_info, fitz, images_dir, img_prefix, img_counter)
+                if md_img:
+                    # Get image position on page via xref lookup
+                    xref = img_info[0]
+                    try:
+                        img_rects = page.get_image_rects(xref)
+                        y_pos = img_rects[0].y0 if img_rects else 9999
+                    except Exception:
+                        y_pos = 9999
+                    page_images.append((y_pos, md_img))
+        except Exception:
+            pass
+
+        # Collect text blocks with y-position, skipping table regions
+        text_elements: list[tuple] = []
+        blocks = page.get_text("dict", flags=getattr(fitz, 'TEXT_PRESERVE_WHITESPACE', 1))["blocks"]
+        for block in blocks:
+            if block.get("type") != 0:
+                continue
+
+            # Skip text that falls inside a table region
+            block_rect = fitz.Rect(block["bbox"])
+            in_table = False
+            for tr in table_rects:
+                if block_rect.intersects(tr):
+                    in_table = True
+                    break
+            if in_table:
+                continue
+
+            block_text_parts: list[str] = []
+            block_heading_level = 0
+
+            for line in block.get("lines", []):
+                line_parts: list[str] = []
+                for span in line.get("spans", []):
+                    text = span["text"]
+                    # Fix common encoding artifacts
+                    text = text.replace("\ufffd", "'")  # replacement char → apostrophe
+                    text = text.replace("\u00a0", " ")  # non-breaking space → space
+                    text = text.replace("\xad", "")      # soft hyphen
+                    if not text.strip():
+                        if text:
+                            line_parts.append(" ")
+                        continue
+
+                    size = round(span["size"], 1)
+                    flags = span.get("flags", 0)
+                    is_bold = bool(flags & 2**4)
+                    is_italic = bool(flags & 2**1)
+
+                    if size in heading_map:
+                        block_heading_level = max(block_heading_level, heading_map[size])
+
+                    stripped = text.strip()
+                    leading = text[:len(text) - len(text.lstrip())]
+                    trailing = text[len(text.rstrip()):]
+
+                    if is_bold and is_italic:
+                        chunk = f"{leading}***{stripped}***{trailing}"
+                    elif is_bold:
+                        chunk = f"{leading}**{stripped}**{trailing}"
+                    elif is_italic:
+                        chunk = f"{leading}*{stripped}*{trailing}"
+                    else:
+                        chunk = text
+
+                    line_parts.append(chunk)
+
+                line_text = "".join(line_parts).rstrip()
+                # Merge adjacent bold markers: **word1** **word2** → **word1 word2**
+                line_text = _re.sub(r'\*\*\s*\*\*', ' ', line_text)
+                line_text = _re.sub(r'\*\*\*\s*\*\*\*', ' ', line_text)
+                # Clean up empty bold/italic markers
+                line_text = line_text.replace("****", "").replace("******", "")
+                if line_text:
+                    block_text_parts.append(line_text)
+
+            # Join lines within a block — detect whether lines are a flowing
+            # paragraph (should be joined with spaces) or intentionally separate
+            # lines (lists, short lines, etc.)
+            if len(block_text_parts) <= 1:
+                paragraph = "".join(block_text_parts).strip()
+            else:
+                # Heuristic: if most lines end without sentence-ending
+                # punctuation and are long-ish, they're a wrapped paragraph.
+                block_width = block["bbox"][2] - block["bbox"][0]
+                page_width = page.rect.width
+                # Lines that reach close to the block width are likely wrapped
+                avg_len = sum(len(l) for l in block_text_parts) / len(block_text_parts)
+                short_lines = sum(1 for l in block_text_parts[:-1]  # skip last line
+                                 if len(l) < avg_len * 0.5)
+                is_list = all(_re.match(r'^[\u2022\u2023\u25E6\u2043\-\*]\s|^\d+[\.\)]\s', l)
+                              for l in block_text_parts)
+                # If it looks like a list or most lines are short, preserve breaks
+                if is_list or short_lines > len(block_text_parts) * 0.4:
+                    paragraph = "\n".join(block_text_parts).strip()
+                else:
+                    paragraph = " ".join(block_text_parts).strip()
+            if not paragraph:
+                continue
+
+            # Clean up any remaining encoding issues
+            paragraph = _re.sub(r'\s{2,}', ' ', paragraph) if "\n" not in paragraph else paragraph
+
+            y_pos = block["bbox"][1]
+            if _re.match(r'^[\u2022\u2023\u25E6\u2043\-\*]\s', paragraph):
+                paragraph = _re.sub(r'^[\u2022\u2023\u25E6\u2043]', '-', paragraph)
+                text_elements.append((y_pos, paragraph))
+            elif _re.match(r'^\d+[\.\)]\s', paragraph):
+                text_elements.append((y_pos, paragraph))
+            elif block_heading_level:
+                prefix = "#" * block_heading_level
+                clean = paragraph.replace("**", "").replace("***", "")
+                text_elements.append((y_pos, f"{prefix} {clean}"))
+            else:
+                text_elements.append((y_pos, paragraph))
+
+        # Merge text, images, and tables sorted by vertical position on the page
+        all_elements = text_elements + page_images + page_tables
+        all_elements.sort(key=lambda x: x[0])
+        for _, content in all_elements:
+            md_lines.append(content)
+
+    result = "\n\n".join(md_lines)
+    result = _re.sub(r'\n{4,}', '\n\n\n', result)
+    return result.strip()
+
 
 # ── app setup ──────────────────────────────────────────────────────────────────
 BASE = Path(__file__).parent
@@ -555,9 +805,8 @@ async def import_file(file: UploadFile = File(...)):
         fitz = _get_fitz()
         if not fitz:
             raise HTTPException(501, "PyMuPDF not installed — run: pip install pymupdf")
-        doc = fitz.open(stream=data, filetype="pdf")
-        text = "\n\n".join(page.get_text() for page in doc)
-        return {"content": text}
+        content = _pdf_to_markdown(fitz, data)
+        return {"content": content}
 
     if ext == ".docx":
         DocxDocument = _get_docx()
@@ -929,6 +1178,7 @@ class GitHubTokenRequest(BaseModel):
 async def github_token_exchange(request: GitHubTokenRequest):
     """Exchange GitHub OAuth code for access token"""
     try:
+        httpx = _get_httpx()
         async with httpx.AsyncClient() as client:
             # Exchange code for access token
             token_response = await client.post(
@@ -951,12 +1201,9 @@ async def github_token_exchange(request: GitHubTokenRequest):
             
             return {"access_token": token_data.get('access_token')}
             
-    except httpx.RequestError as e:
-        logger.error(f"GitHub OAuth error: {e}")
-        raise HTTPException(status_code=500, detail="OAuth request failed")
     except Exception as e:
         logger.error(f"GitHub OAuth error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="OAuth request failed")
 
 @app.get("/auth/github/callback")
 async def github_callback(code: str = None, state: str = None, error: str = None):
