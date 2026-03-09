@@ -35,6 +35,7 @@ function createWindow() {
     width: 1400,
     height: 900,
     title: 'Lectura',
+    icon: path.join(__dirname, 'static', 'icons', 'icon-256.png'),
     show: false,
     backgroundColor: '#0d1117',
     webPreferences: {
@@ -151,6 +152,7 @@ ipcMain.handle('open-in-new-window', async (event, filePath) => {
     width: 1200,
     height: 800,
     title: 'Lectura',
+    icon: path.join(__dirname, 'static', 'icons', 'icon-256.png'),
     backgroundColor: '#0d1117',
     webPreferences: {
       nodeIntegration: false,

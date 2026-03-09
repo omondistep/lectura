@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0fdf4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Document/page shape -->
+  <rect x="148" y="96" width="216" height="280" rx="18" fill="url(#page)" opacity="0.95"/>
+
+  <!-- Folded corner -->
+  <path d="M314 96 L364 146 L314 146 Z" fill="#d1fae5" opacity="0.8"/>
+
+  <!-- Text lines (markdown-style) -->
+  <!-- Heading line (bold/wider) -->
+  <rect x="184" y="160" width="120" height="12" rx="6" fill="#059669" opacity="0.7"/>
+  <!-- Body lines -->
+  <rect x="184" y="192" width="144" height="8" rx="4" fill="#059669" opacity="0.35"/>
+  <rect x="184" y="212" width="130" height="8" rx="4" fill="#059669" opacity="0.35"/>
+  <rect x="184" y="232" width="150" height="8" rx="4" fill="#059669" opacity="0.35"/>
+  <rect x="184" y="252" width="100" height="8" rx="4" fill="#059669" opacity="0.35"/>
+
+  <!-- Cursor/caret (the editing touch) -->
+  <rect x="288" y="248" width="3" height="18" rx="1.5" fill="#059669" opacity="0.9"/>
+
+  <!-- Pen nib at bottom-right -->
+  <g transform="translate(320, 320) rotate(-45)">
+    <rect x="-8" y="-48" width="16" height="56" rx="4" fill="#ffffff" opacity="0.95"/>
+    <polygon points="-6,-48 6,-48 0,-62" fill="#ffffff" opacity="0.95"/>
+    <rect x="-8" y="0" width="16" height="8" rx="2" fill="#34d399"/>
+  </g>
+</svg>

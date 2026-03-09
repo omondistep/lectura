@@ -242,6 +242,9 @@ function markDirty() {
   updateDirtyBadge();
   scheduleHistorySave();
   
+  // Mark tab dirty and auto-pin if preview
+  markTabDirty();
+  
   // Update Git status when file changes
   if (typeof updateGitStatus === 'function' && githubUser) {
     updateGitStatus();
@@ -773,10 +776,23 @@ const ACTIONS = {
 // VIM MODE
 // ═══════════════════════════════════════════════════════════════════════════════
 const vimCompartment = new Compartment();
+const lineNumbersCompartment = new Compartment();
 // Vim enabled by default - users can disable with Ctrl+Alt+V
 let vimEnabled = localStorage.getItem("sc-vim") !== "false";
+let showLineNumbers = localStorage.getItem("sc-line-numbers") !== "false";
 
 const vimIndicator = document.getElementById("vim-mode-indicator");
+
+function updateLineIndicator() {
+  const indicator = document.getElementById("line-indicator");
+  if (!indicator || !view) return;
+  const pos = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(pos);
+  const lineNum = line.number;
+  const col = pos - line.from + 1;
+  indicator.textContent = `${lineNum}:${col}`;
+}
+
 function updateVimIndicator(modeName) {
   if (!vimEnabled || !modeName) { 
     vimIndicator.classList.add("hidden"); 
@@ -845,14 +861,26 @@ function registerVimCommands() {
     }
   });
 
-  // :bn / :bnext — open next file in sidebar
+  // :bn / :bnext — next tab
   Vim.defineEx("bnext", "bn", () => {
-    navigateFiles(1);
+    const idx = tabs.findIndex(t => t.id === activeTabId);
+    if (idx !== -1 && idx < tabs.length - 1) {
+      switchTab(tabs[idx + 1].id);
+    }
   });
 
-  // :bp / :bprev — open previous file in sidebar
+  // :bp / :bprev — previous tab
   Vim.defineEx("bprevious", "bp", () => {
-    navigateFiles(-1);
+    const idx = tabs.findIndex(t => t.id === activeTabId);
+    if (idx > 0) {
+      switchTab(tabs[idx - 1].id);
+    }
+  });
+
+  // :bd / :bdelete — close current tab
+  Vim.defineEx("bdelete", "bd", () => {
+    const tab = getActiveTab();
+    if (tab) closeTab(tab.id);
   });
 
   // :files — switch to files sidebar tab
@@ -922,6 +950,9 @@ function disableVim() {
 
 function toggleVim() {
   if (vimEnabled) disableVim(); else enableVim();
+  // Update toolbar icon
+  const btn = document.getElementById("btn-vim-toggle");
+  if (btn) btn.classList.toggle("active", vimEnabled);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1018,6 +1049,14 @@ const updateListener = EditorView.updateListener.of(update => {
       setTimeout(() => openGraphCanvas(), 50);
     }
   }
+  // Update line indicator
+  if (update.selectionSet || update.docChanged) {
+    try {
+      updateLineIndicator();
+    } catch (e) {
+      // Ignore if view not ready
+    }
+  }
 });
 
 const customKeymap = keymap.of([
@@ -1049,12 +1088,18 @@ const customKeymap = keymap.of([
   { key: "Ctrl-n", run: () => { document.getElementById("btn-new").click(); return true; } },
   { key: "Ctrl-p", run: () => { document.getElementById("search-input").focus(); return true; } },
   { key: "Ctrl-Shift-s", run: () => { saveAs(); return true; } },
-  { key: "Ctrl-w", run: () => { setContent(""); currentFile = "untitled.md"; document.getElementById("filename-input").value = "untitled.md"; return true; } },
+  { key: "Ctrl-w", run: () => { 
+    const tab = getActiveTab();
+    if (tab) {
+      closeTab(tab.id);
+    }
+    return true; 
+  } },
   { key: "Alt-Shift-5", run: () => { wrapSelection("~~"); return true; } },
   { key: "Ctrl-\\", run: () => { clearFormat(); return true; } },
   { key: "Ctrl-Shift-l", run: () => { toggleSidebar(); return true; } },
+  { key: "Ctrl-Shift-v", run: () => { togglePreview(); return true; } },
   { key: "Ctrl-/", run: () => { togglePreview(); return true; } },
-  { key: "Ctrl-Shift-e", run: () => { toggleEditorPane(); return true; } },
   { key: "F7", run: () => { togglePreview(); return true; } },
   { key: "F8", run: () => { toggleFocusMode(); return true; } },
   { key: "F9", run: () => { toggleTypewriter(); return true; } },
@@ -1075,8 +1120,8 @@ const view = new EditorView({
     doc: "",
     extensions: [
       vimCompartment.of(vimEnabled ? vim() : []),
+      lineNumbersCompartment.of(showLineNumbers ? lineNumbers() : []),
       history(),
-      lineNumbers(),
       highlightActiveLine(),
       highlightActiveLineGutter(),
       drawSelection(),
@@ -1600,7 +1645,22 @@ async function populateFileList() {
       pathEl.textContent = folder;
       li.appendChild(pathEl);
     }
-    li.addEventListener("click", () => openFile(filePath));
+    
+    // Single-click → preview, double-click → pin
+    let clickTimer = null;
+    li.addEventListener("click", () => {
+      if (clickTimer) return; // Double-click in progress
+      clickTimer = setTimeout(() => {
+        openTab(filePath, { preview: true, focus: false });
+        clickTimer = null;
+      }, 250);
+    });
+    li.addEventListener("dblclick", () => {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+      openTab(filePath, { preview: false, focus: true });
+    });
+    
     ul.appendChild(li);
   });
 }
@@ -1632,20 +1692,21 @@ function updateOutline() {
     li.textContent = h.text;
     li.title = h.text;
     li.addEventListener("click", () => {
-      // Scroll in editor
-      const line = view.state.doc.lineAt(h.offset);
-      view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
-      view.focus();
+      const tab = getActiveTab();
+      const preview = document.getElementById("preview");
       
-      // Also scroll in preview if visible
-      const previewPane = document.getElementById("preview-pane");
-      if (previewPane && !previewPane.classList.contains("hidden-pane")) {
-        const preview = document.getElementById("preview");
+      if (tab && tab.isPreviewTab) {
+        // In preview tab - scroll preview
         const headings = preview.querySelectorAll("h1, h2, h3, h4, h5, h6");
         const targetHeading = Array.from(headings).find(el => el.textContent.trim() === h.text);
         if (targetHeading) {
           targetHeading.scrollIntoView({ behavior: "smooth", block: "start" });
         }
+      } else {
+        // In editor tab - scroll editor
+        const line = view.state.doc.lineAt(h.offset);
+        view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+        view.focus();
       }
       
       ol.querySelectorAll("li").forEach(el => el.classList.remove("outline-active"));
@@ -1834,12 +1895,28 @@ function renderTree(node, container) {
     
     li.appendChild(fileContent);
 
-    li.addEventListener("click", () => openFile(file.path));
+    // Single-click → preview, double-click → pin (open)
+    let clickTimer = null;
+    li.addEventListener("click", (e) => {
+      if (e.detail === 2) return; // Ignore if part of double-click
+      if (clickTimer) return;
+      clickTimer = setTimeout(() => {
+        openTab(file.path, { preview: true, focus: false });
+        clickTimer = null;
+      }, 250);
+    });
     
-    // Double-click to rename inline
     li.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      makeFileNameEditable(li, file.path, file.name);
+      clearTimeout(clickTimer);
+      clickTimer = null;
+      
+      // Ctrl/Cmd + double-click → rename, otherwise open pinned
+      if (e.ctrlKey || e.metaKey) {
+        e.stopPropagation();
+        makeFileNameEditable(li, file.path, file.name);
+      } else {
+        openTab(file.path, { preview: false, focus: true });
+      }
     });
     
     li.addEventListener("dragstart", (e) => {
@@ -1893,33 +1970,16 @@ function revealInSidebar(filePath) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // FILE OPERATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
+// Internal: called by openTab or legacy code paths
 async function openFile(name) {
-  const res = await fetch(`/files/${encodeURIComponent(name)}`);
-  if (!res.ok) { setStatus("Could not open file", true); return; }
-  const { content } = await res.json();
-  currentFile = name;
-  document.getElementById("filename-input").value = name;
-  setContent(content);
-  const displayPath = workspaceName ? `${workspaceName}/${name}` : name;
-  setStatus(`Opened ${displayPath}`);
-  revealInSidebar(name);
-  
-  // Update bottom file name
-  updateBottomFileName();
-  
-  // Add to recent files
-  const recent = JSON.parse(localStorage.getItem("lectura-recent-files") || "[]");
-  const filtered = recent.filter(f => f !== name);
-  filtered.unshift(name);
-  localStorage.setItem("lectura-recent-files", JSON.stringify(filtered.slice(0, 20)));
-  
-  // Mark active in tree
-  document.querySelectorAll("li.tree-file").forEach(el => {
-    el.classList.toggle("active-file", el.dataset.filePath === currentFile);
-  });
+  // Redirect to tab system
+  await openTab(name, { preview: false, focus: true });
 }
 
 async function saveFile(silent = false) {
+  const tab = getActiveTab();
+  if (!tab) return;
+  
   const name = document.getElementById("filename-input").value.trim() || "untitled.md";
   let newFileName = name.endsWith(".md") ? name : name + ".md";
   if (!newFileName.includes("/") && currentFile.includes("/")) {
@@ -1928,19 +1988,29 @@ async function saveFile(silent = false) {
   } else if (currentFolder && !newFileName.includes("/")) {
     newFileName = `${currentFolder}/${newFileName}`;
   }
+  
+  // Handle rename
   if (currentFile !== newFileName && currentFile !== "untitled.md" && !currentFile.includes("/untitled.md")) {
     await fetch(`/files/${encodeURIComponent(currentFile)}`, { method: "DELETE" });
+    tab.path = newFileName;
+    tab.name = newFileName.split("/").pop();
   }
+  
   currentFile = newFileName;
   document.getElementById("filename-input").value = newFileName.split("/").pop();
+  
   const res = await fetch(`/files/${encodeURIComponent(currentFile)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: getContent() }),
   });
+  
   if (res.ok) {
+    tab.isDirty = false;
     isDirty = false;
     updateDirtyBadge();
+    renderTabs();
+    
     if (!silent) {
       const displayPath = workspaceName ? `${workspaceName}/${currentFile}` : currentFile;
       setStatus(`Saved ${displayPath}`);
@@ -1954,11 +2024,20 @@ async function saveFile(silent = false) {
 async function deleteFile(name) {
   if (!confirm(`Delete "${name}"?`)) return;
   await fetch(`/files/${encodeURIComponent(name)}`, { method: "DELETE" });
-  if (currentFile === name) {
+  
+  // Close both editor and preview tabs if open
+  const editorTab = getTabByPath(name);
+  const previewTab = getPreviewTab(name);
+  if (editorTab) await closeTab(editorTab.id, { force: true });
+  if (previewTab) await closeTab(previewTab.id, { force: true });
+  
+  // Legacy: clear editor if it was the current file
+  if (currentFile === name && !getActiveTab()) {
     setContent("");
     document.getElementById("filename-input").value = "untitled.md";
     currentFile = "untitled.md";
   }
+  
   loadFileList();
   setStatus(`Deleted ${name}`);
 }
@@ -1975,10 +2054,25 @@ async function moveFile(sourcePath, newPath) {
     if (!saveRes.ok) { setStatus("Failed to create file at new location", true); return; }
     const delRes = await fetch(`/files/${encodeURIComponent(sourcePath)}`, { method: "DELETE" });
     if (!delRes.ok) { setStatus("Failed to delete original file", true); return; }
+    
+    // Update both editor and preview tabs if open
+    const editorTab = getTabByPath(sourcePath);
+    const previewTab = getPreviewTab(sourcePath);
+    if (editorTab) {
+      editorTab.path = newPath;
+      editorTab.name = newPath.split("/").pop();
+    }
+    if (previewTab) {
+      previewTab.path = newPath;
+      previewTab.name = newPath.split("/").pop();
+    }
+    if (editorTab || previewTab) renderTabs();
+    
     if (currentFile === sourcePath) {
       currentFile = newPath;
       document.getElementById("filename-input").value = newPath.split("/").pop();
     }
+    
     await loadFileList();
     setStatus(`Moved to ${newPath}`);
   } catch (e) { setStatus("Move failed: " + e.message, true); }
@@ -2003,11 +2097,8 @@ document.getElementById("btn-new").addEventListener("click", async () => {
       });
       
       if (r.ok) {
-        currentFile = filePath;
-        const fileName = filePath.split("/").pop();
-        document.getElementById("filename-input").value = fileName;
-        setContent("");
-        updateBottomFileName();
+        // Open new file in a pinned tab
+        await openTab(filePath, { preview: false, focus: true });
         await loadFileList();
         setStatus(`Created ${fileName}`);
       } else {
@@ -2038,13 +2129,8 @@ document.getElementById("btn-new").addEventListener("click", async () => {
   });
   
   if (r.ok) {
-    currentFile = fullPath;
-    document.getElementById("filename-input").value = fileName;
-    setContent("");
-    isDirty = false;
-    updateDirtyBadge();
-    updateBottomFileName();
-    switchToEditorView();
+    // Open new file in a pinned tab
+    await openTab(fullPath, { preview: false, focus: true });
     await loadFileList();
     revealInSidebar(fullPath);
     setStatus(`Created ${fileName}`);
@@ -2600,7 +2686,23 @@ searchPanelInput?.addEventListener("input", () => {
       
       li.appendChild(fileDiv);
       li.appendChild(snippetDiv);
-      li.addEventListener("click", () => openFile(name));
+      
+      // Single-click → preview, double-click → pin
+      let clickTimer = null;
+      li.addEventListener("click", (e) => {
+        if (e.detail === 2) return;
+        if (clickTimer) return;
+        clickTimer = setTimeout(() => {
+          openTab(name, { preview: true, focus: false });
+          clickTimer = null;
+        }, 250);
+      });
+      li.addEventListener("dblclick", () => {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        openTab(name, { preview: false, focus: true });
+      });
+      
       searchPanelResults.appendChild(li);
     });
   }, 300);
@@ -3082,6 +3184,343 @@ document.getElementById("modal-overlay")?.addEventListener("click", e => { if (e
 document.getElementById("publish-overlay")?.addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden"); });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// TAB MANAGER
+// ═══════════════════════════════════════════════════════════════════════════════
+const tabs = [];
+let activeTabId = null;
+let nextTabId = 1;
+
+function getEditorExtensions() {
+  return [
+    vimCompartment.of(vimEnabled ? vim() : []),
+    lineNumbersCompartment.of(showLineNumbers ? lineNumbers() : []),
+    history(),
+    highlightActiveLine(),
+    highlightActiveLineGutter(),
+    drawSelection(),
+    dropCursor(),
+    rectangularSelection(),
+    crosshairCursor(),
+    markdown(),
+    themeCompartment.of(oneDark),
+    wordPrediction,
+    autocorrectPlugin,
+    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab, ...completionKeymap]),
+    customKeymap,
+    updateListener,
+    EditorView.lineWrapping,
+    EditorView.contentAttributes.of({ spellcheck: "true", autocorrect: "on", autocapitalize: "on" }),
+  ];
+}
+
+function getTabByPath(path) {
+  return tabs.find(t => t.path === path && !t.isPreviewTab);
+}
+
+function getPreviewTab(path) {
+  return tabs.find(t => t.path === path && t.isPreviewTab);
+}
+
+function getActiveTab() {
+  return tabs.find(t => t.id === activeTabId);
+}
+
+async function openTab(path, { preview = false, focus = true } = {}) {
+  console.log('openTab called:', path, { preview, focus });
+  
+  // If preview mode and preview tab exists for different file, replace it
+  if (preview) {
+    const previewTab = tabs.find(t => t.isPreview && t.path !== path);
+    if (previewTab) {
+      await closeTab(previewTab.id, { force: true });
+    }
+  }
+
+  // Check if tab already exists
+  let tab = getTabByPath(path);
+  if (tab) {
+    console.log('Tab exists, switching to it');
+    // If it's a preview tab and we want pinned, convert it
+    if (tab.isPreview && !preview) {
+      pinTab(tab.id);
+    }
+    switchTab(tab.id);
+    if (focus) view.focus();
+    return;
+  }
+
+  console.log('Fetching file content...');
+  // Fetch file content
+  const resp = await fetch(`/files/${encodeURIComponent(path)}`);
+  if (!resp.ok) {
+    console.error('Failed to fetch file:', resp.status);
+    setStatus("Could not open file", true);
+    return;
+  }
+  const { content } = await resp.json();
+  console.log('File content loaded, length:', content.length);
+
+  // Create new tab
+  tab = {
+    id: nextTabId++,
+    path,
+    name: path.split('/').pop(),
+    isPreview: preview,
+    isPreviewTab: false, // Not a preview-render tab
+    isDirty: false,
+    state: EditorState.create({
+      doc: content,
+      extensions: getEditorExtensions()
+    }),
+    scrollTop: 0
+  };
+
+  console.log('Created tab:', tab.id, tab.name);
+  tabs.push(tab);
+  renderTabs();
+  switchTab(tab.id);
+  
+  // Update UI elements
+  const displayPath = workspaceName ? `${workspaceName}/${path}` : path;
+  setStatus(`Opened ${displayPath}`);
+  revealInSidebar(path);
+  updateBottomFileName();
+  
+  // Add to recent files
+  const recent = JSON.parse(localStorage.getItem("lectura-recent-files") || "[]");
+  const filtered = recent.filter(f => f !== path);
+  filtered.unshift(path);
+  localStorage.setItem("lectura-recent-files", JSON.stringify(filtered.slice(0, 20)));
+  
+  // Show editor pane initially for new files
+  if (viewMode !== 0) {
+    showEditorOnly();
+  }
+  
+  if (focus) view.focus();
+}
+
+function openPreviewTab(path) {
+  // Check if preview tab already exists for this file
+  let tab = getPreviewTab(path);
+  if (tab) {
+    switchTab(tab.id);
+    return;
+  }
+
+  // Get content from editor tab or fetch
+  const editorTab = getTabByPath(path);
+  let content = "";
+  if (editorTab) {
+    content = editorTab.state.doc.toString();
+  }
+
+  // Create preview tab (no EditorState, just rendered content)
+  tab = {
+    id: nextTabId++,
+    path,
+    name: path.split('/').pop(),
+    isPreview: false,
+    isPreviewTab: true,
+    isDirty: false,
+    content, // Store rendered content
+    scrollTop: 0
+  };
+
+  tabs.push(tab);
+  renderTabs();
+  switchTab(tab.id);
+}
+
+function pinTab(tabId) {
+  const tab = tabs.find(t => t.id === tabId);
+  if (tab && tab.isPreview) {
+    tab.isPreview = false;
+    renderTabs();
+  }
+}
+
+async function closeTab(tabId, { force = false } = {}) {
+  const idx = tabs.findIndex(t => t.id === tabId);
+  if (idx === -1) return;
+
+  const tab = tabs[idx];
+  
+  // Confirm if dirty (only for editor tabs)
+  if (!force && !tab.isPreviewTab && tab.isDirty) {
+    if (!confirm(`${tab.name} has unsaved changes. Close anyway?`)) return;
+  }
+
+  // Save current state if closing active tab
+  if (tabId === activeTabId && !tab.isPreviewTab) {
+    tab.state = view.state;
+    tab.scrollTop = view.scrollDOM.scrollTop;
+  }
+
+  tabs.splice(idx, 1);
+
+  // Switch to adjacent tab
+  if (tabId === activeTabId) {
+    if (tabs.length === 0) {
+      activeTabId = null;
+      view.setState(EditorState.create({ extensions: getEditorExtensions() }));
+      currentFile = null;
+      showEditorOnly();
+    } else {
+      const nextTab = tabs[Math.min(idx, tabs.length - 1)];
+      switchTab(nextTab.id);
+    }
+  }
+
+  renderTabs();
+}
+
+function switchTab(tabId) {
+  const tab = tabs.find(t => t.id === tabId);
+  if (!tab) {
+    console.error('Tab not found:', tabId);
+    return;
+  }
+
+  console.log('Switching to tab:', tab.id, tab.name, 'isPreviewTab:', tab.isPreviewTab);
+
+  // Save current tab state
+  const currentTab = getActiveTab();
+  if (currentTab) {
+    if (currentTab.isPreviewTab) {
+      currentTab.scrollTop = document.getElementById("preview").scrollTop;
+    } else {
+      currentTab.state = view.state;
+      currentTab.scrollTop = view.scrollDOM.scrollTop;
+    }
+  }
+
+  // Switch to new tab
+  activeTabId = tabId;
+  currentFile = tab.path;
+  
+  if (tab.isPreviewTab) {
+    // Preview tab - hide editor, show preview in same space
+    console.log('Showing preview tab');
+    const editorTab = getTabByPath(tab.path);
+    if (editorTab) {
+      view.setState(editorTab.state);
+    }
+    const cmEditor = document.getElementById("cm-editor");
+    const preview = document.getElementById("preview");
+    cmEditor.style.display = "none";
+    cmEditor.style.visibility = "hidden";
+    preview.style.display = "block";
+    preview.style.visibility = "visible";
+    renderPreview();
+    setTimeout(() => {
+      preview.scrollTop = tab.scrollTop || 0;
+    }, 10);
+  } else {
+    // Editor tab - hide preview, show editor in same space
+    console.log('Showing editor tab');
+    const cmEditor = document.getElementById("cm-editor");
+    const preview = document.getElementById("preview");
+    cmEditor.style.display = "block";
+    cmEditor.style.visibility = "visible";
+    preview.style.display = "none";
+    preview.style.visibility = "hidden";
+    view.setState(tab.state);
+    view.scrollDOM.scrollTop = tab.scrollTop;
+    view.focus();
+  }
+  
+  // Update UI
+  document.getElementById("filename-input").value = tab.name;
+  updateBottomFileName();
+  
+  // Mark active in tree
+  document.querySelectorAll("li.tree-file").forEach(el => {
+    el.classList.toggle("active-file", el.dataset.filePath === currentFile);
+  });
+  
+  renderTabs();
+  updateEyeButton();
+  updateOverlayButtons();
+  updateToolbarVisibility();
+}
+
+function updateToolbarVisibility() {
+  const tab = getActiveTab();
+  const toolbar = document.querySelector("#editor-pane .pane-toolbar");
+  
+  if (toolbar) {
+    // Hide toolbar in preview tabs
+    if (tab && tab.isPreviewTab) {
+      toolbar.style.display = "none";
+    } else {
+      toolbar.style.display = "";
+    }
+  }
+}
+
+function renderTabs() {
+  const tabBar = document.getElementById('tab-bar');
+  if (!tabBar) {
+    console.error('Tab bar element not found!');
+    return;
+  }
+
+  console.log('Rendering tabs:', tabs.length);
+  
+  tabBar.innerHTML = tabs.map(tab => {
+    const classes = ['tab'];
+    if (tab.id === activeTabId) classes.push('tab-active');
+    if (tab.isPreview) classes.push('tab-preview');
+    if (tab.isDirty) classes.push('tab-dirty');
+
+    const icon = tab.isPreviewTab ? '📖 ' : '';
+    const prefix = tab.isPreviewTab ? 'Preview ' : '';
+    const displayName = prefix + tab.name;
+
+    return `
+      <div class="${classes.join(' ')}" data-tab-id="${tab.id}">
+        <span class="tab-label" title="${tab.path}">${icon}${displayName}</span>
+        <span class="tab-close" data-tab-id="${tab.id}">×</span>
+      </div>
+    `;
+  }).join('');
+
+  // Attach event listeners
+  tabBar.querySelectorAll('.tab').forEach(el => {
+    const tabId = parseInt(el.dataset.tabId);
+    el.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('tab-close')) {
+        switchTab(tabId);
+      }
+    });
+  });
+
+  tabBar.querySelectorAll('.tab-close').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tabId = parseInt(el.dataset.tabId);
+      closeTab(tabId);
+    });
+  });
+}
+
+function markTabDirty() {
+  const tab = getActiveTab();
+  if (!tab || tab.isPreviewTab) return; // Preview tabs can't be dirty
+  
+  if (!tab.isDirty) {
+    tab.isDirty = true;
+    renderTabs();
+  }
+  
+  // Auto-pin preview tabs on edit
+  if (tab.isPreview) {
+    pinTab(tab.id);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PREVIEW TOGGLE
 // ═══════════════════════════════════════════════════════════════════════════════
 const previewPane = document.getElementById("preview-pane");
@@ -3090,63 +3529,73 @@ const previewEditorHandle = document.getElementById("preview-editor-resize-handl
 let viewMode = 2; // 0: both, 1: reader only, 2: editor only (default)
 
 function switchToEditorView() {
-  if (viewMode !== 2) {
-    viewMode = 1;
-    togglePreview();
+  if (viewMode !== 2) showEditorOnly();
+}
+
+// Zed-style view functions
+function showEditorOnly() {
+  viewMode = 2;
+  editorPane.classList.remove("hidden-pane");
+  previewPane.classList.add("hidden-pane");
+  previewEditorHandle.classList.add("hidden-pane");
+  previewPane.style.cursor = "default";
+  view.focus();
+  if (vimEnabled) {
+    setTimeout(() => { try { Vim.handleKey(view.contentDOM, 'i'); } catch (e) {} }, 50);
+  }
+  updateEyeButton();
+}
+
+function showPreviewOnly() {
+  viewMode = 1;
+  previewPane.classList.remove("hidden-pane");
+  editorPane.classList.add("hidden-pane");
+  previewEditorHandle.classList.add("hidden-pane");
+  previewPane.style.cursor = "text";
+  renderPreview();
+  updateEyeButton();
+}
+
+function showSideBySide() {
+  viewMode = 0;
+  editorPane.classList.remove("hidden-pane");
+  previewPane.classList.remove("hidden-pane");
+  previewEditorHandle.classList.remove("hidden-pane");
+  previewPane.style.cursor = "default";
+  renderPreview();
+  updateEyeButton();
+}
+
+function togglePreview(e) {
+  const tab = getActiveTab();
+  if (!tab) return;
+  
+  // If in editor tab, open preview tab (will show preview-only)
+  if (!tab.isPreviewTab) {
+    openPreviewTab(tab.path);
+  } else {
+    // If in preview tab, switch back to editor tab (will show editor-only)
+    const editorTab = getTabByPath(tab.path);
+    if (editorTab) {
+      switchTab(editorTab.id);
+    }
   }
 }
 
-function togglePreview() {
-  viewMode = (viewMode + 1) % 3;
+function updateEyeButton() {
+  const btn = document.getElementById("btn-preview-eye");
+  const tab = getActiveTab();
   
-  const toggleBtn = document.getElementById("btn-toggle-preview");
-  
-  if (viewMode === 0) { // both visible
-    previewPane.classList.remove("hidden-pane");
-    editorPane.classList.remove("hidden-pane");
-    previewEditorHandle.classList.remove("hidden-pane");
-    if (toggleBtn) toggleBtn.textContent = "Toggle Render";
-  } else if (viewMode === 1) { // reader only
-    previewPane.classList.remove("hidden-pane");
-    editorPane.classList.add("hidden-pane");
-    previewEditorHandle.classList.add("hidden-pane");
-    if (toggleBtn) toggleBtn.textContent = "Render View (Reader)";
-    // Add click-to-edit hint
-    previewPane.style.cursor = "text";
-  } else { // editor only
-    previewPane.classList.add("hidden-pane");
-    editorPane.classList.remove("hidden-pane");
-    previewEditorHandle.classList.add("hidden-pane");
-    if (toggleBtn) toggleBtn.textContent = "Editor View";
-    previewPane.style.cursor = "default";
-    // Focus editor when switching to editor mode
-    view.focus();
-    // Auto-activate INSERT mode if Vim is enabled
-    if (vimEnabled) {
-      setTimeout(() => {
-        try {
-          Vim.handleKey(view.contentDOM, 'i');
-        } catch (e) {}
-      }, 50);
-    }
+  // Only show eye button in editor tabs (not preview tabs)
+  if (btn) {
+    btn.style.display = (tab && !tab.isPreviewTab) ? "" : "none";
   }
 }
 
 // Click on preview to switch to editor (Notion-style)
 document.getElementById("preview").addEventListener("click", (e) => {
-  // Only switch if in reader-only mode and not clicking on interactive elements
   if (viewMode === 1 && !e.target.closest("a, button, .flashcard-flip")) {
-    viewMode = 2; // Switch to editor only
-    togglePreview();
-    togglePreview(); // Call twice to get to editor mode
-    // Focus editor and enter insert mode if Vim is enabled
-    setTimeout(() => {
-      view.focus();
-      if (vimEnabled) {
-        // Simulate 'i' key to enter insert mode
-        view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', bubbles: true }));
-      }
-    }, 100);
+    showEditorOnly();
   }
 });
 
@@ -3198,6 +3647,97 @@ document.addEventListener("mouseup", () => {
 
 document.getElementById("btn-toggle-preview")?.addEventListener("click", () => { closeAllMenus(); togglePreview(); });
 document.getElementById("btn-toggle-source")?.addEventListener("click", () => { closeAllMenus(); togglePreview(); });
+
+// Zed-style eye button (Alt+click = side-by-side)
+document.getElementById("btn-preview-eye")?.addEventListener("click", (e) => { togglePreview(e); });
+
+// Close pane buttons
+document.getElementById("btn-close-editor")?.addEventListener("click", () => {
+  if (viewMode === 0) showPreviewOnly();  // side-by-side → preview only
+  // If already editor-only, do nothing (never have zero panes)
+});
+document.getElementById("btn-close-preview")?.addEventListener("click", () => {
+  // Close preview pane in side-by-side mode
+  if (viewMode === 0) showEditorOnly();
+  else if (viewMode === 1) showEditorOnly();
+});
+
+// New tab button
+document.getElementById("btn-new-tab")?.addEventListener("click", () => {
+  newFile();
+});
+
+// Editor settings menu
+document.getElementById("btn-editor-menu")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const menu = document.getElementById("editor-settings-menu");
+  menu.style.display = menu.style.display === "none" ? "block" : "none";
+  updateEditorMenuState();
+});
+
+document.getElementById("menu-toggle-vim")?.addEventListener("click", () => {
+  toggleVim();
+  updateEditorMenuState();
+});
+
+document.getElementById("menu-toggle-line-numbers")?.addEventListener("click", () => {
+  showLineNumbers = !showLineNumbers;
+  localStorage.setItem("sc-line-numbers", showLineNumbers);
+  view.dispatch({ effects: lineNumbersCompartment.reconfigure(showLineNumbers ? lineNumbers() : []) });
+  updateEditorMenuState();
+});
+
+// Close menu when clicking outside
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("editor-settings-menu");
+  const btn = document.getElementById("btn-editor-menu");
+  if (menu && !menu.contains(e.target) && e.target !== btn) {
+    menu.style.display = "none";
+  }
+});
+
+function updateEditorMenuState() {
+  document.getElementById("menu-toggle-vim")?.classList.toggle("checked", vimEnabled);
+  document.getElementById("menu-toggle-line-numbers")?.classList.toggle("checked", showLineNumbers);
+}
+
+// Initialize menu state
+updateEditorMenuState();
+
+// Line indicator click handler
+document.getElementById("line-indicator")?.addEventListener("click", () => {
+  const lineNum = prompt("Go to line:");
+  if (lineNum) {
+    const num = parseInt(lineNum);
+    if (num > 0 && num <= view.state.doc.lines) {
+      const line = view.state.doc.line(num);
+      view.dispatch({ selection: { anchor: line.from } });
+      view.focus();
+    }
+  }
+});
+
+// Vim toggle icon in editor toolbar
+document.getElementById("btn-vim-toggle")?.addEventListener("click", () => {
+  toggleVim();
+  updateVimToggleIcon();
+});
+
+function updateVimToggleIcon() {
+  const btn = document.getElementById("btn-vim-toggle");
+  if (btn) btn.classList.toggle("active", vimEnabled);
+}
+// Initialize vim icon state
+updateVimToggleIcon();
+
+// Hide overlay buttons in preview tabs
+function updateOverlayButtons() {
+  const tab = getActiveTab();
+  const container = document.querySelector(".editor-overlay-buttons");
+  if (container) {
+    container.style.display = (tab && !tab.isPreviewTab) ? "" : "none";
+  }
+}
 
 // Global keyboard shortcuts
 document.addEventListener('keydown', (e) => {
@@ -4376,19 +4916,8 @@ applyPreferences();
 // ── Bottom control bar event listeners ──────────────────────────────────────
 document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", toggleSidebar);
 function toggleEditorPane() {
-  const editorPane = document.getElementById("editor-pane");
-  const previewPane = document.getElementById("preview-pane");
-
-  // Toggle between editor-only and preview-only (no split)
-  if (editorPane.classList.contains("hidden-pane")) {
-    // Currently preview-only → switch to editor-only
-    editorPane.classList.remove("hidden-pane");
-    previewPane.classList.add("hidden-pane");
-  } else {
-    // Currently editor-only (or split) → switch to preview-only
-    editorPane.classList.add("hidden-pane");
-    previewPane.classList.remove("hidden-pane");
-  }
+  // Reuse the Zed-style toggle
+  togglePreview();
 }
 
 document.getElementById("btn-bottom-toggle-editor")?.addEventListener("click", toggleEditorPane);
