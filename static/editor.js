@@ -3553,7 +3553,7 @@ function renderTabs() {
   
   // Re-attach new tab button listener
   document.getElementById("btn-new-tab")?.addEventListener("click", () => {
-    newFile();
+    document.getElementById("btn-new")?.click();
   });
 }
 
@@ -3714,9 +3714,9 @@ document.getElementById("btn-close-preview")?.addEventListener("click", () => {
   else if (viewMode === 1) showEditorOnly();
 });
 
-// New tab button
+// New tab button (initial attachment)
 document.getElementById("btn-new-tab")?.addEventListener("click", () => {
-  newFile();
+  document.getElementById("btn-new")?.click();
 });
 
 // Editor settings menu

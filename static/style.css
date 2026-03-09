@@ -2483,21 +2483,19 @@ li.tree-file:hover .del-btn,
 .cm-vim-panel:has(input) {
   display: flex !important;
   position: fixed !important;
-  top: 90px !important;
+  top: 20% !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  z-index: 100 !important;
-  align-items: center;
-  padding: 10px 16px;
-  background: var(--bg-secondary);
+  z-index: 1000 !important;
+  flex-direction: column;
+  padding: 0;
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  font-family: var(--font-code);
-  font-size: 14px;
-  color: var(--text);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   width: 600px;
   max-width: 90%;
+  overflow: hidden;
 }
 
 .cm-vim-panel input {
@@ -2506,8 +2504,13 @@ li.tree-file:hover .del-btn,
   color: var(--text) !important;
   outline: none !important;
   flex: 1;
-  font-size: 14px;
-  padding: 0 !important;
+  font-size: 15px;
+  padding: 16px 20px !important;
+  font-family: var(--font-code);
+}
+
+.cm-vim-panel input::placeholder {
+  color: var(--text-dim);
 }
 
 /* autocomplete */
