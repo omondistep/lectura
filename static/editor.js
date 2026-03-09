@@ -3185,6 +3185,8 @@ async function openSettings() {
   // Appearance
   document.getElementById("cfg-theme").value = currentTheme;
   document.getElementById("cfg-font-size").value = prefs.fontSize || "auto";
+  document.getElementById("cfg-font-family").value = prefs.fontFamily || "default";
+  document.getElementById("cfg-font-weight").value = prefs.fontWeight || "400";
 
   document.getElementById("modal-overlay").classList.remove("hidden");
 }
@@ -3215,6 +3217,8 @@ document.getElementById("btn-save-config")?.addEventListener("click", async () =
     
     // Appearance
     fontSize: document.getElementById("cfg-font-size").value,
+    fontFamily: document.getElementById("cfg-font-family").value,
+    fontWeight: document.getElementById("cfg-font-weight").value,
   };
   
   // Save to localStorage
@@ -3233,6 +3237,20 @@ document.getElementById("btn-save-config")?.addEventListener("click", async () =
   } else {
     document.documentElement.style.removeProperty("--editor-font-size");
     document.documentElement.style.removeProperty("--preview-font-size");
+  }
+  
+  // Apply font family
+  if (prefs.fontFamily !== "default") {
+    document.documentElement.style.setProperty("--font-code", prefs.fontFamily);
+    document.documentElement.style.setProperty("--font-prose", prefs.fontFamily);
+  } else {
+    document.documentElement.style.removeProperty("--font-code");
+    document.documentElement.style.removeProperty("--font-prose");
+  }
+  
+  // Apply font weight
+  if (prefs.fontWeight) {
+    document.documentElement.style.setProperty("--font-weight", prefs.fontWeight);
   }
   
   setStatus("Settings saved");
@@ -3502,6 +3520,7 @@ function switchTab(tabId) {
   updateEyeButton();
   updateOverlayButtons();
   updateBreadcrumb();
+  updateTabNavButtons();
   updateToolbarVisibility();
 }
 
@@ -3568,8 +3587,25 @@ function renderTabs() {
   
   // Re-attach new tab button listener
   document.getElementById("btn-new-tab")?.addEventListener("click", () => {
-    document.getElementById("btn-new")?.click();
+    createUntitledFile();
   });
+  
+  // Re-attach nav button listeners
+  document.getElementById("btn-tab-back")?.addEventListener("click", () => {
+    const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+    if (currentIndex > 0) {
+      switchTab(tabs[currentIndex - 1].id);
+    }
+  });
+  
+  document.getElementById("btn-tab-forward")?.addEventListener("click", () => {
+    const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+    if (currentIndex < tabs.length - 1) {
+      switchTab(tabs[currentIndex + 1].id);
+    }
+  });
+  
+  updateTabNavButtons();
 }
 
 function markTabDirty() {
@@ -3731,8 +3767,67 @@ document.getElementById("btn-close-preview")?.addEventListener("click", () => {
 
 // New tab button (initial attachment)
 document.getElementById("btn-new-tab")?.addEventListener("click", () => {
-  document.getElementById("btn-new")?.click();
+  createUntitledFile();
 });
+
+function createUntitledFile() {
+  // Generate unique untitled name
+  let num = 1;
+  let name = "untitled.md";
+  while (tabs.find(t => t.name === name)) {
+    num++;
+    name = `untitled-${num}.md`;
+  }
+  
+  // Create new tab
+  const tab = {
+    id: nextTabId++,
+    name: name,
+    path: name,
+    state: EditorState.create({ doc: "", extensions: getEditorExtensions() }),
+    scrollTop: 0,
+    isDirty: true,
+    isPreview: false,
+    isPreviewTab: false
+  };
+  
+  tabs.push(tab);
+  switchTab(tab.id);
+  
+  // Focus filename input for renaming
+  setTimeout(() => {
+    const filenameInput = document.getElementById("filename-input");
+    if (filenameInput) {
+      filenameInput.select();
+      filenameInput.focus();
+    }
+  }, 100);
+}
+
+// Tab navigation buttons
+document.getElementById("btn-tab-back")?.addEventListener("click", () => {
+  const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+  if (currentIndex > 0) {
+    switchTab(tabs[currentIndex - 1].id);
+  }
+});
+
+document.getElementById("btn-tab-forward")?.addEventListener("click", () => {
+  const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+  if (currentIndex < tabs.length - 1) {
+    switchTab(tabs[currentIndex + 1].id);
+  }
+});
+
+// Update nav button states
+function updateTabNavButtons() {
+  const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+  const backBtn = document.getElementById("btn-tab-back");
+  const forwardBtn = document.getElementById("btn-tab-forward");
+  
+  if (backBtn) backBtn.disabled = currentIndex <= 0;
+  if (forwardBtn) forwardBtn.disabled = currentIndex >= tabs.length - 1;
+}
 
 // Editor settings menu
 document.getElementById("btn-editor-menu")?.addEventListener("click", (e) => {

@@ -416,6 +416,18 @@
   <!-- editor pane (now on left) -->
   <div id="editor-pane">
     <div id="tab-bar">
+      <div class="tab-nav-buttons">
+        <button id="btn-tab-back" class="tab-nav-btn" title="Previous Tab">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+          </svg>
+        </button>
+        <button id="btn-tab-forward" class="tab-nav-btn" title="Next Tab">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+          </svg>
+        </button>
+      </div>
       <button id="btn-new-tab" class="new-tab-btn" title="New File (Ctrl+N)">+</button>
     </div>
     <div class="editor-content-area">
@@ -685,6 +697,26 @@
         <option value="17">17px</option>
         <option value="18">18px</option>
         <option value="20">20px</option>
+      </select>
+    </label>
+    <label>Font Family
+      <select id="cfg-font-family">
+        <option value="default">Default (System)</option>
+        <option value="monospace">Monospace</option>
+        <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+        <option value="'Fira Code', monospace">Fira Code</option>
+        <option value="'Source Code Pro', monospace">Source Code Pro</option>
+        <option value="'Cascadia Code', monospace">Cascadia Code</option>
+        <option value="'SF Mono', monospace">SF Mono</option>
+      </select>
+    </label>
+    <label>Font Weight
+      <select id="cfg-font-weight">
+        <option value="300">Light (300)</option>
+        <option value="400">Regular (400)</option>
+        <option value="500">Medium (500)</option>
+        <option value="600">Semi-Bold (600)</option>
+        <option value="700">Bold (700)</option>
       </select>
     </label>
 

@@ -269,6 +269,11 @@ html, body {
 /* Cursor styles */
 .cm-content, .cm-line {
   cursor: text !important;
+  font-weight: var(--font-weight, 400) !important;
+}
+
+#preview {
+  font-weight: var(--font-weight, 400);
 }
 
 #sidebar, #sidebar * {
@@ -1414,6 +1419,37 @@ li.tree-file:hover .del-btn,
 #tab-bar::-webkit-scrollbar { height: 4px; }
 #tab-bar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+.tab-nav-buttons {
+  display: flex;
+  gap: 2px;
+  padding: 0 4px;
+  border-right: 1px solid var(--border);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.tab-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-nav-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.tab-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 .new-tab-btn {
   background: none;
   border: none;
@@ -1843,12 +1879,30 @@ li.tree-file:hover .del-btn,
   left: 0;
   right: 0;
   bottom: 0;
-  overflow-y: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
   padding: 20px;
   background: var(--bg);
   will-change: scroll-position;
   transform: translateZ(0);
+}
+
+#editor-pane #preview::-webkit-scrollbar {
+  width: 12px;
+}
+
+#editor-pane #preview::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+#editor-pane #preview::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+  border: 3px solid var(--bg);
+}
+
+#editor-pane #preview::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
 }
 
 #editor-pane #preview p {
