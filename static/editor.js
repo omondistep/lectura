@@ -3513,7 +3513,7 @@ function renderTabs() {
 
   console.log('Rendering tabs:', tabs.length);
   
-  tabBar.innerHTML = tabs.map(tab => {
+  const tabsHTML = tabs.map(tab => {
     const classes = ['tab'];
     if (tab.id === activeTabId) classes.push('tab-active');
     if (tab.isPreview) classes.push('tab-preview');
@@ -3530,6 +3530,8 @@ function renderTabs() {
       </div>
     `;
   }).join('');
+  
+  tabBar.innerHTML = tabsHTML + '<button id="btn-new-tab" class="new-tab-btn" title="New File (Ctrl+N)">+</button>';
 
   // Attach event listeners
   tabBar.querySelectorAll('.tab').forEach(el => {
@@ -3547,6 +3549,11 @@ function renderTabs() {
       const tabId = parseInt(el.dataset.tabId);
       closeTab(tabId);
     });
+  });
+  
+  // Re-attach new tab button listener
+  document.getElementById("btn-new-tab")?.addEventListener("click", () => {
+    newFile();
   });
 }
 
