@@ -256,7 +256,7 @@
 <div id="main">
 
   <!-- sidebar -->
-  <aside id="sidebar">
+  <aside id="sidebar" style="visibility: hidden;">
     <!-- sidebar mode tabs -->
     <div class="sidebar-tabs">
       <button class="sidebar-tab active" data-mode="files" title="Files">
@@ -417,20 +417,23 @@
       <button id="btn-new-tab" class="new-tab-btn" title="New File (Ctrl+N)">+</button>
     </div>
     <div class="editor-content-area">
+      <div id="editor-breadcrumb" class="editor-breadcrumb" style="display: none;">
+        <span class="breadcrumb-text"></span>
+      </div>
+      <div class="editor-overlay-buttons">
+        <button id="btn-preview-eye" class="editor-overlay-btn" title="Toggle Preview (Ctrl+Shift+V)">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+            <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+          </svg>
+        </button>
+        <button id="btn-editor-menu" class="editor-overlay-btn" title="Editor Settings">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+          </svg>
+        </button>
+      </div>
       <div id="cm-editor">
-        <div class="editor-overlay-buttons">
-          <button id="btn-preview-eye" class="editor-overlay-btn" title="Toggle Preview (Ctrl+Shift+V)">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-              <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-            </svg>
-          </button>
-          <button id="btn-editor-menu" class="editor-overlay-btn" title="Editor Settings">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
-            </svg>
-          </button>
-        </div>
         <div id="editor-settings-menu" class="editor-settings-menu" style="display: none;">
           <div class="menu-item" id="menu-toggle-vim">
             <span>Vim Mode</span>
@@ -495,8 +498,6 @@
     <button id="btn-bottom-toggle-editor" class="statusbar-toggle-btn" title="Toggle Editor (Ctrl+Shift+E)">
       <span style="font-family: monospace; font-size: 14px; font-weight: bold;">&lt;/&gt;</span>
     </button>
-    <span class="status-sep">│</span>
-    <span id="vim-mode-indicator" class="vim-mode hidden"></span>
   </div>
   <div class="status-center">
     <span id="folder-status" class="folder-status"></span>
@@ -504,9 +505,10 @@
     <span id="status-msg">Ready</span>
   </div>
   <div class="status-right">
-    <span id="reading-time">~1 min read</span>
     <span id="word-count">0 words</span>
     <span id="char-count">0 chars</span>
+    <span id="line-indicator" class="line-indicator">1:1</span>
+    <span id="vim-mode-indicator" class="vim-mode hidden"></span>
   </div>
 </footer>
 

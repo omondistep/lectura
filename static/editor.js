@@ -266,7 +266,7 @@ const PREVIEW_DEBOUNCE_DELAY = 150;
 
 function renderPreview() {
   clearTimeout(previewDebounceTimer);
-  previewDebounceTimer = setTimeout(doRenderPreview, PREVIEW_DEBOUNCE_DELAY);
+  previewDebounceTimer = setTimeout(doRenderPreview, 100);
 }
 
 function doRenderPreview() {
@@ -308,6 +308,9 @@ function doRenderPreview() {
     clearTimeout(outlineTimer);
     outlineTimer = setTimeout(updateOutline, 300);
   }
+  
+  // Update active paragraph in preview
+  setTimeout(updateActivePreviewParagraph, 100);
 }
 
 function goToPage(pageNum) {
@@ -793,6 +796,41 @@ function updateLineIndicator() {
   indicator.textContent = `${lineNum}:${col}`;
 }
 
+function updateBreadcrumb() {
+  const breadcrumb = document.getElementById("editor-breadcrumb");
+  const breadcrumbText = breadcrumb?.querySelector(".breadcrumb-text");
+  if (!breadcrumb || !breadcrumbText || !view) return;
+  
+  const tab = getActiveTab();
+  if (!tab || tab.isPreviewTab) {
+    breadcrumb.style.display = "none";
+    return;
+  }
+  
+  breadcrumb.style.display = "block";
+  const content = view.state.doc.toString();
+  const pos = view.state.selection.main.head;
+  
+  // Find current heading
+  const lines = content.split('\n');
+  let currentHeading = '';
+  let lineNum = 0;
+  for (let i = 0; i < lines.length; i++) {
+    lineNum++;
+    if (view.state.doc.line(lineNum).from > pos) break;
+    const match = lines[i].match(/^(#{1,6})\s+(.+)$/);
+    if (match) {
+      currentHeading = match[2].trim();
+    }
+  }
+  
+  const parts = [currentFile || tab.name];
+  if (currentHeading) {
+    parts.push(currentHeading);
+  }
+  breadcrumbText.textContent = parts.join(' › ');
+}
+
 function updateVimIndicator(modeName) {
   if (!vimEnabled || !modeName) { 
     vimIndicator.classList.add("hidden"); 
@@ -1053,6 +1091,7 @@ const updateListener = EditorView.updateListener.of(update => {
   if (update.selectionSet || update.docChanged) {
     try {
       updateLineIndicator();
+      updateBreadcrumb();
     } catch (e) {
       // Ignore if view not ready
     }
@@ -1143,6 +1182,11 @@ const view = new EditorView({
 });
 
 registerVimCommands();
+
+// Show sidebar after CSS loads
+requestAnimationFrame(() => {
+  document.getElementById("sidebar").style.visibility = "visible";
+});
 
 // Synchronized scrolling between editor and preview (line-based mapping)
 let isScrollingSynced = true;
@@ -3442,6 +3486,7 @@ function switchTab(tabId) {
   renderTabs();
   updateEyeButton();
   updateOverlayButtons();
+  updateBreadcrumb();
   updateToolbarVisibility();
 }
 
@@ -3714,6 +3759,49 @@ document.getElementById("line-indicator")?.addEventListener("click", () => {
       view.dispatch({ selection: { anchor: line.from } });
       view.focus();
     }
+  }
+});
+
+// Preview paragraph tracking
+function updateActivePreviewParagraph() {
+  const tab = getActiveTab();
+  if (!tab || !tab.isPreviewTab) return;
+  
+  const preview = document.getElementById("preview");
+  const paragraphs = preview.querySelectorAll("p");
+  const scrollTop = preview.scrollTop;
+  const viewportHeight = preview.clientHeight;
+  const viewportCenter = scrollTop + viewportHeight / 3;
+  
+  let activePara = null;
+  paragraphs.forEach(p => {
+    p.classList.remove("active-paragraph");
+    const rect = p.getBoundingClientRect();
+    const previewRect = preview.getBoundingClientRect();
+    const paraTop = rect.top - previewRect.top + scrollTop;
+    const paraBottom = paraTop + rect.height;
+    
+    if (paraTop <= viewportCenter && paraBottom >= viewportCenter) {
+      activePara = p;
+    }
+  });
+  
+  if (activePara) {
+    activePara.classList.add("active-paragraph");
+  }
+}
+
+// Track scroll in preview
+document.getElementById("preview")?.addEventListener("scroll", () => {
+  updateActivePreviewParagraph();
+});
+
+// Click paragraph in preview to highlight
+document.addEventListener("click", (e) => {
+  const tab = getActiveTab();
+  if (tab && tab.isPreviewTab && e.target.tagName === "P") {
+    document.querySelectorAll("#preview p").forEach(p => p.classList.remove("active-paragraph"));
+    e.target.classList.add("active-paragraph");
   }
 });
 

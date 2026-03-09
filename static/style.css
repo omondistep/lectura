@@ -9,6 +9,39 @@ body {
   color: var(--text);
   font-family: var(--font-ui);
   overflow: hidden;
+  will-change: transform;
+}
+
+#main {
+  display: flex;
+  height: calc(100vh - var(--menubar-h) - var(--status-h));
+  overflow: hidden;
+  will-change: transform;
+}
+
+#cm-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  padding-top: 32px;
+  will-change: scroll-position;
+}
+
+/* Preview inside editor-pane (for tab switching) */
+#editor-pane #preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  background: var(--bg);
+  will-change: scroll-position;
 }
 
 /* ── design tokens ────────────────────────────────────────────────────────── */
@@ -64,7 +97,7 @@ body {
   --yellow:      #9a6700;
 }
 [data-theme="light"] .cm-editor { background-color: #ffffff !important; }
-[data-theme="light"] .cm-gutters { background-color: #f6f8fa !important; border-right: 1px dashed #d0d7de !important; }
+[data-theme="light"] .cm-gutters { background-color: #f6f8fa !important; border-right: none !important; }
 [data-theme="light"] .cm-activeLineGutter { background-color: #eaeef2 !important; }
 [data-theme="light"] .cm-activeLine { background: rgba(0,0,0,.02) !important; }
 
@@ -108,7 +141,7 @@ body {
   --red:        #d32f2f;  --yellow:     #c67c00;
 }
 [data-theme="arctic"] .cm-editor { background-color: #f4f9ff !important; }
-[data-theme="arctic"] .cm-gutters { background-color: #e3eef8 !important; border-right: 1px dashed #b0c8e0 !important; }
+[data-theme="arctic"] .cm-gutters { background-color: #e3eef8 !important; border-right: none !important; }
 [data-theme="arctic"] .cm-activeLineGutter { background-color: #d4e4f4 !important; }
 [data-theme="arctic"] .cm-activeLine { background: rgba(0,100,200,.04) !important; }
 
@@ -123,7 +156,7 @@ body {
   --font-prose: "Georgia", "Noto Serif", serif;
 }
 [data-theme="sakura"] .cm-editor { background-color: #fef8fa !important; }
-[data-theme="sakura"] .cm-gutters { background-color: #f8ecf0 !important; border-right: 1px dashed #e0b8c8 !important; }
+[data-theme="sakura"] .cm-gutters { background-color: #f8ecf0 !important; border-right: none !important; }
 [data-theme="sakura"] .cm-activeLineGutter { background-color: #f0dce4 !important; }
 [data-theme="sakura"] .cm-activeLine { background: rgba(200,0,80,.03) !important; }
 
@@ -137,7 +170,7 @@ body {
   --red:        #b83232;  --yellow:     #a67c00;
 }
 [data-theme="mocha"] .cm-editor { background-color: #f8f4ee !important; }
-[data-theme="mocha"] .cm-gutters { background-color: #ebe4da !important; border-right: 1px dashed #c4b8a4 !important; }
+[data-theme="mocha"] .cm-gutters { background-color: #ebe4da !important; border-right: none !important; }
 [data-theme="mocha"] .cm-activeLineGutter { background-color: #e0d6c8 !important; }
 [data-theme="mocha"] .cm-activeLine { background: rgba(100,60,20,.04) !important; }
 
@@ -162,7 +195,7 @@ body {
   --red:        #c0392b;  --yellow:     #8a7a00;
 }
 [data-theme="seniva"] .cm-editor { background-color: #f6faf8 !important; }
-[data-theme="seniva"] .cm-gutters { background-color: #e8f0ec !important; border-right: 1px dashed #a8c4b8 !important; }
+[data-theme="seniva"] .cm-gutters { background-color: #e8f0ec !important; border-right: none !important; }
 [data-theme="seniva"] .cm-activeLineGutter { background-color: #dce8e2 !important; }
 [data-theme="seniva"] .cm-activeLine { background: rgba(42,106,80,.04) !important; }
 
@@ -441,6 +474,7 @@ html, body {
   display: flex;
   height: calc(100vh - var(--menubar-h) - var(--status-h));
   overflow: hidden;
+  will-change: transform;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -451,7 +485,7 @@ html, body {
   min-width: 160px;
   max-width: 500px;
   background: var(--bg-surface);
-  border-right: 1px dashed var(--border);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1386,22 +1420,33 @@ li.tree-file:hover .del-btn,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 6px 12px;
   font-size: 13px;
   color: var(--text-dim);
   background: transparent;
-  border-right: 1px solid var(--border-dim);
+  border-right: 1px solid transparent;
   cursor: pointer;
   user-select: none;
-  transition: background 0.1s;
+  transition: background 0.15s, color 0.15s;
+  border-radius: 6px 6px 0 0;
+  margin-right: 2px;
 }
-.tab:hover { background: var(--bg-hover); }
+.tab:hover { 
+  background: var(--bg-hover);
+  color: var(--text);
+}
 .tab-active {
   color: var(--text);
   background: var(--bg-editor);
-  border-bottom: 2px solid var(--accent);
+  font-weight: 500;
 }
-.tab-preview { font-style: italic; }
+.tab-preview { 
+  font-style: italic;
+}
+.tab-preview .tab-label::before {
+  content: "📄 ";
+  font-style: normal;
+}
 .tab-dirty::before {
   content: "●";
   color: var(--accent);
@@ -1411,6 +1456,7 @@ li.tree-file:hover .del-btn,
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tab-close {
   display: none;
@@ -1422,10 +1468,12 @@ li.tree-file:hover .del-btn,
   font-size: 14px;
   line-height: 1;
   color: var(--text-muted);
+  opacity: 0.6;
 }
 .tab-close:hover {
   background: var(--bg-hover);
   color: var(--text);
+  opacity: 1;
 }
 .tab:hover .tab-close,
 .tab-active .tab-close {
@@ -1593,7 +1641,7 @@ li.tree-file:hover .del-btn,
   position: absolute;
   top: 8px;
   right: 12px;
-  z-index: 10;
+  z-index: 15;
   display: flex;
   gap: 4px;
 }
@@ -1684,6 +1732,36 @@ li.tree-file:hover .del-btn,
   overflow: hidden;
 }
 
+.editor-breadcrumb {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  background: var(--bg-editor);
+  padding: 8px 12px;
+  padding-right: 100px;
+  font-size: 12px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.breadcrumb-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-overlay-buttons {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 #cm-editor {
   position: absolute;
   top: 0;
@@ -1691,6 +1769,35 @@ li.tree-file:hover .del-btn,
   right: 0;
   bottom: 0;
   overflow: auto;
+  will-change: scroll-position;
+  transform: translateZ(0);
+}
+
+/* Blue dot indicator on active line */
+.cm-activeLineGutter {
+  position: relative;
+}
+
+.cm-activeLineGutter::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #4fc3f7);
+}
+
+.cm-gutters {
+  border-right: none !important;
+  min-width: 50px !important;
+}
+
+.cm-lineNumbers .cm-gutterElement {
+  padding-left: 16px !important;
+  min-width: 40px !important;
 }
 
 /* Preview inside editor-pane (for tab switching) */
@@ -1704,6 +1811,30 @@ li.tree-file:hover .del-btn,
   overflow-x: hidden;
   padding: 20px;
   background: var(--bg);
+  will-change: scroll-position;
+  transform: translateZ(0);
+}
+
+#editor-pane #preview p {
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#editor-pane #preview p:hover {
+  background: var(--bg-hover);
+  transition: background 0.15s ease;
+}
+
+#editor-pane #preview p.active-paragraph::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent, #4fc3f7);
+  transition: all 0.2s ease;
 }
 
 /* Resize handle between preview and editor */
@@ -2351,14 +2482,32 @@ li.tree-file:hover .del-btn,
 .cm-vim-panel { display: none !important; }
 .cm-vim-panel:has(input) {
   display: flex !important;
+  position: fixed !important;
+  top: 90px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 100 !important;
   align-items: center;
-  padding: 2px 8px;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   font-family: var(--font-code);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
-  min-height: 24px;
+  width: 600px;
+  max-width: 90%;
+}
+
+.cm-vim-panel input {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text) !important;
+  outline: none !important;
+  flex: 1;
+  font-size: 14px;
+  padding: 0 !important;
 }
 
 /* autocomplete */
