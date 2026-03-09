@@ -3754,6 +3754,16 @@ document.getElementById("menu-toggle-line-numbers")?.addEventListener("click", (
   updateEditorMenuState();
 });
 
+document.getElementById("menu-font-family")?.addEventListener("click", () => {
+  document.getElementById("editor-settings-menu").style.display = "none";
+  document.getElementById("btn-preferences")?.click();
+});
+
+document.getElementById("menu-font-size")?.addEventListener("click", () => {
+  document.getElementById("editor-settings-menu").style.display = "none";
+  document.getElementById("btn-preferences")?.click();
+});
+
 // Close menu when clicking outside
 document.addEventListener("click", (e) => {
   const menu = document.getElementById("editor-settings-menu");

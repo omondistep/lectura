@@ -1729,6 +1729,17 @@ li.tree-file:hover .del-btn,
   border-radius: 0 0 6px 6px;
 }
 
+.editor-settings-menu .menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.editor-settings-menu .menu-submenu span:last-child {
+  color: var(--text-dim);
+  font-size: 16px;
+}
+
 .editor-settings-menu .menu-checkmark {
   color: var(--accent, #4fc3f7);
   visibility: hidden;
