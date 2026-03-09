@@ -3636,21 +3636,106 @@ document.getElementById('btn-git-push')?.addEventListener('click', async () => {
 function updateGitPanel() {
   const authSection = document.getElementById('git-auth');
   const gitPanel = document.getElementById('git-panel');
-  
+
   if (githubUser) {
     authSection.classList.add('hidden');
     gitPanel.classList.remove('hidden');
-    
+
     document.getElementById('git-avatar').src = githubUser.avatar_url;
     document.getElementById('git-username').textContent = githubUser.login;
     document.getElementById('git-repo').textContent = currentRepo || 'No repository';
-    
-    updateGitStatus();
+
+    loadRepoList();
   } else {
     authSection.classList.remove('hidden');
     gitPanel.classList.add('hidden');
   }
 }
+
+// Load user's repos into the selector
+async function loadRepoList() {
+  const select = document.getElementById('git-repo-list');
+  const selector = document.getElementById('git-repo-selector');
+  const working = document.getElementById('git-working');
+
+  // Check if a repo is already configured
+  try {
+    const statusRes = await fetch('/github/status');
+    const status = await statusRes.json();
+    if (status.repo_url) {
+      currentRepo = status.repo_url.split('/').slice(-1)[0];
+      document.getElementById('git-repo').textContent = currentRepo;
+      document.getElementById('git-branch').textContent = status.branch || 'main';
+      selector.classList.add('hidden');
+      working.classList.remove('hidden');
+      updateGitStatus();
+      return;
+    }
+  } catch (_) {}
+
+  selector.classList.remove('hidden');
+  working.classList.add('hidden');
+
+  select.innerHTML = '<option value="">Loading repositories...</option>';
+  try {
+    const res = await fetch('/github/repos');
+    if (!res.ok) throw new Error('Failed to fetch repos');
+    const { repos } = await res.json();
+    select.innerHTML = '<option value="">Select a repository...</option>';
+    repos.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.clone_url;
+      opt.dataset.branch = r.default_branch;
+      opt.textContent = r.full_name + (r.private ? ' 🔒' : '');
+      select.appendChild(opt);
+    });
+  } catch (e) {
+    select.innerHTML = '<option value="">Failed to load repos</option>';
+  }
+}
+
+// Enable clone button when repo is selected
+document.getElementById('git-repo-list')?.addEventListener('change', (e) => {
+  document.getElementById('btn-select-repo').disabled = !e.target.value;
+});
+
+// Clone & connect the selected repo
+document.getElementById('btn-select-repo')?.addEventListener('click', async () => {
+  const select = document.getElementById('git-repo-list');
+  const statusEl = document.getElementById('git-repo-status');
+  const btn = document.getElementById('btn-select-repo');
+  const repoUrl = select.value;
+  if (!repoUrl) return;
+
+  const branch = select.selectedOptions[0].dataset.branch || 'main';
+  btn.disabled = true;
+  btn.textContent = 'Cloning...';
+  statusEl.textContent = '';
+
+  try {
+    const res = await fetch('/github/select-repo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo_url: repoUrl, branch }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Clone failed');
+
+    currentRepo = repoUrl.split('/').slice(-1)[0].replace('.git', '');
+    document.getElementById('git-repo').textContent = currentRepo;
+    document.getElementById('git-branch').textContent = branch;
+    document.getElementById('git-repo-selector').classList.add('hidden');
+    document.getElementById('git-working').classList.remove('hidden');
+    setStatus(`Connected to ${currentRepo}`);
+    updateGitStatus();
+  } catch (e) {
+    statusEl.textContent = e.message;
+    statusEl.style.color = 'var(--red, #e55)';
+  } finally {
+    btn.textContent = 'Clone & Connect';
+    btn.disabled = !select.value;
+  }
+});
 
 // Update Git status
 function updateGitStatus() {

@@ -2611,6 +2611,21 @@ button:focus-visible, input:focus-visible {
   white-space: nowrap;
 }
 
+.git-repo-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--bg-secondary, #2a2a2a);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.git-status-msg {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
 .git-signout-btn {
   background: none;
   border: none;

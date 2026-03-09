@@ -335,22 +335,33 @@
           </div>
           <button id="btn-github-signout" class="git-signout-btn" title="Sign out">×</button>
         </div>
-        
-        <div class="git-status">
-          <div id="git-branch" class="git-branch">main</div>
-          <div id="git-changes" class="git-changes">No changes</div>
+
+        <!-- Repo selector (shown when no repo is selected) -->
+        <div id="git-repo-selector" class="git-section">
+          <select id="git-repo-list" class="git-repo-select">
+            <option value="">Select a repository...</option>
+          </select>
+          <button id="btn-select-repo" class="git-btn git-btn-primary" disabled style="margin-top:6px;width:100%">Clone &amp; Connect</button>
+          <div id="git-repo-status" class="git-status-msg"></div>
         </div>
-        
-        <div class="git-commit-section">
-          <textarea id="git-commit-message" placeholder="Commit message..." rows="2"></textarea>
-          <div class="git-actions">
-            <button id="btn-git-commit" class="git-btn git-btn-primary" disabled>Commit</button>
-            <button id="btn-git-push" class="git-btn git-btn-secondary" disabled>Push</button>
+
+        <!-- Working area (shown after repo is selected) -->
+        <div id="git-working" class="hidden">
+          <div class="git-status">
+            <div id="git-branch" class="git-branch">main</div>
+            <div id="git-changes" class="git-changes">No changes</div>
           </div>
-        </div>
-        
-        <div id="git-file-changes" class="git-file-list">
-          <!-- Changed files will be listed here -->
+
+          <div class="git-commit-section">
+            <textarea id="git-commit-message" placeholder="Commit message..." rows="2"></textarea>
+            <div class="git-actions">
+              <button id="btn-git-commit" class="git-btn git-btn-primary" disabled>Commit</button>
+              <button id="btn-git-push" class="git-btn git-btn-secondary" disabled>Push</button>
+            </div>
+          </div>
+
+          <div id="git-file-changes" class="git-file-list">
+          </div>
         </div>
       </div>
     </div>

@@ -353,7 +353,8 @@ def _init_notes_dir() -> Path:
 NOTES = _init_notes_dir()
 
 # GitHub OAuth
-GITHUB_SECRETS_PATH = BASE / "github_secrets.json"
+GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', 'Ov23li70jsJUucF7xlgH')
+GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '5abf8eeaacb82592b5498063858815a1cb3e20ba')
 GITHUB_TOKEN_PATH = BASE / ".github_token.json"
 
 
@@ -995,36 +996,93 @@ async def gdrive_open(name: str):
 
 # ── GitHub OAuth ───────────────────────────────────────────────────────────────
 
-@app.get("/github/auth")
-async def github_auth():
-    if not GITHUB_SECRETS_PATH.exists():
-        return HTMLResponse(f"<h1>GitHub OAuth Not Configured</h1><p>Create {GITHUB_SECRETS_PATH} with client_id and client_secret from GitHub Developer Settings</p>", 400)
-    secrets = json.loads(GITHUB_SECRETS_PATH.read_text())
-    redirect_uri = "http://localhost:8000/github/callback"
-    state = os.urandom(16).hex()
-    (BASE / ".github_state.json").write_text(json.dumps({"state": state}))
-    auth_url = f"https://github.com/login/oauth/authorize?client_id={secrets['client_id']}&redirect_uri={redirect_uri}&scope=repo&state={state}"
-    return RedirectResponse(auth_url)
-
-
-@app.get("/github/callback")
-async def github_callback(code: str, state: str):
-    state_file = BASE / ".github_state.json"
-    if not state_file.exists() or json.loads(state_file.read_text())["state"] != state:
-        return HTMLResponse("<h1>Invalid state</h1>", 400)
-    secrets = json.loads(GITHUB_SECRETS_PATH.read_text())
-    data = f"client_id={secrets['client_id']}&client_secret={secrets['client_secret']}&code={code}"
-    req = urllib.request.Request("https://github.com/login/oauth/access_token", data.encode(), headers={"Accept": "application/json"})
-    with urllib.request.urlopen(req) as resp:
-        token_data = json.loads(resp.read())
-    GITHUB_TOKEN_PATH.write_text(json.dumps(token_data))
-    state_file.unlink()
-    return HTMLResponse("<h1>✅ GitHub Connected</h1><script>window.close()</script>")
+@app.get("/auth/github/client-id")
+async def github_client_id():
+    """Return the OAuth client ID so the frontend can initiate the flow."""
+    return {"client_id": GITHUB_CLIENT_ID}
 
 
 @app.get("/github/status")
 async def github_status():
-    return {"connected": GITHUB_TOKEN_PATH.exists()}
+    cfg = load_config()
+    gh = cfg.get("github", {})
+    return {
+        "connected": GITHUB_TOKEN_PATH.exists(),
+        "repo_url": gh.get("repo_url", ""),
+        "branch": gh.get("branch", "main"),
+    }
+
+
+@app.get("/github/repos")
+async def github_repos():
+    """List the authenticated user's repositories."""
+    cfg = load_config()
+    token = cfg.get("github", {}).get("token", "")
+    if not token:
+        raise HTTPException(401, "Not signed in to GitHub")
+    httpx = _get_httpx()
+    repos = []
+    page = 1
+    async with httpx.AsyncClient() as client:
+        while True:
+            resp = await client.get(
+                "https://api.github.com/user/repos",
+                params={"per_page": 100, "sort": "updated", "page": page},
+                headers={"Authorization": f"token {token}", "Accept": "application/vnd.github+json"},
+            )
+            if resp.status_code != 200:
+                raise HTTPException(resp.status_code, "Failed to fetch repos")
+            batch = resp.json()
+            if not batch:
+                break
+            for r in batch:
+                repos.append({
+                    "name": r["name"],
+                    "full_name": r["full_name"],
+                    "clone_url": r["clone_url"],
+                    "default_branch": r["default_branch"],
+                    "private": r["private"],
+                })
+            page += 1
+    return {"repos": repos}
+
+
+class SelectRepoRequest(BaseModel):
+    repo_url: str
+    branch: str = "main"
+
+
+@app.post("/github/select-repo")
+async def github_select_repo(request: SelectRepoRequest):
+    """Select a repo, save to config, and clone it."""
+    cfg = load_config()
+    token = cfg.get("github", {}).get("token", "")
+    if not token:
+        raise HTTPException(401, "Not signed in to GitHub")
+
+    cfg.setdefault("github", {})
+    cfg["github"]["repo_url"] = request.repo_url
+    cfg["github"]["branch"] = request.branch
+    save_config(cfg)
+
+    # Clone or update the repo cache
+    git = _get_git()
+    if not git:
+        raise HTTPException(501, "gitpython not installed")
+
+    authed_url = request.repo_url.replace("https://", f"https://{token}@")
+    cache = BASE / ".git_repo_cache"
+    try:
+        if cache.exists():
+            repo = git.Repo(cache)
+            repo.remotes.origin.set_url(authed_url)
+            repo.remotes.origin.pull()
+        else:
+            git.Repo.clone_from(authed_url, cache, branch=request.branch)
+    except Exception as e:
+        raise HTTPException(500, f"Clone failed: {e}")
+
+    return {"status": "ok", "repo_url": request.repo_url, "branch": request.branch}
 
 
 # ── Publish to Cloud ───────────────────────────────────────────────────────────
@@ -1167,9 +1225,7 @@ async def post_config(body: ConfigBody):
 # GITHUB OAUTH ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# GitHub OAuth configuration
-GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', 'your_github_client_id')
-GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', 'your_github_client_secret')
+# GitHub OAuth token exchange
 
 class GitHubTokenRequest(BaseModel):
     code: str
@@ -1199,8 +1255,16 @@ async def github_token_exchange(request: GitHubTokenRequest):
             if 'error' in token_data:
                 raise HTTPException(status_code=400, detail=token_data.get('error_description', 'OAuth error'))
             
-            return {"access_token": token_data.get('access_token')}
-            
+            access_token = token_data.get('access_token')
+            # Save token to config so git operations can use it
+            cfg = load_config()
+            cfg.setdefault("github", {})["token"] = access_token
+            save_config(cfg)
+            GITHUB_TOKEN_PATH.write_text(json.dumps(token_data))
+            return {"access_token": access_token}
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"GitHub OAuth error: {e}")
         raise HTTPException(status_code=500, detail="OAuth request failed")
