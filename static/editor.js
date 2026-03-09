@@ -295,7 +295,7 @@ function doRenderPreview() {
   // Render diagrams asynchronously
   (async () => {
     await renderMermaidDiagrams(previewEl);
-    renderEconGraphs(previewEl);
+    await renderEconGraphs(previewEl);
     renderGraphBlocks(previewEl);
   })();
   
@@ -450,8 +450,23 @@ function buildEconDashPattern(style) {
   return [];
 }
 
-function renderEconGraphs(container) {
-  if (!window.Chart) return;
+let chartJsLoading = false;
+async function ensureChartJs() {
+  if (window.Chart) return true;
+  if (chartJsLoading) return false;
+  chartJsLoading = true;
+  return new Promise(resolve => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js";
+    s.onload = () => { chartJsLoading = false; resolve(true); };
+    s.onerror = () => { chartJsLoading = false; resolve(false); };
+    document.head.appendChild(s);
+  });
+}
+
+async function renderEconGraphs(container) {
+  if (!container.querySelector("pre code.language-econ")) return;
+  if (!window.Chart && !(await ensureChartJs())) return;
   container.querySelectorAll("pre code.language-econ").forEach(codeEl => {
     const pre = codeEl.parentElement;
     const cfg = parseEconDSL(codeEl.textContent);
@@ -5320,35 +5335,30 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
   const isActive = (mode) => fileSortMode === mode ? "active" : "";
 
   popup.innerHTML = `
-    <div class="popup-header">
-      <span>Action</span>
-      <button class="popup-close" title="Close">&times;</button>
-    </div>
-    <div class="popup-item" data-action="new-file">New File</div>
-    <div class="popup-item" data-action="search">Search</div>
-    <div class="popup-item" data-action="reveal">Reveal in File Explorer</div>
-    <div class="popup-item" data-action="open-folder">Open Folder...</div>
-    <div class="popup-item" data-action="refresh">Refresh Folder</div>
+    <div class="popup-item" data-action="new-file">New File<span class="popup-shortcut">Ctrl+N</span></div>
+    <div class="popup-item" data-action="search">Find in Files<span class="popup-shortcut">Ctrl+P</span></div>
+    <div class="popup-item" data-action="open-folder">Open Folder...<span class="popup-shortcut">Ctrl+O</span></div>
+    <div class="popup-item" data-action="reveal">Reveal in File Manager</div>
+    <div class="popup-item" data-action="refresh">Refresh</div>
     <div class="popup-sep"></div>
     <div class="sort-row">
       <span class="popup-section-title">Sort</span>
-      <button class="sort-btn ${isActive("name")}" data-sort="name" title="Sort by Name (A→Z)">
+      <button class="sort-btn ${isActive("name")}" data-sort="name" title="Name A→Z">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.082 5.629L9.664 7H8.598l1.789-5.332h1.234L13.402 7h-1.12l-.419-1.371h-1.781zm1.57-.785L11 2.687h-.047l-.652 2.157h1.351z"/><path d="M12.96 14H9.028v-.691l2.579-3.72v-.054H9.098v-.867h3.785v.691l-2.567 3.72v.054h2.645V14zM4.5 2.5a.5.5 0 00-1 0v9.793l-1.146-1.147a.5.5 0 00-.708.708l2 2a.5.5 0 00.708 0l2-2a.5.5 0 00-.708-.708L4.5 12.293V2.5z"/></svg>
       </button>
-      <button class="sort-btn ${isActive("modified")}" data-sort="modified" title="Sort by Date Modified">
+      <button class="sort-btn ${isActive("modified")}" data-sort="modified" title="Date Modified">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 01.5.5V1h8V.5a.5.5 0 011 0V1h1a2 2 0 012 2v11a2 2 0 01-2 2H2a2 2 0 01-2-2V3a2 2 0 012-2h1V.5a.5.5 0 01.5-.5zM1 4v10a1 1 0 001 1h12a1 1 0 001-1V4H1z"/></svg>
       </button>
-      <button class="sort-btn ${isActive("created")}" data-sort="created" title="Sort by Date Created">
+      <button class="sort-btn ${isActive("created")}" data-sort="created" title="Date Created">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5a.5.5 0 00-1 0V7H3.5a.5.5 0 000 1H7v3.5a.5.5 0 001 0V8h3.5a.5.5 0 000-1H8V3.5z"/><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm7-8A7 7 0 111 8a7 7 0 0114 0z"/></svg>
       </button>
-      <button class="sort-btn ${isActive("name-desc")}" data-sort="name-desc" title="Sort by Name (Z→A)">
+      <button class="sort-btn ${isActive("name-desc")}" data-sort="name-desc" title="Name Z→A">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.082 5.629L9.664 7H8.598l1.789-5.332h1.234L13.402 7h-1.12l-.419-1.371h-1.781zm1.57-.785L11 2.687h-.047l-.652 2.157h1.351z"/><path d="M12.96 14H9.028v-.691l2.579-3.72v-.054H9.098v-.867h3.785v.691l-2.567 3.72v.054h2.645V14zM4.5 13.5a.5.5 0 01-1 0V3.707L2.354 4.854a.5.5 0 11-.708-.708l2-2a.5.5 0 01.708 0l2 2a.5.5 0 01-.708.708L4.5 3.707V13.5z"/></svg>
       </button>
     </div>
     ${pinnedHTML ? `<div class="popup-sep"></div><div class="popup-section-title">Pinned</div>${pinnedHTML}` : ""}
-    <div class="popup-sep"></div>
-    <div class="popup-section-title">Recent Locations</div>
-    ${recentHTML || '<div class="popup-item" style="opacity:0.5;pointer-events:none;font-size:12px;">No recent folders</div>'}
+    ${recentFiltered.length > 0 || pinnedFolders.length === 0 ? `<div class="popup-sep"></div><div class="popup-section-title">Recent</div>` : ""}
+    ${recentHTML || (pinnedFolders.length === 0 ? '<div class="popup-item" style="opacity:0.4;pointer-events:none;font-size:12px;">No recent folders</div>' : "")}
   `;
 
   // Position
@@ -5376,9 +5386,6 @@ function showSidebarMorePopup(anchorRect, fromContextMenu) {
 
   popup.style.left = posX + "px";
   popup.style.top = posY + "px";
-
-  // Close button
-  popup.querySelector(".popup-close").addEventListener("click", () => popup.remove());
 
   // Action items
   popup.addEventListener("click", (ev) => {
@@ -5524,3 +5531,169 @@ const fileParam = urlParams.get('file');
 if (fileParam) {
   setTimeout(() => openFile(fileParam), 200);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMMAND PALETTE (Zed-style)
+// ═══════════════════════════════════════════════════════════════════════════════
+const COMMAND_PALETTE_ITEMS = [
+  // File
+  { label: "New File", category: "file", action: () => document.getElementById("btn-bottom-new-file")?.click(), keys: "Ctrl+N" },
+  { label: "Open File", category: "file", action: () => document.getElementById("file-input")?.click(), keys: "Ctrl+O" },
+  { label: "Save", category: "file", action: () => saveFile(), keys: "Ctrl+S" },
+  { label: "Save As...", category: "file", action: () => saveAs(), keys: "Ctrl+Shift+S" },
+  // Edit
+  { label: "Undo", category: "edit", action: () => ACTIONS.undo(), keys: "Ctrl+Z" },
+  { label: "Redo", category: "edit", action: () => ACTIONS.redo(), keys: "Ctrl+Shift+Z" },
+  { label: "Cut", category: "edit", action: () => ACTIONS.cut(), keys: "Ctrl+X" },
+  { label: "Copy", category: "edit", action: () => ACTIONS.copy(), keys: "Ctrl+C" },
+  { label: "Paste", category: "edit", action: () => ACTIONS.paste(), keys: "Ctrl+V" },
+  { label: "Select All", category: "edit", action: () => ACTIONS["select-all"](), keys: "Ctrl+A" },
+  { label: "Select Line", category: "edit", action: () => ACTIONS["select-line"](), keys: "Ctrl+L" },
+  { label: "Select Word", category: "edit", action: () => ACTIONS["select-word"](), keys: "Ctrl+D" },
+  { label: "Delete Line", category: "edit", action: () => ACTIONS["delete-line"](), keys: "Ctrl+Shift+K" },
+  { label: "Duplicate Line", category: "edit", action: () => ACTIONS["duplicate-line"](), keys: "Ctrl+Shift+D" },
+  { label: "Move Line Up", category: "edit", action: () => ACTIONS["move-line-up"](), keys: "Alt+Up" },
+  { label: "Move Line Down", category: "edit", action: () => ACTIONS["move-line-down"](), keys: "Alt+Down" },
+  { label: "Find", category: "edit", action: () => ACTIONS.find(), keys: "Ctrl+P" },
+  // Format
+  { label: "Bold", category: "format", action: () => ACTIONS.bold(), keys: "Ctrl+B" },
+  { label: "Italic", category: "format", action: () => ACTIONS.italic(), keys: "Ctrl+I" },
+  { label: "Underline", category: "format", action: () => ACTIONS.underline(), keys: "Ctrl+U" },
+  { label: "Inline Code", category: "format", action: () => ACTIONS.code(), keys: "Ctrl+E" },
+  { label: "Strikethrough", category: "format", action: () => ACTIONS.strikethrough() },
+  { label: "Highlight", category: "format", action: () => ACTIONS.highlight(), keys: "Ctrl+Shift+H" },
+  { label: "Superscript", category: "format", action: () => ACTIONS.superscript() },
+  { label: "Subscript", category: "format", action: () => ACTIONS.subscript() },
+  { label: "Clear Formatting", category: "format", action: () => clearFormat(), keys: "Ctrl+\\" },
+  // Insert
+  { label: "Link", category: "insert", action: () => ACTIONS.link(), keys: "Ctrl+K" },
+  { label: "Image", category: "insert", action: () => ACTIONS.image(), keys: "Ctrl+Shift+I" },
+  { label: "Table", category: "insert", action: () => ACTIONS.table(), keys: "Ctrl+T" },
+  { label: "Code Block", category: "insert", action: () => ACTIONS.codeblock(), keys: "Ctrl+Shift+C" },
+  { label: "Math Block", category: "insert", action: () => ACTIONS.mathblock(), keys: "Ctrl+Shift+M" },
+  { label: "Blockquote", category: "insert", action: () => ACTIONS.blockquote(), keys: "Ctrl+Shift+Q" },
+  { label: "Horizontal Rule", category: "insert", action: () => ACTIONS.hr() },
+  { label: "Table of Contents", category: "insert", action: () => ACTIONS.toc() },
+  { label: "Diagram", category: "insert", action: () => ACTIONS.diagram() },
+  { label: "Flashcard", category: "insert", action: () => ACTIONS.flashcard() },
+  { label: "Graph Canvas", category: "insert", action: () => openGraphCanvas() },
+  // Headings
+  { label: "Heading 1", category: "heading", action: () => ACTIONS.h1(), keys: "Ctrl+1" },
+  { label: "Heading 2", category: "heading", action: () => ACTIONS.h2(), keys: "Ctrl+2" },
+  { label: "Heading 3", category: "heading", action: () => ACTIONS.h3(), keys: "Ctrl+3" },
+  { label: "Heading 4", category: "heading", action: () => ACTIONS.h4(), keys: "Ctrl+4" },
+  { label: "Heading 5", category: "heading", action: () => ACTIONS.h5(), keys: "Ctrl+5" },
+  { label: "Heading 6", category: "heading", action: () => ACTIONS.h6(), keys: "Ctrl+6" },
+  { label: "Paragraph (Remove Heading)", category: "heading", action: () => ACTIONS.paragraph() },
+  { label: "Increase Heading Level", category: "heading", action: () => increaseHeading(), keys: "Ctrl+=" },
+  { label: "Decrease Heading Level", category: "heading", action: () => decreaseHeading(), keys: "Ctrl+-" },
+  // Lists
+  { label: "Bullet List", category: "list", action: () => ACTIONS.ul(), keys: "Ctrl+Shift+8" },
+  { label: "Ordered List", category: "list", action: () => ACTIONS.ol(), keys: "Ctrl+Shift+7" },
+  { label: "Task List", category: "list", action: () => ACTIONS.task(), keys: "Ctrl+Shift+X" },
+  // View
+  { label: "Toggle Sidebar", category: "view", action: () => toggleSidebar(), keys: "Ctrl+Shift+L" },
+  { label: "Toggle Preview", category: "view", action: () => togglePreview(), keys: "Ctrl+/" },
+  { label: "Toggle Editor Pane", category: "view", action: () => toggleEditorPane() },
+  { label: "Toggle Focus Mode", category: "view", action: () => toggleFocusMode(), keys: "F8" },
+  { label: "Toggle Typewriter Mode", category: "view", action: () => toggleTypewriter(), keys: "F9" },
+  { label: "Toggle Vim Mode", category: "view", action: () => toggleVim(), keys: "Ctrl+Alt+V" },
+  { label: "Toggle Help", category: "view", action: () => toggleHelp() },
+  // Settings
+  { label: "Open Settings", category: "settings", action: () => openSettings(), keys: "Ctrl+," },
+  { label: "Copy as Markdown", category: "export", action: () => ACTIONS["copy-as-markdown"]() },
+];
+
+const cmdOverlay = document.getElementById("cmd-palette-overlay");
+const cmdInput = document.getElementById("cmd-palette-input");
+const cmdList = document.getElementById("cmd-palette-list");
+let cmdActiveIdx = 0;
+let cmdFiltered = [];
+
+function openCommandPalette() {
+  cmdOverlay.classList.remove("hidden");
+  cmdInput.value = "";
+  filterCommandPalette("");
+  cmdInput.focus();
+}
+
+function closeCommandPalette() {
+  cmdOverlay.classList.add("hidden");
+  view.focus();
+}
+
+function filterCommandPalette(query) {
+  const q = query.toLowerCase().trim();
+  cmdFiltered = q
+    ? COMMAND_PALETTE_ITEMS.filter(c =>
+        c.label.toLowerCase().includes(q) ||
+        c.category.toLowerCase().includes(q)
+      )
+    : COMMAND_PALETTE_ITEMS;
+  cmdActiveIdx = 0;
+  renderCommandPalette();
+}
+
+function renderCommandPalette() {
+  if (cmdFiltered.length === 0) {
+    cmdList.innerHTML = '<div class="cmd-palette-empty">No matching commands</div>';
+    return;
+  }
+  cmdList.innerHTML = cmdFiltered.map((cmd, i) =>
+    `<div class="cmd-palette-item${i === cmdActiveIdx ? " active" : ""}" data-idx="${i}"><span class="cmd-cat">${cmd.category}:</span> <span class="cmd-text">${cmd.label.toLowerCase()}</span></div>`
+  ).join("");
+}
+
+function executeCommandPaletteItem(idx) {
+  const cmd = cmdFiltered[idx];
+  if (cmd) {
+    closeCommandPalette();
+    cmd.action();
+  }
+}
+
+cmdInput?.addEventListener("input", () => filterCommandPalette(cmdInput.value));
+
+cmdInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeCommandPalette(); e.preventDefault(); return; }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    cmdActiveIdx = Math.min(cmdActiveIdx + 1, cmdFiltered.length - 1);
+    renderCommandPalette();
+    cmdList.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    cmdActiveIdx = Math.max(cmdActiveIdx - 1, 0);
+    renderCommandPalette();
+    cmdList.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    executeCommandPaletteItem(cmdActiveIdx);
+    return;
+  }
+});
+
+cmdList?.addEventListener("click", (e) => {
+  const item = e.target.closest(".cmd-palette-item");
+  if (item) executeCommandPaletteItem(Number(item.dataset.idx));
+});
+
+cmdOverlay?.addEventListener("mousedown", (e) => {
+  if (e.target === cmdOverlay) closeCommandPalette();
+});
+
+document.querySelector(".cmd-run-btn")?.addEventListener("click", () => {
+  executeCommandPaletteItem(cmdActiveIdx);
+});
+
+// Ctrl+Shift+P to open command palette (global)
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key === "P") {
+    e.preventDefault();
+    openCommandPalette();
+  }
+});

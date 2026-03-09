@@ -8,6 +8,8 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16.png">
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="preconnect" href="https://esm.sh" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <meta name="color-scheme" content="dark light">
   <!-- Apply saved theme instantly to prevent white flash -->
   <script>
@@ -53,8 +55,8 @@
   <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js" defer></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" media="print" onload="this.media='all'">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
+  <link rel="modulepreload" href="https://esm.sh/@codemirror/view@6">
+  <link rel="modulepreload" href="https://esm.sh/@codemirror/state@6">
 </head>
 <body>
 <a href="#cm-editor" class="skip-link">Skip to editor</a>
@@ -1074,6 +1076,20 @@
       <span><b>Select:</b> click, drag handles</span>
       <span><b>Edit:</b> double-click</span>
       <span><b>Keys:</b> Del, Ctrl+C/V/D</span>
+    </div>
+  </div>
+</div>
+
+<!-- Command Palette (Zed-style) -->
+<div id="cmd-palette-overlay" class="cmd-palette-overlay hidden">
+  <div id="cmd-palette" class="cmd-palette">
+    <input id="cmd-palette-input" type="text" placeholder="Execute a command..." autocomplete="off" spellcheck="false" />
+    <div id="cmd-palette-list" class="cmd-palette-list"></div>
+    <div class="cmd-palette-footer">
+      <span class="cmd-footer-action" id="cmd-keybind-btn">Add Keybinding...</span>
+      <span class="cmd-footer-hint"><kbd>ctrl-enter</kbd></span>
+      <span class="cmd-footer-action cmd-run-btn">Run</span>
+      <span class="cmd-footer-hint"><kbd>enter</kbd></span>
     </div>
   </div>
 </div>
