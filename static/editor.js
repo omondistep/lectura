@@ -348,6 +348,9 @@ document.addEventListener('keydown', (e) => {
 // Update current page on scroll
 let scrollTimeout;
 document.getElementById('preview')?.addEventListener('scroll', (e) => {
+  // Update scroll progress bar (Zed-style)
+  updateScrollProgressBar(e.target);
+
   clearTimeout(scrollTimeout);
   scrollTimeout = setTimeout(() => {
     const scrollTop = e.target.scrollTop;
@@ -1300,6 +1303,28 @@ function syncPreviewToEditor() {
 
 editorScroller.addEventListener("scroll", syncEditorToPreview);
 previewEl.addEventListener("scroll", syncPreviewToEditor);
+
+// Helper function to update scroll progress bar (Zed-style)
+function updateScrollProgressBar(scrollableEl) {
+  const progressBar = document.getElementById('scroll-progress-bar');
+  if (progressBar && scrollableEl) {
+    const scrollTop = scrollableEl.scrollTop;
+    const scrollHeight = scrollableEl.scrollHeight - scrollableEl.clientHeight;
+    const scrollPercent = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    progressBar.style.width = scrollPercent + '%';
+  }
+}
+
+// Add scroll progress bar to preview element
+if (previewEl) {
+  previewEl.addEventListener('scroll', () => updateScrollProgressBar(previewEl));
+}
+
+// Add scroll progress bar to preview-split element (separate preview pane)
+const previewSplitEl = document.getElementById('preview-split');
+if (previewSplitEl) {
+  previewSplitEl.addEventListener('scroll', () => updateScrollProgressBar(previewSplitEl));
+}
 
 // Focus editor on load and activate INSERT if Vim enabled
 setTimeout(() => {
@@ -3565,7 +3590,19 @@ function renderTabs() {
     `;
   }).join('');
   
-  tabBar.innerHTML = tabsHTML + '<button id="btn-new-tab" class="new-tab-btn" title="New File (Ctrl+N)">+</button>';
+  tabBar.innerHTML = `
+    <div class="tab-nav-buttons">
+      <button id="btn-tab-back" class="tab-nav-btn" title="Previous Tab">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+      </button>
+      <button id="btn-tab-forward" class="tab-nav-btn" title="Next Tab">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+        </svg>
+      </button>
+    </div>` + tabsHTML + '<button id="btn-new-tab" class="new-tab-btn" title="New File (Ctrl+N)">+</button>';
 
   // Attach event listeners
   tabBar.querySelectorAll('.tab').forEach(el => {

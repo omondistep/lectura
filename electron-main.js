@@ -34,6 +34,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    minWidth: 600,
+    minHeight: 400,
     title: 'Lectura',
     icon: path.join(__dirname, 'static', 'icons', 'icon-256.png'),
     show: false,
@@ -43,7 +45,7 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       devTools: false,  // Disable developer tools
-      cache: false  // Disable cache
+      cache: true  // Enable cache for faster startup
     }
   });
   console.log('[Electron] Window created');
@@ -57,8 +59,8 @@ function createWindow() {
     mainWindow.focus();
   });
 
-  // Show local UI instantly while Python starts up
-  mainWindow.loadFile(path.join(__dirname, 'static', 'index.html'));
+  // Show minimal splash screen while Python starts up
+  mainWindow.loadFile(path.join(__dirname, 'static', 'splash.html'));
 
   // Once server is ready, reload from the live server
   waitForServer('http://127.0.0.1:8000', 20).then(() => {

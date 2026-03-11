@@ -7,7 +7,12 @@
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16.png">
-  <link rel="stylesheet" href="/static/style.css" />
+  <!-- Hide everything until CSS loads to prevent FOUC -->
+  <style>
+    html { visibility: hidden; }
+    html.ready { visibility: visible; }
+  </style>
+  <link rel="stylesheet" href="/static/style.css" onload="document.documentElement.classList.add('ready')" />
   <link rel="preconnect" href="https://esm.sh" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <meta name="color-scheme" content="dark light">
@@ -59,7 +64,14 @@
   <link rel="modulepreload" href="https://esm.sh/@codemirror/state@6">
 </head>
 <body>
+<script>
+  // Fallback: ensure page becomes visible even if CSS onload fails
+  setTimeout(function() { document.documentElement.classList.add('ready'); }, 300);
+</script>
 <a href="#cm-editor" class="skip-link">Skip to editor</a>
+
+<!-- Scroll Progress Bar (Zed-style) -->
+<div id="scroll-progress-bar"></div>
 
 <!-- ── MENU BAR (Typora-style) ──────────────────────────────────────────────── -->
 <header id="menubar">
@@ -490,11 +502,7 @@
 <!-- Global status bar (full-width, below main, like Typora) -->
 <footer id="statusbar">
   <div class="status-left">
-    <button id="btn-bottom-new-file" class="bottom-control-btn" title="New File">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-      </svg>
-    </button>
+
     <button id="btn-bottom-folder-name" class="bottom-control-btn file-name-btn" title="Open folder actions">
       <span id="bottom-folder-name">No folder</span>
     </button>
