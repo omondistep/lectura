@@ -1201,9 +1201,18 @@ const view = new EditorView({
 
 registerVimCommands();
 
-// Show sidebar after CSS loads
+// Show sidebar after CSS loads and restore saved width
 requestAnimationFrame(() => {
-  document.getElementById("sidebar").style.visibility = "visible";
+  const sidebar = document.getElementById("sidebar");
+  const savedWidth = localStorage.getItem("sc-sidebar-width");
+  if (savedWidth) {
+    sidebar.style.width = savedWidth;
+    document.documentElement.style.setProperty('--sidebar-w', savedWidth);
+  } else {
+    sidebar.style.width = "240px";
+    document.documentElement.style.setProperty('--sidebar-w', '240px');
+  }
+  sidebar.style.visibility = "visible";
 });
 
 // Synchronized scrolling between editor and preview (line-based mapping)
