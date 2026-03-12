@@ -914,15 +914,30 @@ async def publish(name: str, body: PublishBody):
 # ── google drive oauth ─────────────────────────────────────────────────────────
 
 @app.get("/gdrive/auth")
+@app.get("/gdrive/auth")
 async def gdrive_auth():
-    """Start Google OAuth2 flow. Requires gdrive_client_secrets.json next to main.py."""
+    """Start Google OAuth2 flow using environment variables."""
     gd = _get_gdrive()
     if not gd:
         raise HTTPException(501, "google SDK not installed")
-    if not GDRIVE_SECRETS_PATH.exists():
-        raise HTTPException(400, "gdrive_client_secrets.json not found. Download it from Google Cloud Console.")
-    flow = gd["Flow"].from_client_secrets_file(
-        str(GDRIVE_SECRETS_PATH),
+    
+    # Get credentials from environment or config
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    
+    if not client_id or not client_secret:
+        raise HTTPException(400, "Google OAuth credentials not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.")
+    
+    flow = gd["Flow"].from_client_config(
+        {
+            "installed": {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": ["http://localhost:8000/gdrive/callback"]
+            }
+        },
         scopes=GDRIVE_SCOPES,
         redirect_uri="http://localhost:8000/gdrive/callback",
     )
@@ -935,8 +950,23 @@ async def gdrive_callback(code: str, state: str = ""):
     gd = _get_gdrive()
     if not gd:
         raise HTTPException(501, "google SDK not installed")
-    flow = gd["Flow"].from_client_secrets_file(
-        str(GDRIVE_SECRETS_PATH),
+    
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    
+    if not client_id or not client_secret:
+        raise HTTPException(400, "Google OAuth credentials not configured.")
+    
+    flow = gd["Flow"].from_client_config(
+        {
+            "installed": {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": ["http://localhost:8000/gdrive/callback"]
+            }
+        },
         scopes=GDRIVE_SCOPES,
         redirect_uri="http://localhost:8000/gdrive/callback",
     )
