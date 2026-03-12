@@ -1209,6 +1209,9 @@ const view = new EditorView({
   parent: document.getElementById("cm-editor"),
 });
 
+// Expose editor view for cross-module access (grammar checker, plugins)
+window._editorView = view;
+
 registerVimCommands();
 
 // Show sidebar after CSS loads and restore saved width
@@ -1652,16 +1655,8 @@ function toggleSidebar() {
 
 function updateSidebarToggleIcon() {
   const btn = document.getElementById("btn-bottom-toggle-sidebar");
-  const icon = document.getElementById("sidebar-toggle-icon");
   const isCollapsed = document.getElementById("sidebar").classList.contains("collapsed");
-  
-  if (isCollapsed) {
-    icon.textContent = "";
-    btn.classList.add("collapsed");
-  } else {
-    icon.textContent = "❮";
-    btn.classList.remove("collapsed");
-  }
+  btn.classList.toggle("collapsed", isCollapsed);
 }
 
 document.getElementById("btn-sidebar").addEventListener("click", toggleSidebar);
@@ -5643,9 +5638,8 @@ document.getElementById("btn-bottom-folder-name")?.addEventListener("click", (e)
   showSidebarMorePopup(rect, false);
 });
 
-loadWorkspace();
-// Apply on-launch preference
-setTimeout(async () => {
+// Load workspace then immediately apply on-launch preference (no delay)
+loadWorkspace().then(async () => {
   const prefs = JSON.parse(localStorage.getItem("lectura-prefs") || "{}");
   const onLaunch = prefs.onLaunch || "new";
 
@@ -5693,9 +5687,7 @@ setTimeout(async () => {
   updateBottomFolderName();
   updateBottomFileName();
   switchSidebarMode("files");
-}, 100);
-// Initialize Mermaid early
-initMermaid();
+});
 
 // Check URL parameters
 const urlParams = new URLSearchParams(window.location.search);
