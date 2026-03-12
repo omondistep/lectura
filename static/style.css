@@ -558,10 +558,10 @@ html, body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   GRAMMAR CHECKER
+   SPELL CHECKER
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-.grammar-context-menu {
+.spell-context-menu {
   position: fixed;
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -572,7 +572,7 @@ html, body {
   display: none;
 }
 
-.grammar-suggestion {
+.spell-suggestion {
   padding: 8px 12px;
   cursor: pointer;
   font-size: 13px;
@@ -580,8 +580,14 @@ html, body {
   transition: background 0.1s;
 }
 
-.grammar-suggestion:hover {
+.spell-suggestion:hover {
   background: var(--bg-hover);
+}
+
+.spell-no-suggestions {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
