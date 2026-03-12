@@ -1413,12 +1413,18 @@ const themeConfig = {
   coral: { cmTheme: oneDark, label: "Coral" },
   ocean: { cmTheme: oneDark, label: "Ocean" },
   sunset: { cmTheme: oneDark, label: "Sunset" },
+  rosepine: { cmTheme: oneDark, label: "Rosé Pine" },
+  catppuccin: { cmTheme: oneDark, label: "Catppuccin" },
+  gruvbox: { cmTheme: oneDark, label: "Gruvbox" },
+  ayu: { cmTheme: oneDark, label: "Ayu Dark" },
   // Light inline themes
   arctic: { cmTheme: lightCmTheme, label: "Arctic" },
   sakura: { cmTheme: lightCmTheme, label: "Sakura" },
   mocha: { cmTheme: lightCmTheme, label: "Mocha" },
   seniva: { cmTheme: lightCmTheme, label: "Seniva" },
   lavender: { cmTheme: lightCmTheme, label: "Lavender" },
+  rosedawn: { cmTheme: lightCmTheme, label: "Rosé Dawn" },
+  ayulight: { cmTheme: lightCmTheme, label: "Ayu Light" },
   // External CSS themes (loaded dynamically)
   github: { cmTheme: lightCmTheme, label: "GitHub" },
   nord: { cmTheme: oneDark, label: "Nord" },
@@ -1456,7 +1462,7 @@ async function applyTheme(themeName) {
       
       // Determine if dark or light based on theme name patterns
       const isDark = themeName.toLowerCase().includes('dark') ||
-                     ['nord', 'midnight', 'void', 'ember', 'cobalt', 'coral', 'ocean', 'sunset', 'drake', 'ursine', 'lapis'].includes(themeName.toLowerCase());
+                     ['nord', 'midnight', 'void', 'ember', 'cobalt', 'coral', 'ocean', 'sunset', 'drake', 'ursine', 'lapis', 'rosepine', 'catppuccin', 'gruvbox', 'ayu'].includes(themeName.toLowerCase());
       const themeAttr = isDark ? 'dark' : 'light';
       document.documentElement.setAttribute("data-theme", themeAttr);
     } else {
