@@ -1009,7 +1009,7 @@ html, body {
 .sidebar-content {
   flex: 1;
   overflow-y: scroll;
-  overflow-x: hidden;
+  overflow-x: auto;
   min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: var(--text-muted) transparent;
@@ -1018,6 +1018,7 @@ html, body {
 /* Vertical scrollbar - short and moving */
 .sidebar-content::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .sidebar-content::-webkit-scrollbar-track {
@@ -1028,10 +1029,15 @@ html, body {
   background: var(--text-muted);
   border-radius: 3px;
   min-height: 40px;
+  min-width: 40px;
 }
 
 .sidebar-content::-webkit-scrollbar-thumb:hover {
   background: var(--text);
+}
+
+.sidebar-content::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .sidebar-content[data-for="tree"] {
