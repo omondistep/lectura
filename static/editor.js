@@ -1631,11 +1631,26 @@ function toggleSidebar() {
   }
   
   updateSidebarWidth();
+  updateSidebarToggleIcon();
 }
 
+function updateSidebarToggleIcon() {
+  const btn = document.getElementById("btn-bottom-toggle-sidebar");
+  const icon = document.getElementById("sidebar-toggle-icon");
+  const isCollapsed = document.getElementById("sidebar").classList.contains("collapsed");
+  
+  if (isCollapsed) {
+    icon.textContent = "";
+    btn.classList.add("collapsed");
+  } else {
+    icon.textContent = "❮";
+    btn.classList.remove("collapsed");
+  }
+}
 
 document.getElementById("btn-sidebar").addEventListener("click", toggleSidebar);
 document.getElementById("btn-toggle-sidebar")?.addEventListener("click", () => { closeAllMenus(); toggleSidebar(); });
+document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", () => { closeAllMenus(); toggleSidebar(); });
 
 // ── Sidebar mode switching ───────────────────────────────────────────────────
 document.querySelectorAll(".sidebar-tab[data-mode]").forEach(tab => {
@@ -5175,13 +5190,10 @@ function applyPreferences() {
 applyPreferences();
 
 // ── Bottom control bar event listeners ──────────────────────────────────────
-document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", toggleSidebar);
 function toggleEditorPane() {
   // Reuse the Zed-style toggle
   togglePreview();
 }
-
-document.getElementById("btn-bottom-toggle-editor")?.addEventListener("click", toggleEditorPane);
 
 document.getElementById("btn-bottom-new-file")?.addEventListener("click", async () => {
   closeAllMenus();
@@ -5848,3 +5860,6 @@ document.addEventListener("keydown", (e) => {
     openCommandPalette();
   }
 });
+
+// Initialize sidebar toggle icon
+updateSidebarToggleIcon();

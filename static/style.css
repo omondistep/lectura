@@ -42,6 +42,26 @@ body {
   padding: 20px;
   background: var(--bg-app);
   will-change: scroll-position;
+  scrollbar-width: thin;
+}
+
+/* Preview scrollbar styling */
+#editor-pane #preview::-webkit-scrollbar {
+  width: 6px;
+}
+
+#editor-pane #preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#editor-pane #preview::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+  min-height: 40px;
+}
+
+#editor-pane #preview::-webkit-scrollbar-thumb:hover {
+  background: var(--text);
 }
 
 /* ── design tokens ────────────────────────────────────────────────────────── */
@@ -988,10 +1008,64 @@ html, body {
 /* ── sidebar content panels ───────────────────────────────────────────────── */
 .sidebar-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
 }
+
+/* Vertical scrollbar - short and moving */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+  min-height: 40px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text);
+}
+
+/* Horizontal scrollbar for sidebar footer */
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
+}
+
+.sidebar-footer::-webkit-scrollbar {
+  height: 6px;
+}
+
+.sidebar-footer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-footer::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+  min-width: 40px;
+}
+
+.sidebar-footer::-webkit-scrollbar-thumb:hover {
+  background: var(--text);
+}
+
 .sidebar-content[data-for="tree"] {
   display: flex;
   flex-direction: column;
@@ -2385,19 +2459,50 @@ li.tree-file:hover .del-btn,
 }
 
 #btn-bottom-toggle-sidebar {
-  position: absolute;
-  left: var(--sidebar-w);
+  position: static;
+  padding: 0;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  transition: background .1s, border .1s;
+  margin: 0;
 }
 
-#btn-bottom-toggle-editor {
-  position: absolute;
-  left: calc(var(--sidebar-w) + 40px);
+/* White circle only on hover when collapsed */
+#btn-bottom-toggle-sidebar.collapsed:hover {
+  width: 14px;
+  height: 14px;
+  background: white;
+  border: 1px solid white;
 }
 
-/* Items after toggle buttons need left margin */
-#btn-bottom-toggle-editor + .status-sep {
+#sidebar-toggle-icon {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text);
+  transition: opacity .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hide text when collapsed */
+#btn-bottom-toggle-sidebar.collapsed #sidebar-toggle-icon {
+  color: transparent;
+  font-size: 0;
+}
+
+/* Dot indicator for collapsed state on hover */
+#btn-bottom-toggle-sidebar.collapsed:hover #sidebar-toggle-icon::after {
+  content: '●';
   position: absolute;
-  left: calc(var(--sidebar-w) + 90px);
+  color: white;
+  font-size: 8px;
 }
 
 #vim-mode-indicator {

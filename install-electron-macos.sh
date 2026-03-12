@@ -103,22 +103,32 @@ install_files() {
 
 # ── Setup Python venv ────────────────────────────────────────────────────────
 setup_python() {
-    print_step "Setting up Python virtual environment..."
-    cd "$INSTALL_DIR"
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -q --upgrade pip
-    pip install -q -r requirements.txt
-    deactivate
-    print_ok "Python dependencies installed"
+    if [ -d "$INSTALL_DIR/venv" ] && [ -f "$INSTALL_DIR/venv/bin/activate" ]; then
+        print_ok "Python virtual environment already exists, skipping setup"
+    else
+        print_step "Setting up Python virtual environment..."
+        cd "$INSTALL_DIR"
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -q --upgrade pip
+        pip install -q -r requirements.txt
+        deactivate
+        print_ok "Python dependencies installed"
+    fi
 }
 
 # ── Install Electron dependencies ────────────────────────────────────────────
 setup_electron() {
-    print_step "Installing Electron dependencies (this may take 2-5 minutes)..."
+    print_step "Checking Electron dependencies..."
     cd "$INSTALL_DIR"
-    npm install --progress=true
-    print_ok "Electron installed"
+    
+    if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
+        print_ok "Electron dependencies already installed, skipping npm install"
+    else
+        print_step "Installing Electron dependencies (this may take 2-5 minutes)..."
+        npm install --progress=true
+        print_ok "Electron installed"
+    fi
 }
 
 # ── Create launcher ──────────────────────────────────────────────────────────

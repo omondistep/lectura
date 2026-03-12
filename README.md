@@ -60,55 +60,21 @@ A modern, self-hosted Markdown note-taking application featuring real-time previ
 
 **📖 For detailed installation instructions, see [INSTALL.md](INSTALL.md)**
 
-### 🎯 Try It Now (2-Minute Setup)
-
-**One-line install for Linux/macOS:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/omondistep/lectura/main/install-standalone-linux.sh | bash
-```
-
-**Windows users:** Download and run `install-standalone-windows.bat`
-
-### Option 1: Standalone (Recommended)
-Lightweight, browser-based installation.
-
-#### Linux
-```bash
-chmod +x install-standalone-linux.sh
-./install-standalone-linux.sh
-lectura
-```
-
-#### Windows
-1. Download and extract the Lectura folder
-2. Right-click `install-standalone-windows.bat` → Run as Administrator
-3. Double-click the Lectura icon on your Desktop
-
-#### macOS
-```bash
-chmod +x install-standalone-macos.sh
-./install-standalone-macos.sh
-lectura
-```
-
-### Option 2: Desktop App (Electron)
-Native desktop application with system integration.
-
 **Requirements:** Node.js 16+ and Python 3.8+
 
-#### Linux
+### Linux
 ```bash
 chmod +x install-electron-linux.sh
 ./install-electron-linux.sh
 lectura-app
 ```
 
-#### Windows
+### Windows
 ```bash
 install-electron-windows.bat
 ```
 
-#### macOS
+### macOS
 ```bash
 chmod +x install-electron-macos.sh
 ./install-electron-macos.sh
@@ -120,10 +86,9 @@ lectura-app
 git clone https://github.com/omondistep/lectura.git
 cd lectura
 pip install -r requirements.txt
-python main.py
+npm install
+npm start
 ```
-
-Open http://localhost:8000 in your browser.
 
 ## 📖 Usage
 

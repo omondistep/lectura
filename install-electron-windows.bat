@@ -95,20 +95,36 @@ mkdir "%INSTALL_DIR%\notes" 2>nul
 echo [+] Files copied
 
 :: ── Setup Python venv ───────────────────────────────────────────────────────
-echo [*] Setting up Python virtual environment...
-cd /d "%INSTALL_DIR%"
-python -m venv venv
-call venv\Scripts\activate.bat
-pip install -q --upgrade pip
-pip install -q -r requirements.txt
-call deactivate
-echo [+] Python dependencies installed
+if exist "%INSTALL_DIR%\venv\Scripts\activate.bat" (
+    echo [+] Python virtual environment already exists, skipping setup
+) else (
+    echo [*] Setting up Python virtual environment...
+    cd /d "%INSTALL_DIR%"
+    python -m venv venv
+    call venv\Scripts\activate.bat
+    pip install -q --upgrade pip
+    pip install -q -r requirements.txt
+    call deactivate
+    echo [+] Python dependencies installed
+)
 
 :: ── Install Node dependencies ───────────────────────────────────────────────
-echo [*] Installing Electron dependencies (this may take 2-5 minutes)...
+echo [*] Checking Electron dependencies...
 cd /d "%INSTALL_DIR%"
-call npm install
-echo [+] Electron installed
+
+if exist "node_modules" (
+    if exist "package-lock.json" (
+        echo [+] Electron dependencies already installed, skipping npm install
+    ) else (
+        echo [*] Installing Electron dependencies (this may take 2-5 minutes)...
+        call npm install
+        echo [+] Electron installed
+    )
+) else (
+    echo [*] Installing Electron dependencies (this may take 2-5 minutes)...
+    call npm install
+    echo [+] Electron installed
+)
 
 :: ── Create launcher script ──────────────────────────────────────────────────
 echo [*] Creating launcher...
