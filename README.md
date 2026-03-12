@@ -64,20 +64,20 @@ A modern, self-hosted Markdown note-taking application featuring real-time previ
 
 ### Linux
 ```bash
-chmod +x install-electron-linux.sh
-./install-electron-linux.sh
+chmod +x install-linux.sh
+./install-linux.sh
 lectura-app
 ```
 
 ### Windows
 ```bash
-install-electron-windows.bat
+install-windows.bat
 ```
 
 ### macOS
 ```bash
-chmod +x install-electron-macos.sh
-./install-electron-macos.sh
+chmod +x install-macos.sh
+./install-macos.sh
 lectura-app
 ```
 

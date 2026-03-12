@@ -9,7 +9,7 @@ This guide covers complete removal of Lectura Electron app from Windows, Linux, 
 ### Using Uninstaller Script
 ```batch
 # Run the uninstaller
-uninstall-electron-windows.bat
+uninstall-windows.bat
 ```
 
 ### Manual Uninstallation
@@ -37,8 +37,8 @@ rmdir /s "%APPDATA%\Lectura"
 
 ### Using Uninstaller Script
 ```bash
-chmod +x uninstall-electron-macos.sh
-./uninstall-electron-macos.sh
+chmod +x uninstall-macos.sh
+./uninstall-macos.sh
 ```
 
 ### Manual Uninstallation
@@ -66,8 +66,8 @@ rm -rf ~/Library/Preferences/com.lectura.app.plist
 
 ### Using Uninstaller Script
 ```bash
-chmod +x uninstall-electron-linux.sh
-./uninstall-electron-linux.sh
+chmod +x uninstall-linux.sh
+./uninstall-linux.sh
 ```
 
 ### Manual Uninstallation

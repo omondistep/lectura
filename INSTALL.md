@@ -21,7 +21,7 @@ This guide covers installation of Lectura Electron desktop app on Windows, Linux
 # 1. Install Node.js and Python (check "Add to PATH")
 # 2. Download and extract Lectura
 # 3. Run installer
-install-electron-windows.bat
+install-windows.bat
 ```
 
 ---
@@ -42,8 +42,8 @@ unzip lectura.zip
 cd lectura-main
 
 # Run installer
-chmod +x install-electron-macos.sh
-./install-electron-macos.sh
+chmod +x install-macos.sh
+./install-macos.sh
 ```
 
 ---
@@ -70,8 +70,8 @@ unzip main.zip
 cd lectura-main
 
 # Run installer (auto-detects your distribution)
-chmod +x install-electron-linux.sh
-./install-electron-linux.sh
+chmod +x install-linux.sh
+./install-linux.sh
 ```
 
 ---
@@ -96,19 +96,19 @@ chmod +x install-electron-linux.sh
 ### Windows
 ```batch
 # Run uninstaller
-uninstall-electron-windows.bat
+uninstall-windows.bat
 ```
 
 ### Linux
 ```bash
 # Run uninstaller
-./uninstall-electron-linux.sh
+./uninstall-linux.sh
 ```
 
 ### macOS
 ```bash
 # Run uninstaller
-./uninstall-electron-macos.sh
+./uninstall-macos.sh
 ```
 
 ---
@@ -134,7 +134,7 @@ uninstall-electron-windows.bat
 #### Linux: "Permission denied"
 ```bash
 # Make installer executable
-chmod +x install-electron-linux.sh
+chmod +x install-linux.sh
 ```
 
 #### Port 8000 already in use
