@@ -530,6 +530,16 @@
     <span id="status-msg">Ready</span>
   </div>
   <div class="status-right">
+    <button id="btn-panel-sidebar" class="panel-toggle-btn" title="Toggle Sidebar Panel">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M2 3.5a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 4a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 4a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5z"/>
+      </svg>
+    </button>
+    <button id="btn-panel-outline" class="panel-toggle-btn" title="Toggle Outline Panel">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M2 3.5a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm2 4a.5.5 0 01.5-.5h7a.5.5 0 010 1h-7a.5.5 0 01-.5-.5zm2 4a.5.5 0 01.5-.5h3a.5.5 0 010 1h-3a.5.5 0 01-.5-.5z"/>
+      </svg>
+    </button>
     <span id="word-count">0 words</span>
     <span id="char-count">0 chars</span>
     <span id="line-indicator" class="line-indicator">1:1</span>
@@ -1137,6 +1147,7 @@
   </div>
 </div>
 
+<script src="/static/bottom-panels.js"></script>
 <script type="module" src="/static/editor.js"></script>
 </body>
 </html>

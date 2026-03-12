@@ -515,6 +515,46 @@ html, body {
   height: calc(100vh - var(--menubar-h) - var(--status-h));
   overflow: hidden;
   will-change: transform;
+  flex-direction: column;
+}
+
+#main > div:first-child {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Bottom panels */
+.bottom-panel {
+  display: none;
+  height: 200px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+  overflow-y: auto;
+}
+
+.bottom-panel.visible {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: background .1s, color .1s;
+}
+
+.panel-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.panel-toggle-btn.active {
+  color: var(--accent);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
