@@ -317,28 +317,6 @@
       <ul id="file-list-flat"></ul>
     </div>
 
-    <!-- sidebar footer with controls -->
-    <div class="sidebar-footer">
-      <button id="btn-bottom-toggle-sidebar" class="statusbar-toggle-btn" title="Toggle Sidebar">
-        <span id="sidebar-toggle-icon">❮</span>
-      </button>
-      <button id="btn-bottom-view-toggle" class="bottom-control-btn" title="Switch File List/Tree View">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="view-icon-tree">
-          <path d="M1 3.5a.5.5 0 01.5-.5h13a.5.5 0 010 1h-13a.5.5 0 01-.5-.5zM1 8a.5.5 0 01.5-.5h13a.5.5 0 010 1h-13A.5.5 0 011 8zm0 4.5a.5.5 0 01.5-.5h13a.5.5 0 010 1h-13a.5.5 0 01-.5-.5z"/>
-        </svg>
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="view-icon-list" style="display:none">
-          <path d="M1 2.5A1.5 1.5 0 012.5 1h3.379a1.5 1.5 0 011.06.44l1.122 1.12A1.5 1.5 0 009.121 3H13.5A1.5 1.5 0 0115 4.5v8a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-10z"/>
-        </svg>
-      </button>
-      <button id="btn-bottom-more" class="bottom-control-btn" title="More Actions">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <circle cx="8" cy="3" r="1.5"/>
-          <circle cx="8" cy="8" r="1.5"/>
-          <circle cx="8" cy="13" r="1.5"/>
-        </svg>
-      </button>
-    </div>
-
     <!-- outline mode content -->
     <div class="sidebar-content" data-for="outline" style="display:none">
       <ul id="outline-list"></ul>
@@ -524,8 +502,26 @@
 <!-- Global status bar (full-width, below main, like Typora) -->
 <footer id="statusbar">
   <div class="status-left">
+    <button id="btn-bottom-toggle-sidebar" class="statusbar-toggle-btn" title="Toggle Sidebar">
+      <span id="sidebar-toggle-icon">❮</span>
+    </button>
     <button id="btn-bottom-folder-name" class="bottom-control-btn file-name-btn" title="Open folder actions">
       <span id="bottom-folder-name">No folder</span>
+    </button>
+    <button id="btn-bottom-view-toggle" class="bottom-control-btn" title="Switch File List/Tree View">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="view-icon-tree">
+        <path d="M1 3.5a.5.5 0 01.5-.5h13a.5.5 0 010 1h-13a.5.5 0 01-.5-.5zM1 8a.5.5 0 01.5-.5h13a.5.5 0 010 1h-13A.5.5 0 011 8zm0 4.5a.5.5 0 01.5-.5h13a.5.5 0 010 1h-13a.5.5 0 01-.5-.5z"/>
+      </svg>
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="view-icon-list" style="display:none">
+        <path d="M1 2.5A1.5 1.5 0 012.5 1h3.379a1.5 1.5 0 011.06.44l1.122 1.12A1.5 1.5 0 009.121 3H13.5A1.5 1.5 0 0115 4.5v8a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-10z"/>
+      </svg>
+    </button>
+    <button id="btn-bottom-more" class="bottom-control-btn" title="More Actions">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <circle cx="8" cy="3" r="1.5"/>
+        <circle cx="8" cy="8" r="1.5"/>
+        <circle cx="8" cy="13" r="1.5"/>
+      </svg>
     </button>
   </div>
   <div class="status-center">

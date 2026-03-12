@@ -1034,38 +1034,6 @@ html, body {
   background: var(--text);
 }
 
-/* Horizontal scrollbar for sidebar footer */
-.sidebar-footer {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--text-muted) transparent;
-}
-
-.sidebar-footer::-webkit-scrollbar {
-  height: 6px;
-}
-
-.sidebar-footer::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar-footer::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-radius: 3px;
-  min-width: 40px;
-}
-
-.sidebar-footer::-webkit-scrollbar-thumb:hover {
-  background: var(--text);
-}
-
 .sidebar-content[data-for="tree"] {
   display: flex;
   flex-direction: column;

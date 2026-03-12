@@ -266,7 +266,7 @@ const PREVIEW_DEBOUNCE_DELAY = 150;
 
 function renderPreview() {
   clearTimeout(previewDebounceTimer);
-  previewDebounceTimer = setTimeout(doRenderPreview, 100);
+  doRenderPreview();
 }
 
 function doRenderPreview() {
@@ -292,12 +292,12 @@ function doRenderPreview() {
 
   renderLatex(previewEl);
   
-  // Render diagrams asynchronously
-  (async () => {
+  // Render diagrams asynchronously without blocking
+  requestAnimationFrame(async () => {
     await renderMermaidDiagrams(previewEl);
     await renderEconGraphs(previewEl);
     renderGraphBlocks(previewEl);
-  })();
+  });
   
   updateWordCount();
   updateReadingTime();
