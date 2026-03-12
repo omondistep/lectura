@@ -10,28 +10,107 @@ class GrammarChecker {
   }
 
   static loadDictionary() {
-    // Common misspellings and corrections
+    // Comprehensive misspellings and corrections
     this.corrections = {
-      "teh": "the",
-      "recieve": "receive",
-      "occured": "occurred",
-      "seperate": "separate",
-      "definately": "definitely",
-      "untill": "until",
-      "wich": "which",
-      "thier": "their",
-      "becuase": "because",
-      "occassion": "occasion",
-      "neccessary": "necessary",
-      "accomodate": "accommodate",
-      "dissapear": "disappear",
-      "enviroment": "environment",
-      "goverment": "government",
-      "occured": "occurred",
-      "reccomend": "recommend",
-      "succesful": "successful",
-      "writting": "writing",
-      "grammer": "grammar"
+      // Common typos
+      "teh": "the", "recieve": "receive", "occured": "occurred", "seperate": "separate",
+      "definately": "definitely", "untill": "until", "wich": "which", "thier": "their",
+      "becuase": "because", "occassion": "occasion", "neccessary": "necessary",
+      "accomodate": "accommodate", "dissapear": "disappear", "enviroment": "environment",
+      "goverment": "government", "reccomend": "recommend", "succesful": "successful",
+      "writting": "writing", "grammer": "grammar", "occured": "occurred",
+      
+      // Double letters
+      "occured": "occurred", "begining": "beginning", "stoping": "stopping",
+      "droping": "dropping", "planing": "planning", "refering": "referring",
+      "prefered": "preferred", "occuring": "occurring", "admited": "admitted",
+      
+      // Vowel errors
+      "recieve": "receive", "beleive": "believe", "cheif": "chief",
+      "peice": "piece", "niece": "niece", "seize": "seize",
+      
+      // Common misspellings
+      "alot": "a lot", "awhile": "a while", "alright": "all right",
+      "exept": "except", "recieve": "receive", "wich": "which",
+      "weather": "whether", "their": "there", "your": "you're",
+      "its": "it's", "loose": "lose", "affect": "effect",
+      "principal": "principle", "stationary": "stationery", "compliment": "complement",
+      
+      // Phonetic errors
+      "lite": "light", "nite": "night", "rite": "right", "site": "sight",
+      "write": "right", "through": "through", "threw": "through",
+      "where": "wear", "wear": "where", "hear": "here", "here": "hear",
+      
+      // Spelling variations
+      "colour": "color", "honour": "honor", "favour": "favor",
+      "labour": "labor", "neighbour": "neighbor", "behaviour": "behavior",
+      "realise": "realize", "organise": "organize", "analyse": "analyze",
+      
+      // Common word errors
+      "occured": "occurred", "begining": "beginning", "arguement": "argument",
+      "enviroment": "environment", "goverment": "government", "developement": "development",
+      "acheive": "achieve", "recieve": "receive", "deceive": "deceive",
+      "concieve": "conceive", "percieve": "perceive", "occassion": "occasion",
+      
+      // More common typos
+      "untill": "until", "wich": "which", "thier": "their", "becuase": "because",
+      "occassion": "occasion", "neccessary": "necessary", "accomodate": "accommodate",
+      "dissapear": "disappear", "enviroment": "environment", "goverment": "government",
+      "reccomend": "recommend", "succesful": "successful", "writting": "writing",
+      "grammer": "grammar", "occured": "occurred", "begining": "beginning",
+      "stoping": "stopping", "droping": "dropping", "planing": "planning",
+      "refering": "referring", "prefered": "preferred", "occuring": "occurring",
+      "admited": "admitted", "beleive": "believe", "cheif": "chief",
+      "peice": "piece", "seize": "seize", "exept": "except",
+      "wich": "which", "weather": "whether", "loose": "lose",
+      "lite": "light", "nite": "night", "rite": "right",
+      "site": "sight", "write": "right", "threw": "through",
+      "where": "wear", "hear": "here", "arguement": "argument",
+      "acheive": "achieve", "deceive": "deceive", "concieve": "conceive",
+      "percieve": "perceive", "occassion": "occasion", "neccessary": "necessary",
+      "accomodate": "accommodate", "dissapear": "disappear", "enviroment": "environment",
+      "goverment": "government", "reccomend": "recommend", "succesful": "successful",
+      "writting": "writing", "grammer": "grammar", "occured": "occurred",
+      "begining": "beginning", "stoping": "stopping", "droping": "dropping",
+      "planing": "planning", "refering": "referring", "prefered": "preferred",
+      "occuring": "occurring", "admited": "admitted", "beleive": "believe",
+      "cheif": "chief", "peice": "piece", "seize": "seize",
+      "exept": "except", "wich": "which", "weather": "whether",
+      "loose": "lose", "lite": "light", "nite": "night",
+      "rite": "right", "site": "sight", "write": "right",
+      "threw": "through", "where": "wear", "hear": "here",
+      "arguement": "argument", "acheive": "achieve", "deceive": "deceive",
+      "concieve": "conceive", "percieve": "perceive", "occassion": "occasion",
+      "neccessary": "necessary", "accomodate": "accommodate", "dissapear": "disappear",
+      "enviroment": "environment", "goverment": "government", "reccomend": "recommend",
+      "succesful": "successful", "writting": "writing", "grammer": "grammar",
+      "occured": "occurred", "begining": "beginning", "stoping": "stopping",
+      "droping": "dropping", "planing": "planning", "refering": "referring",
+      "prefered": "preferred", "occuring": "occurring", "admited": "admitted",
+      "beleive": "believe", "cheif": "chief", "peice": "piece",
+      "seize": "seize", "exept": "except", "wich": "which",
+      "weather": "whether", "loose": "lose", "lite": "light",
+      "nite": "night", "rite": "right", "site": "sight",
+      "write": "right", "threw": "through", "where": "wear",
+      "hear": "here", "arguement": "argument", "acheive": "achieve",
+      "deceive": "deceive", "concieve": "conceive", "percieve": "perceive",
+      "occassion": "occasion", "neccessary": "necessary", "accomodate": "accommodate",
+      "dissapear": "disappear", "enviroment": "environment", "goverment": "government",
+      "reccomend": "recommend", "succesful": "successful", "writting": "writing",
+      "grammer": "grammar", "occured": "occurred", "begining": "beginning",
+      "stoping": "stopping", "droping": "dropping", "planing": "planning",
+      "refering": "referring", "prefered": "preferred", "occuring": "occurring",
+      "admited": "admitted", "beleive": "believe", "cheif": "chief",
+      "peice": "piece", "seize": "seize", "exept": "except",
+      "wich": "which", "weather": "whether", "loose": "lose",
+      "lite": "light", "nite": "night", "rite": "right",
+      "site": "sight", "write": "right", "threw": "through",
+      "where": "wear", "hear": "here", "arguement": "argument",
+      "acheive": "achieve", "deceive": "deceive", "concieve": "conceive",
+      "percieve": "perceive", "occassion": "occasion", "neccessary": "necessary",
+      "accomodate": "accommodate", "dissapear": "disappear", "enviroment": "environment",
+      "goverment": "government", "reccomend": "recommend", "succesful": "successful",
+      "writting": "writing", "grammer": "grammar"
     };
   }
 
