@@ -129,13 +129,19 @@ if exist "node_modules" (
 :: ── Create launcher script ──────────────────────────────────────────────────
 echo [*] Creating launcher...
 
-:: Create batch launcher — uses pythonw to avoid console window for the backend
+:: Create batch launcher
 (
 echo @echo off
 echo cd /d "%INSTALL_DIR%"
 echo call venv\Scripts\activate.bat
 echo start "" npx electron .
 ) > "%INSTALL_DIR%\Lectura.bat"
+
+:: Create VBScript wrapper to hide console window
+(
+echo Set objShell = CreateObject("WScript.Shell"^)
+echo objShell.Run "cmd /c cd /d ""%INSTALL_DIR%"" ^&^& call venv\Scripts\activate.bat ^&^& start """" npx electron .", 0, False
+) > "%INSTALL_DIR%\Lectura.vbs"
 
 echo [+] Launcher created
 
@@ -145,13 +151,12 @@ echo [*] Creating shortcuts...
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
 
-:: Use PowerShell to create .lnk shortcuts pointing directly to the bat file
-:: WindowStyle 7 = minimized (hides the brief cmd window)
+:: Use PowerShell to create .lnk shortcuts pointing to VBScript (no console window)
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ws = New-Object -ComObject WScript.Shell;" ^
   "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\%SHORTCUT_NAME%.lnk');" ^
-  "$s.TargetPath = 'cmd.exe';" ^
-  "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+  "$s.TargetPath = 'wscript.exe';" ^
+  "$s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"';" ^
   "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
   "$s.IconLocation = '%INSTALL_DIR%\build\icon.ico';" ^
   "$s.WindowStyle = 7;" ^
@@ -161,8 +166,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ws = New-Object -ComObject WScript.Shell;" ^
   "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Programs') + '\%SHORTCUT_NAME%.lnk');" ^
-  "$s.TargetPath = 'cmd.exe';" ^
-  "$s.Arguments = '/c \"%INSTALL_DIR%\Lectura.bat\"';" ^
+  "$s.TargetPath = 'wscript.exe';" ^
+  "$s.Arguments = '\"%INSTALL_DIR%\Lectura.vbs\"';" ^
   "$s.WorkingDirectory = '%INSTALL_DIR%';" ^
   "$s.IconLocation = '%INSTALL_DIR%\build\icon.ico';" ^
   "$s.WindowStyle = 7;" ^

@@ -364,6 +364,17 @@ GDRIVE_TOKEN_PATH = BASE / ".gdrive_token.json"
 GDRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
 app = FastAPI(title="Lectura", docs_url=None, redoc_url=None)
+
+# Add CORS middleware for local development
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:*", "http://127.0.0.1:*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
 
@@ -1277,7 +1288,7 @@ async def github_callback(code: str = None, state: str = None, error: str = None
             <script>
                 window.opener.postMessage({{
                     type: 'github-auth-error',
-                    error: '{error}'
+                    error: {json.dumps(error)}
                 }}, '*');
                 window.close();
             </script>
@@ -1298,8 +1309,8 @@ async def github_callback(code: str = None, state: str = None, error: str = None
         <script>
             window.opener.postMessage({{
                 type: 'github-auth-success',
-                code: '{code}',
-                state: '{state}'
+                code: {json.dumps(code)},
+                state: {json.dumps(state)}
             }}, '*');
             window.close();
         </script>

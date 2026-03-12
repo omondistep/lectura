@@ -270,47 +270,57 @@ function renderPreview() {
 }
 
 function doRenderPreview() {
-  const content = getContent();
-  const processed = preprocessFlashcards(content);
-  const html = md.render(processed);
-  
-  const previewEl = document.getElementById("preview");
-  const oldScrollTop = previewEl.scrollTop;
-  previewEl.innerHTML = html;
-  
-  // Restore scroll position after content update
-  previewEl.scrollTop = oldScrollTop;
+  try {
+    const content = getContent();
+    const processed = preprocessFlashcards(content);
+    const html = md.render(processed);
+    
+    const previewEl = document.getElementById("preview");
+    const oldScrollTop = previewEl.scrollTop;
+    previewEl.innerHTML = html;
+    
+    // Restore scroll position after content update
+    previewEl.scrollTop = oldScrollTop;
 
-  // Wire flashcard buttons
-  previewEl.querySelectorAll(".flashcard-flip").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const card = btn.closest(".flashcard");
-      card.classList.toggle("flipped");
-      btn.textContent = card.classList.contains("flipped") ? "Hide answer" : "Show answer";
+    // Wire flashcard buttons
+    previewEl.querySelectorAll(".flashcard-flip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const card = btn.closest(".flashcard");
+        card.classList.toggle("flipped");
+        btn.textContent = card.classList.contains("flipped") ? "Hide answer" : "Show answer";
+      });
     });
-  });
 
-  renderLatex(previewEl);
-  
-  // Render diagrams asynchronously without blocking
-  requestAnimationFrame(async () => {
-    await renderMermaidDiagrams(previewEl);
-    await renderEconGraphs(previewEl);
-    renderGraphBlocks(previewEl);
-  });
-  
-  updateWordCount();
-  updateReadingTime();
-  updateDocStatus();
+    renderLatex(previewEl);
+    
+    // Render diagrams asynchronously without blocking
+    requestAnimationFrame(async () => {
+      try {
+        await renderMermaidDiagrams(previewEl);
+        await renderEconGraphs(previewEl);
+        renderGraphBlocks(previewEl);
+      } catch (err) {
+        console.error("Error rendering diagrams:", err);
+      }
+    });
+    
+    updateWordCount();
+    updateReadingTime();
+    updateDocStatus();
 
-  // Update outline if in outline mode
-  if (sidebarMode === "outline") {
-    clearTimeout(outlineTimer);
-    outlineTimer = setTimeout(updateOutline, 300);
+    // Update outline if in outline mode
+    if (sidebarMode === "outline") {
+      clearTimeout(outlineTimer);
+      outlineTimer = setTimeout(updateOutline, 300);
+    }
+    
+    // Update active paragraph in preview
+    setTimeout(updateActivePreviewParagraph, 100);
+  } catch (err) {
+    console.error("Error rendering preview:", err);
+    const previewEl = document.getElementById("preview");
+    previewEl.innerHTML = `<div style="color: var(--red); padding: 20px;">Error rendering preview: ${err.message}</div>`;
   }
-  
-  // Update active paragraph in preview
-  setTimeout(updateActivePreviewParagraph, 100);
 }
 
 function goToPage(pageNum) {
