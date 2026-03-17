@@ -1594,12 +1594,12 @@ li.tree-file:hover .del-btn,
   font-family: "JetBrains Mono", monospace !important;
   font-weight: 300 !important;
   padding: 28px 0 !important;
-  line-height: 1.65 !important;
+  line-height: var(--editor-line-height, 1.65) !important;
 }
 .cm-content      { padding: 0 !important; }
 .cm-line         { 
   padding: 0 48px !important;
-  line-height: 1.65 !important;
+  line-height: var(--editor-line-height, 1.65) !important;
 }
 
 /* Center content when sidebar is collapsed */

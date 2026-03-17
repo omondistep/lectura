@@ -3236,6 +3236,7 @@ async function openSettings() {
   document.getElementById("cfg-font-size").value = prefs.fontSize || "auto";
   document.getElementById("cfg-font-family").value = prefs.fontFamily || "default";
   document.getElementById("cfg-font-weight").value = prefs.fontWeight || "400";
+  document.getElementById("cfg-line-height").value = prefs.lineHeight || "1.65";
 
   document.getElementById("modal-overlay").classList.remove("hidden");
 }
@@ -3268,6 +3269,7 @@ document.getElementById("btn-save-config")?.addEventListener("click", async () =
     fontSize: document.getElementById("cfg-font-size").value,
     fontFamily: document.getElementById("cfg-font-family").value,
     fontWeight: document.getElementById("cfg-font-weight").value,
+    lineHeight: document.getElementById("cfg-line-height").value,
   };
   
   // Save to localStorage
@@ -3300,6 +3302,11 @@ document.getElementById("btn-save-config")?.addEventListener("click", async () =
   // Apply font weight
   if (prefs.fontWeight) {
     document.documentElement.style.setProperty("--font-weight", prefs.fontWeight);
+  }
+
+  // Apply line height
+  if (prefs.lineHeight) {
+    document.documentElement.style.setProperty("--editor-line-height", prefs.lineHeight);
   }
   
   setStatus("Settings saved");
