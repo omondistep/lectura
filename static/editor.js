@@ -5192,6 +5192,20 @@ function applyPreferences() {
     document.documentElement.style.setProperty("--editor-font-size", prefs.fontSize + "px");
     document.documentElement.style.setProperty("--preview-font-size", prefs.fontSize + "px");
   }
+
+  // Apply font family
+  if (prefs.fontFamily && prefs.fontFamily !== "default") {
+    document.documentElement.style.setProperty("--font-code", prefs.fontFamily);
+    document.documentElement.style.setProperty("--font-prose", prefs.fontFamily);
+  }
+
+  // Apply font weight
+  const fontWeight = prefs.fontWeight || "300";
+  document.documentElement.style.setProperty("--font-weight", fontWeight);
+
+  // Apply line height
+  const lineHeight = prefs.lineHeight || "1.65";
+  document.documentElement.style.setProperty("--editor-line-height", lineHeight);
 }
 
 applyPreferences();
