@@ -2080,18 +2080,20 @@ li.tree-file:hover .del-btn,
 
 /* ── preview typography ───────────────────────────────────────────────────── */
 #preview h1, #preview h2, #preview h3,
-#preview h4, #preview h5, #preview h6 {
+#preview h4, #preview h5, #preview h6,
+#preview-split h1, #preview-split h2, #preview-split h3,
+#preview-split h4, #preview-split h5, #preview-split h6 {
   font-family: var(--font-ui);
   font-weight: 700;
   line-height: 1.3;
   margin: 1.8em 0 .6em;
   color: var(--text);
 }
-#preview h1 { font-size: 2em; border-bottom: 1px solid var(--border-dim); padding-bottom: .3em; }
-#preview h2 { font-size: 1.6em; border-bottom: 1px solid var(--border-dim); padding-bottom: .2em; }
-#preview h3 { font-size: 1.3em; }
-#preview h4 { font-size: 1.1em; }
-#preview p  { margin: 1.1em 0; }
+#preview h1, #preview-split h1 { font-size: 2.2em; border-bottom: 1px solid var(--border-dim); padding-bottom: .3em; }
+#preview h2, #preview-split h2 { font-size: 1.7em; border-bottom: 1px solid var(--border-dim); padding-bottom: .2em; }
+#preview h3, #preview-split h3 { font-size: 1.4em; }
+#preview h4, #preview-split h4 { font-size: 1.15em; }
+#preview p, #preview-split p   { margin: 1.1em 0; }
 #preview a  { color: var(--accent); text-decoration: none; }
 #preview a:hover { text-decoration: underline; }
 
