@@ -175,7 +175,7 @@ let currentFile = "untitled.md";
 let currentFolder = "";
 let isDirty = false;
 let autoSaveTimer = null;
-const AUTOSAVE_DELAY = 2000;
+const AUTOSAVE_DELAY = 1500; // Slightly faster autosave for snappier feel
 let sidebarMode = "files";
 let filesViewMode = "tree"; // tree or list
 
@@ -262,11 +262,17 @@ function markDirty() {
 // RENDERING
 // ═══════════════════════════════════════════════════════════════════════════════
 let previewDebounceTimer = null;
-const PREVIEW_DEBOUNCE_DELAY = 150;
+let previewRafId = null;
+const PREVIEW_DEBOUNCE_DELAY = 80; // Reduced from 150ms for snappier feel
 
 function renderPreview() {
   clearTimeout(previewDebounceTimer);
-  doRenderPreview();
+  if (previewRafId) cancelAnimationFrame(previewRafId);
+  // Use rAF for buttery-smooth preview updates
+  previewRafId = requestAnimationFrame(() => {
+    previewRafId = null;
+    doRenderPreview();
+  });
 }
 
 function doRenderPreview() {
@@ -303,10 +309,10 @@ function doRenderPreview() {
   updateReadingTime();
   updateDocStatus();
 
-  // Update outline if in outline mode
+  // Update outline if in outline mode (use rAF for smoothness)
   if (sidebarMode === "outline") {
     clearTimeout(outlineTimer);
-    outlineTimer = setTimeout(updateOutline, 300);
+    outlineTimer = setTimeout(updateOutline, 200);
   }
   
   // Update active paragraph in preview
@@ -1761,7 +1767,7 @@ async function populateFileList() {
       clickTimer = setTimeout(() => {
         openTab(filePath, { preview: true, focus: false });
         clickTimer = null;
-      }, 250);
+      }, 180);
     });
     li.addEventListener("dblclick", () => {
       clearTimeout(clickTimer);
@@ -1837,7 +1843,7 @@ async function loadFileList() {
       _loadFileListTimer = null;
       const resolvers = _loadFileListPromiseResolvers.splice(0);
       try {
-        const res = await fetch("/files");
+        const res = await fetch("/files", { cache: "no-cache" });
         const { files, folders } = await res.json();
         const ul = document.getElementById("file-list");
         ul.innerHTML = "";
@@ -2011,7 +2017,7 @@ function renderTree(node, container) {
       clickTimer = setTimeout(() => {
         openTab(file.path, { preview: true, focus: false });
         clickTimer = null;
-      }, 250);
+      }, 180);
     });
     
     li.addEventListener("dblclick", (e) => {
@@ -2720,7 +2726,7 @@ searchInput.addEventListener("input", () => {
     return;
   }
   searchDebounce = setTimeout(async () => {
-    const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
+    const res = await fetch(`/search?q=${encodeURIComponent(q)}`, { cache: "no-cache" });
     const { results } = await res.json();
     searchResults.innerHTML = "";
     searchResults.classList.remove("hidden");
@@ -2748,7 +2754,7 @@ searchInput.addEventListener("input", () => {
       });
       searchResults.appendChild(li);
     });
-  }, 250);
+  }, 150); // Reduced from 250ms
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2803,7 +2809,7 @@ searchPanelInput?.addEventListener("input", () => {
         clickTimer = setTimeout(() => {
           openTab(name, { preview: true, focus: false });
           clickTimer = null;
-        }, 250);
+        }, 180);
       });
       li.addEventListener("dblclick", () => {
         clearTimeout(clickTimer);
@@ -3236,7 +3242,7 @@ async function openSettings() {
   document.getElementById("cfg-font-size").value = prefs.fontSize || "auto";
   document.getElementById("cfg-font-family").value = prefs.fontFamily || "default";
   document.getElementById("cfg-font-weight").value = prefs.fontWeight || "400";
-  document.getElementById("cfg-line-height").value = prefs.lineHeight || "1.65";
+  document.getElementById("cfg-line-height").value = prefs.lineHeight || "1.6";
 
   document.getElementById("modal-overlay").classList.remove("hidden");
 }
@@ -3515,9 +3521,7 @@ function switchTab(tabId) {
     return;
   }
 
-  console.log('Switching to tab:', tab.id, tab.name, 'isPreviewTab:', tab.isPreviewTab);
-
-  // Save current tab state
+  // Save current tab state (batch DOM reads before writes)
   const currentTab = getActiveTab();
   if (currentTab) {
     if (currentTab.isPreviewTab) {
@@ -3528,39 +3532,28 @@ function switchTab(tabId) {
     }
   }
 
-  // Switch to new tab
+  // Switch to new tab — batch DOM writes for zero-flicker
   activeTabId = tabId;
   currentFile = tab.path;
   
+  const cmEditor = document.getElementById("cm-editor");
+  const preview = document.getElementById("preview");
+  
   if (tab.isPreviewTab) {
-    // Preview tab - hide editor, show preview in same space
-    console.log('Showing preview tab');
     const editorTab = getTabByPath(tab.path);
-    if (editorTab) {
-      view.setState(editorTab.state);
-    }
-    const cmEditor = document.getElementById("cm-editor");
-    const preview = document.getElementById("preview");
-    cmEditor.style.display = "none";
-    cmEditor.style.visibility = "hidden";
-    preview.style.display = "block";
-    preview.style.visibility = "visible";
+    if (editorTab) view.setState(editorTab.state);
+    cmEditor.style.cssText = "display:none;visibility:hidden";
+    preview.style.cssText = "display:block;visibility:visible";
     renderPreview();
-    setTimeout(() => {
-      preview.scrollTop = tab.scrollTop || 0;
-    }, 10);
+    requestAnimationFrame(() => { preview.scrollTop = tab.scrollTop || 0; });
   } else {
-    // Editor tab - hide preview, show editor in same space
-    console.log('Showing editor tab');
-    const cmEditor = document.getElementById("cm-editor");
-    const preview = document.getElementById("preview");
-    cmEditor.style.display = "block";
-    cmEditor.style.visibility = "visible";
-    preview.style.display = "none";
-    preview.style.visibility = "hidden";
+    cmEditor.style.cssText = "display:block;visibility:visible";
+    preview.style.cssText = "display:none;visibility:hidden";
     view.setState(tab.state);
-    view.scrollDOM.scrollTop = tab.scrollTop;
-    view.focus();
+    requestAnimationFrame(() => {
+      view.scrollDOM.scrollTop = tab.scrollTop;
+      view.focus();
+    });
   }
   
   // Update UI
@@ -5200,11 +5193,11 @@ function applyPreferences() {
   }
 
   // Apply font weight
-  const fontWeight = prefs.fontWeight || "300";
+  const fontWeight = prefs.fontWeight || "400";
   document.documentElement.style.setProperty("--font-weight", fontWeight);
 
   // Apply line height
-  const lineHeight = prefs.lineHeight || "1.65";
+  const lineHeight = prefs.lineHeight || "1.6";
   document.documentElement.style.setProperty("--editor-line-height", lineHeight);
 }
 

@@ -4,19 +4,22 @@
 
 /* ── reset ────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Zed-like global performance: GPU layers for key elements */
 body {
   background: var(--bg-app);
   color: var(--text);
   font-family: var(--font-ui);
   overflow: hidden;
-  will-change: transform;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 #main {
   display: flex;
   height: calc(100vh - var(--menubar-h) - var(--status-h));
   overflow: hidden;
-  will-change: transform;
+  contain: layout style;
 }
 
 #cm-editor {
@@ -27,7 +30,8 @@ body {
   bottom: 0;
   overflow: auto;
   padding-top: 32px;
-  will-change: scroll-position;
+  contain: strict;
+  transform: translateZ(0);
 }
 
 /* Preview inside editor-pane (for tab switching) */
@@ -43,7 +47,8 @@ body {
   background: var(--bg-app);
   font-size: var(--preview-font-size);
   line-height: 1.85;
-  will-change: scroll-position;
+  contain: content;
+  transform: translateZ(0);
   scrollbar-width: thin;
 }
 
@@ -68,17 +73,20 @@ body {
 
 /* ── design tokens ────────────────────────────────────────────────────────── */
 :root {
-  --menubar-h:   30px;
-  --status-h:    24px;
+  --menubar-h:   28px;
+  --status-h:    22px;
   --sidebar-w:   0px;
-  --radius:      6px;
+  --radius:      5px;
 
-  --font-ui:     -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-  --font-code:   "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  --font-prose:  -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  /* Zed-matching typography */
+  --font-ui:     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --font-code:   "Zed Mono", "JetBrains Mono", "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
+  --font-prose:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
 
-  --editor-font-size: 17px;
-  --preview-font-size: 20px;
+  --editor-font-size: 14px;
+  --preview-font-size: 15px;
+  --editor-line-height: 1.6;
+  --ui-font-size: 12px;
 }
 
 /* ── theme: dark ──────────────────────────────────────────────────────────── */
@@ -272,11 +280,11 @@ html, body {
   background: var(--bg-app);
   color: var(--text);
   overflow: hidden;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--ui-font-size);
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  scroll-behavior: smooth;
+  letter-spacing: -0.003em;
 }
 
 /* Hide scrollbars but keep functionality */
@@ -315,14 +323,15 @@ html, body {
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 6px;
   user-select: none;
   position: relative;
   z-index: 100;
-  -webkit-app-region: drag; /* Electron: draggable title bar */
+  -webkit-app-region: drag;
   --menu-text: var(--text);
   --menu-text-hover: var(--text);
   --menu-accent: var(--accent);
+  font-size: 12px;
 }
 
 .menu-left {
@@ -341,7 +350,7 @@ html, body {
   display: flex;
   align-items: center;
   -webkit-app-region: no-drag;
-  transition: all 0.15s ease;
+  transition: all 60ms ease-out;
 }
 .menu-btn:hover {
   background: var(--bg-hover);
@@ -363,12 +372,12 @@ html, body {
   border: none;
   color: var(--menu-text);
   font-family: var(--font-ui);
-  font-size: 12.5px;
-  padding: 4px 10px;
+  font-size: 12px;
+  padding: 2px 8px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background .1s, color .1s;
-  line-height: 1;
+  border-radius: 3px;
+  transition: background 40ms, color 40ms;
+  line-height: 1.3;
 }
 .menu-trigger:hover,
 .menu-dropdown.open > .menu-trigger {
@@ -404,7 +413,7 @@ html, body {
   padding: 5px 24px 5px 16px;
   cursor: pointer;
   text-align: left;
-  transition: background .08s;
+  transition: background 40ms;
   white-space: nowrap;
 }
 .menu-panel button:hover { background: var(--menu-accent); color: #fff; }
@@ -434,7 +443,7 @@ html, body {
   cursor: pointer;
   color: var(--menu-text);
   position: relative;
-  transition: background .08s;
+  transition: background 40ms;
 }
 .menu-submenu-trigger:hover { background: var(--menu-accent); color: #fff; }
 .menu-arrow { margin-left: auto; font-size: 11px; }
@@ -517,7 +526,9 @@ html, body {
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
-  transition: width .15s ease;
+  transition: width 80ms ease-out;
+  contain: layout style;
+  transform: translateZ(0);
 }
 #sidebar.collapsed {
   width: 0 !important;
@@ -706,7 +717,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background .08s, color .08s;
+  transition: background 40ms, color 40ms;
 }
 .sidebar-more-popup .sort-btn:hover {
   background: var(--bg-hover);
@@ -781,7 +792,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: background .1s, color .1s;
+  transition: background 50ms, color 50ms;
   font-size: 13px;
 }
 .sidebar-tab:hover { background: var(--bg-hover); color: var(--text-dim); }
@@ -806,7 +817,7 @@ html, body {
   font-size: 12.5px;
   font-family: var(--font-ui);
   outline: none;
-  transition: border-color .15s;
+  transition: border-color 50ms;
 }
 #search-input:focus { border-color: var(--accent); }
 #search-input::placeholder { color: var(--text-muted); }
@@ -863,7 +874,7 @@ html, body {
   justify-content: center;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 60ms;
   z-index: 10;
 }
 #sidebar:hover #sidebar-folder-overlay { opacity: 1; }
@@ -879,7 +890,7 @@ html, body {
   font-weight: 600;
   letter-spacing: 0.02em;
   box-shadow: 0 2px 8px rgba(0,0,0,.15);
-  transition: background 0.15s, color 0.15s;
+  transition: background 50ms, color 0.15s;
   max-width: 80%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1079,7 +1090,7 @@ li.tree-folder > .folder-header {
   padding: 2px 10px;
   cursor: pointer;
   border-radius: 4px;
-  transition: background .08s;
+  transition: background 40ms;
   user-select: none;
   white-space: nowrap;
   overflow: hidden;
@@ -1172,7 +1183,7 @@ li.tree-file {
   align-items: flex-start;
   padding: 2px 12px;
   cursor: pointer;
-  transition: background .08s;
+  transition: background 40ms;
   border-radius: 4px;
   margin: 0 4px;
   width: fit-content;
@@ -1211,18 +1222,13 @@ li.tree-file .file-name {
 .file-preview {
   font-size: 12px;
   color: var(--text-muted);
+  opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   width: 100%;
   padding-left: 20px;
-}
-  opacity: 0.7;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   margin-top: 3px;
-  padding-left: 20px;
   line-height: 1.4;
 }
 
@@ -1268,7 +1274,7 @@ li.highlighted {
   flex-direction: column;
   padding: 8px 14px;
   cursor: pointer;
-  transition: background .08s;
+  transition: background 40ms;
   border-bottom: 1px solid var(--border-dim);
 }
 #file-list-flat li:hover { background: var(--bg-hover); }
@@ -1291,7 +1297,7 @@ li.highlighted {
   cursor: pointer;
   font-size: 13px;
   color: var(--text-dim);
-  transition: background .08s, color .08s;
+  transition: background 40ms, color 40ms;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1380,7 +1386,7 @@ li.highlighted {
   flex-direction: column;
   padding: 8px 14px;
   cursor: pointer;
-  transition: background .08s;
+  transition: background 40ms;
 }
 #search-results li:hover { background: var(--bg-hover); }
 
@@ -1528,7 +1534,7 @@ li.tree-file:hover .del-btn,
   border-right: 1px solid transparent;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s, color 0.15s;
+  transition: background 50ms, color 0.15s;
   border-radius: 6px 6px 0 0;
   margin-right: 2px;
 }
@@ -1591,29 +1597,29 @@ li.tree-file:hover .del-btn,
 .cm-editor       { height: 100% !important; background: var(--bg-editor) !important; }
 .cm-scroller     { 
   overflow: auto !important; 
-  font-family: "JetBrains Mono", monospace !important;
-  font-weight: 300 !important;
-  padding: 28px 0 !important;
-  line-height: var(--editor-line-height, 1.65) !important;
+  font-family: var(--font-code) !important;
+  font-weight: 400 !important;
+  padding: 4px 0 !important;
+  line-height: var(--editor-line-height) !important;
+  letter-spacing: -0.01em;
 }
 .cm-content      { padding: 0 !important; }
 .cm-line         { 
-  padding: 0 48px !important;
-  line-height: var(--editor-line-height, 1.65) !important;
+  padding: 0 16px 0 8px !important;
+  line-height: var(--editor-line-height) !important;
 }
 
-/* Center content when sidebar is collapsed */
-.sidebar-collapsed .cm-scroller {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 32px 60px !important;
+/* When sidebar is collapsed, add modest left padding but no centering (like Zed) */
+.sidebar-collapsed .cm-line {
+  padding: 0 24px 0 12px !important;
 }
 
-.cm-gutters      { background: var(--bg-editor) !important; border-right: 1px solid var(--border-dim) !important; color: var(--text-muted) !important; }
-.cm-activeLineGutter { background: var(--bg-hover) !important; }
-.cm-activeLine   { background: rgba(255,255,255,.02) !important; }
-.cm-cursor       { border-left-color: var(--accent) !important; }
-.cm-selectionBackground { background: rgba(88,166,255,.15) !important; }
+/* Zed-style gutters: clean, no border, subtle */
+.cm-gutters      { background: var(--bg-editor) !important; border-right: none !important; color: var(--text-muted) !important; font-size: 12px !important; }
+.cm-activeLineGutter { background: transparent !important; color: var(--text-dim) !important; }
+.cm-activeLine   { background: rgba(255,255,255,.03) !important; }
+.cm-cursor       { border-left-color: var(--accent) !important; border-left-width: 2px !important; }
+.cm-selectionBackground { background: rgba(88,166,255,.18) !important; }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    PREVIEW PANE
@@ -1651,7 +1657,7 @@ li.tree-file:hover .del-btn,
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 60ms ease-out;
 }
 
 .page-nav-btn:hover:not(:disabled) {
@@ -1759,7 +1765,7 @@ li.tree-file:hover .del-btn,
   align-items: center;
   justify-content: center;
   opacity: 0.7;
-  transition: opacity 0.2s, background 0.2s;
+  transition: opacity 60ms, background 0.2s;
 }
 
 .editor-overlay-btn:hover {
@@ -1801,7 +1807,7 @@ li.tree-file:hover .del-btn,
   cursor: pointer;
   color: var(--text);
   font-size: 13px;
-  transition: background 0.15s;
+  transition: background 50ms;
 }
 
 .editor-settings-menu .menu-item:hover {
@@ -1896,31 +1902,25 @@ li.tree-file:hover .del-btn,
   transform: translateZ(0);
 }
 
-/* Blue dot indicator on active line */
+/* Active line gutter — Zed: just brighter number, no dot */
 .cm-activeLineGutter {
   position: relative;
 }
 
-.cm-activeLineGutter::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent, #4fc3f7);
-}
-
+/* Zed-style gutter: compact, right-aligned numbers */
 .cm-gutters {
   border-right: none !important;
-  min-width: 50px !important;
+  min-width: 44px !important;
+  padding-right: 8px !important;
 }
 
 .cm-lineNumbers .cm-gutterElement {
-  padding-left: 16px !important;
-  min-width: 40px !important;
+  padding-left: 8px !important;
+  padding-right: 4px !important;
+  min-width: 32px !important;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Preview inside editor-pane (for tab switching) */
@@ -1961,12 +1961,12 @@ li.tree-file:hover .del-btn,
 #editor-pane #preview p {
   position: relative;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 50ms;
 }
 
 #editor-pane #preview p:hover {
   background: var(--bg-hover);
-  transition: background 0.15s ease;
+  transition: background 50ms ease;
 }
 
 #editor-pane #preview p.active-paragraph::before {
@@ -1977,7 +1977,7 @@ li.tree-file:hover .del-btn,
   bottom: 0;
   width: 3px;
   background: var(--accent, #4fc3f7);
-  transition: all 0.2s ease;
+  transition: all 60ms ease-out ease;
 }
 
 /* Resize handle between preview and editor */
@@ -1986,7 +1986,7 @@ li.tree-file:hover .del-btn,
   background: var(--border-dim);
   cursor: col-resize;
   flex-shrink: 0;
-  transition: background-color 0.2s;
+  transition: background-color 50ms;
 }
 
 #preview-editor-resize-handle:hover {
@@ -2025,7 +2025,7 @@ li.tree-file:hover .del-btn,
   scroll-behavior: smooth;
   position: relative;
   cursor: text;
-  transition: background 0.2s;
+  transition: background 50ms;
 }
 
 #preview-pane #preview-split:hover {
@@ -2045,7 +2045,7 @@ li.tree-file:hover .del-btn,
   font-size: 12px;
   color: var(--text-dim);
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 80ms;
   pointer-events: none;
   z-index: 100;
 }
@@ -2279,7 +2279,7 @@ li.tree-file:hover .del-btn,
   font-weight: 500;
   cursor: pointer;
   border-radius: 4px;
-  transition: background .1s;
+  transition: background 50ms;
 }
 
 .ctx-submenu-label::after {
@@ -2345,7 +2345,7 @@ li.tree-file:hover .del-btn,
   color: var(--text);
   cursor: pointer;
   border-radius: 4px;
-  transition: background .1s;
+  transition: background 50ms;
   width: 100%;
   border: none;
   background: none;
@@ -2404,7 +2404,7 @@ li.tree-file:hover .del-btn,
 }
 .status-sep { color: var(--border-dim); font-size: 10px; opacity: 0.4; user-select: none; }
 #status-msg {
-  transition: color .3s;
+  transition: color 60ms;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2420,7 +2420,7 @@ li.tree-file:hover .del-btn,
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  transition: background .1s, color .1s, margin-left .15s ease;
+  transition: background 50ms, color 50ms, margin-left .15s ease;
   -webkit-app-region: no-drag;
 }
 
@@ -2432,7 +2432,7 @@ li.tree-file:hover .del-btn,
 /* Hide folder name by default, show on sidebar hover */
 #btn-bottom-folder-name {
   opacity: 0;
-  transition: opacity .2s ease;
+  transition: opacity 60ms ease;
 }
 
 #sidebar:hover ~ footer #btn-bottom-folder-name {
@@ -2450,7 +2450,7 @@ li.tree-file:hover .del-btn,
   border-radius: 50%;
   background: transparent;
   border: none;
-  transition: background .1s, border .1s;
+  transition: background 50ms, border .1s;
   margin: 0;
 }
 
@@ -2512,7 +2512,7 @@ li.tree-file:hover .del-btn,
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  transition: background .1s, color .1s;
+  transition: background 50ms, color 50ms;
   white-space: nowrap;
   -webkit-app-region: no-drag;
 }
@@ -2642,7 +2642,7 @@ li.tree-file:hover .del-btn,
   color: var(--text-muted);
   text-decoration: none;
   font-size: 12px;
-  transition: color 0.2s;
+  transition: color 60ms;
 }
 
 .social-link:hover {
@@ -2768,7 +2768,7 @@ li.tree-file:hover .del-btn,
 .modal-actions button {
   border-radius: var(--radius); padding: 6px 18px; cursor: pointer;
   font-size: 13px; font-family: var(--font-ui); font-weight: 500;
-  border: 1px solid transparent; transition: background .1s;
+  border: 1px solid transparent; transition: background 50ms;
 }
 .modal-actions button:first-child {
   background: var(--accent); color: #fff; font-weight: 600;
@@ -2814,7 +2814,7 @@ li.tree-file:hover .del-btn,
   background: var(--bg-hover); border: 1px solid var(--border-dim);
   border-radius: 8px; color: var(--text-dim);
   cursor: pointer; font-size: 12px;
-  transition: background .1s, border-color .1s, color .1s;
+  transition: background 50ms, border-color .1s, color .1s;
 }
 .diagram-type:hover { background: rgba(88,166,255,.1); border-color: var(--accent); color: var(--text); }
 .diagram-icon { font-size: 20px; }
@@ -2856,7 +2856,7 @@ li.tree-file:hover .del-btn,
   flex-direction: column;
   z-index: 150;
   transform: translateX(100%);
-  transition: transform .2s ease;
+  transition: transform 80ms ease-out;
   box-shadow: -4px 0 20px rgba(0,0,0,.3);
 }
 #help-panel.open { transform: translateX(0); }
@@ -2973,7 +2973,7 @@ kbd {
 
 .graph-block-wrapper {
   margin: 12px 0; border: 2px solid transparent; border-radius: 6px;
-  display: inline-block; max-width: 100%; transition: border-color .2s;
+  display: inline-block; max-width: 100%; transition: border-color 50ms;
 }
 .graph-block-wrapper:hover { border-color: var(--accent); }
 
@@ -3002,7 +3002,7 @@ body.focus-mode #preview-pane { border-left: none; }
 /* Paragraph focus - dim non-focused lines */
 .cm-line-dimmed {
   opacity: 0.3;
-  transition: opacity 0.2s ease;
+  transition: opacity 60ms ease;
 }
 
 /* floating exit button */
@@ -3020,7 +3020,7 @@ body.focus-mode::after {
   padding: 4px 10px;
   border-radius: 4px;
   opacity: 0;
-  transition: opacity .3s;
+  transition: opacity 80ms;
   pointer-events: none;
 }
 body.focus-mode:hover::after {
@@ -3093,7 +3093,7 @@ button:focus-visible, input:focus-visible {
 
   #sidebar {
     position: fixed; left: 0; top: var(--menubar-h); bottom: var(--status-h);
-    z-index: 200; transform: translateX(-100%); transition: transform .2s ease;
+    z-index: 200; transform: translateX(-100%); transition: transform 80ms ease-out;
     box-shadow: 4px 0 20px rgba(0,0,0,.4);
   }
   #sidebar:not(.collapsed) { transform: translateX(0); }
@@ -3250,7 +3250,7 @@ button:focus-visible, input:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background-color 0.2s, opacity 0.2s;
+  transition: background-color 50ms, opacity 0.2s;
 }
 
 .git-signin-btn:hover {
@@ -3378,7 +3378,7 @@ button:focus-visible, input:focus-visible {
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 60ms ease-out;
 }
 
 .git-btn:disabled {
@@ -3439,4 +3439,135 @@ button:focus-visible, input:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ZED-LIKE SNAPPINESS — GPU acceleration & instant feedback
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* GPU-promote frequently animated/scrolled elements */
+#sidebar, #editor-pane, #preview-pane, #tab-bar, #menubar, #statusbar {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Instant hover states — no perceptible delay */
+.menu-btn:hover,
+.menu-trigger:hover,
+.sidebar-tab:hover,
+li.tree-file:hover,
+.folder-header:hover,
+.tab:hover,
+.bottom-control-btn:hover,
+.statusbar-toggle-btn:hover,
+.pane-toolbar-btn:hover,
+.editor-overlay-btn:hover,
+.context-menu button:hover,
+.cmd-palette-item.active {
+  transition: background 30ms, color 30ms !important;
+}
+
+/* Scroll containers: native momentum + GPU compositing */
+.sidebar-content,
+#preview,
+#preview-split,
+.cm-scroller {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* Reduce layout thrashing on file tree */
+#file-list, #file-list-flat, #outline-list {
+  contain: content;
+}
+
+li.tree-file, li.tree-folder {
+  contain: layout style;
+}
+
+/* Snappy tab switching — no fade, instant swap */
+.tab {
+  transition: background 30ms, color 30ms !important;
+}
+
+.tab-active {
+  transition: none !important;
+}
+
+/* Scroll progress bar — Zed-style thin accent line */
+#scroll-progress-bar {
+  position: fixed;
+  top: var(--menubar-h);
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  z-index: 200;
+  transition: width 60ms linear;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Command palette: snappy open/close */
+.cmd-palette {
+  animation: cmd-palette-in 50ms ease-out !important;
+}
+
+/* Sidebar collapse: instant */
+#sidebar.collapsed {
+  transition: width 50ms ease-out !important;
+}
+
+/* Modal/overlay backdrop: fast */
+#modal-overlay, #publish-overlay, #table-overlay, #diagram-overlay, #graph-overlay,
+.dialog-overlay, .cmd-palette-overlay {
+  transition: opacity 50ms ease-out;
+}
+
+/* Menu panels: instant */
+.menu-panel, .menu-submenu, .sidebar-more-popup {
+  animation: popup-in 40ms ease-out !important;
+}
+
+/* Focus ring: sharp, no animation */
+button:focus-visible, input:focus-visible {
+  transition: none !important;
+}
+
+/* CodeMirror cursor: smooth blink like Zed */
+.cm-cursor {
+  border-left-width: 2px !important;
+  animation: cm-blink 1s step-end infinite;
+}
+
+@keyframes cm-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Tab bar scroll: smooth horizontal */
+#tab-bar {
+  scroll-behavior: smooth;
+  transform: translateZ(0);
+}
+
+/* Prevent repaints on hover for deeply nested elements */
+.tree-children {
+  contain: layout;
+}
+
+/* Zed-style active line highlight — subtle, not distracting */
+.cm-activeLine {
+  transition: none !important;
+}
+
+/* Snappy context menu positioning */
+.context-menu, .editor-context-menu, .sidebar-more-popup {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Input focus: instant border */
+input:focus, textarea:focus, select:focus {
+  transition: border-color 30ms !important;
 }
