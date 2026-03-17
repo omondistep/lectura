@@ -39,8 +39,10 @@ body {
   bottom: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px;
+  padding: 36px 80px;
   background: var(--bg-app);
+  font-size: var(--preview-font-size);
+  line-height: 1.85;
   will-change: scroll-position;
   scrollbar-width: thin;
 }
@@ -75,8 +77,8 @@ body {
   --font-code:   "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
   --font-prose:  -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
 
-  --editor-font-size: 15px;
-  --preview-font-size: 16px;
+  --editor-font-size: 16px;
+  --preview-font-size: 20px;
 }
 
 /* ── theme: dark ──────────────────────────────────────────────────────────── */
@@ -1590,13 +1592,13 @@ li.tree-file:hover .del-btn,
 .cm-scroller     { 
   overflow: auto !important; 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
-  padding: 24px 0 !important;
-  line-height: 1.75 !important;
+  padding: 28px 0 !important;
+  line-height: 1.65 !important;
 }
 .cm-content      { padding: 0 !important; }
 .cm-line         { 
-  padding: 0 40px !important;
-  line-height: 1.75 !important;
+  padding: 0 48px !important;
+  line-height: 1.65 !important;
 }
 
 /* Center content when sidebar is collapsed */
@@ -1929,8 +1931,10 @@ li.tree-file:hover .del-btn,
   bottom: 0;
   overflow-y: scroll;
   overflow-x: hidden;
-  padding: 20px;
+  padding: 36px 80px;
   background: var(--bg-app);
+  font-size: var(--preview-font-size);
+  line-height: 1.85;
   will-change: scroll-position;
   transform: translateZ(0);
 }
@@ -2008,13 +2012,13 @@ li.tree-file:hover .del-btn,
 #preview-pane #preview-split {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 36px;
-  line-height: 1.8;
+  padding: 36px 80px;
+  line-height: 1.85;
   font-family: var(--font-prose);
   font-size: var(--preview-font-size);
   color: var(--text);
   width: 100%;
-  max-width: 800px;
+  max-width: 960px;
   margin: 0 auto;
   background: var(--bg-preview);
   scroll-behavior: smooth;
@@ -2080,14 +2084,14 @@ li.tree-file:hover .del-btn,
   font-family: var(--font-ui);
   font-weight: 700;
   line-height: 1.3;
-  margin: 1.4em 0 .5em;
+  margin: 1.8em 0 .6em;
   color: var(--text);
 }
-#preview h1 { font-size: 1.8em; border-bottom: 1px solid var(--border-dim); padding-bottom: .3em; }
-#preview h2 { font-size: 1.45em; border-bottom: 1px solid var(--border-dim); padding-bottom: .2em; }
-#preview h3 { font-size: 1.2em; }
-#preview h4 { font-size: 1.05em; }
-#preview p  { margin: .65em 0; }
+#preview h1 { font-size: 2em; border-bottom: 1px solid var(--border-dim); padding-bottom: .3em; }
+#preview h2 { font-size: 1.6em; border-bottom: 1px solid var(--border-dim); padding-bottom: .2em; }
+#preview h3 { font-size: 1.3em; }
+#preview h4 { font-size: 1.1em; }
+#preview p  { margin: 1.1em 0; }
 #preview a  { color: var(--accent); text-decoration: none; }
 #preview a:hover { text-decoration: underline; }
 
