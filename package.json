@@ -19,6 +19,7 @@
       "requirements.txt",
       "static/**/*",
       "build/**/*",
+      "bundled-venv/**/*",
       "!node_modules/**/*",
       "!venv/**/*",
       "!notes/**/*",
@@ -36,12 +37,14 @@
     ],
     "linux": {
       "target": [
+        "AppImage",
         "pacman"
       ],
       "category": "Office",
       "icon": "build/icon.png",
       "maintainer": "Ondiek <ondiek@lectura.app>"
     },
+
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"

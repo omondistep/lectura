@@ -74,7 +74,7 @@ body {
 /* ── design tokens ────────────────────────────────────────────────────────── */
 :root {
   --menubar-h:   28px;
-  --status-h:    22px;
+  --status-h:    26px;
   --sidebar-w:   0px;
   --radius:      5px;
 
@@ -899,6 +899,157 @@ html, body {
 #sidebar-folder-overlay button:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+/* ── Welcome Screen (Zed-style) ─────────────────────────────────────────── */
+#welcome-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-app);
+  overflow-y: auto;
+}
+#welcome-screen.hidden { display: none; }
+
+.welcome-content {
+  width: 480px;
+  max-width: 92%;
+  padding: 20px 0 40px;
+}
+
+.welcome-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 44px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.welcome-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.welcome-title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font-ui);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.welcome-subtitle {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  letter-spacing: 0.01em;
+}
+
+.welcome-section {
+  margin-bottom: 32px;
+}
+
+.welcome-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+  font-family: var(--font-ui);
+}
+
+.welcome-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 80ms;
+  text-align: left;
+}
+.welcome-action:hover {
+  background: var(--bg-hover);
+}
+.welcome-action:hover svg {
+  color: var(--accent);
+}
+.welcome-action svg {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: color 80ms;
+}
+.welcome-action-label {
+  flex: 1;
+  font-weight: 450;
+}
+.welcome-action-shortcut {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-code);
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.welcome-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 80ms;
+  text-align: left;
+}
+.welcome-recent-item:hover {
+  background: var(--bg-hover);
+}
+.welcome-recent-item:hover svg {
+  color: var(--accent);
+}
+.welcome-recent-item svg {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: color 80ms;
+}
+.welcome-recent-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 450;
+}
+.welcome-recent-shortcut {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-code);
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 /* ── status bar folder display ───────────────────────────────────────────── */
@@ -1844,15 +1995,7 @@ li.tree-file:hover .del-btn,
 
 .line-indicator {
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.line-indicator:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .editor-content-area {
@@ -2365,23 +2508,25 @@ li.tree-file:hover .del-btn,
    ═══════════════════════════════════════════════════════════════════════════════ */
 #statusbar {
   height: var(--status-h);
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border-dim);
+  background: var(--bg-app, var(--bg-surface));
+  border-top: 1px solid color-mix(in srgb, var(--border-dim) 40%, transparent);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px;
-  font-size: 11.5px;
+  padding: 0 10px;
+  font-size: 12px;
   color: var(--text-muted);
   flex-shrink: 0;
   width: 100%;
   z-index: 70;
+  font-family: var(--font-ui);
+  letter-spacing: 0.01em;
 }
 
 .status-left, .status-center, .status-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   white-space: nowrap;
 }
 .status-left {
@@ -2396,17 +2541,30 @@ li.tree-file:hover .del-btn,
   overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .status-right {
   flex-shrink: 0;
-  gap: 10px;
+  gap: 2px;
 }
 .status-sep { color: var(--border-dim); font-size: 10px; opacity: 0.4; user-select: none; }
 #status-msg {
   transition: color 60ms;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 11.5px;
+}
+/* Zed-style: right-side items as subtle clickable chips */
+.status-right > span {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11.5px;
+  cursor: default;
+  transition: background 60ms, color 60ms;
+}
+.status-right > span:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .statusbar-toggle-btn {
@@ -2414,7 +2572,7 @@ li.tree-file:hover .del-btn,
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 5px 10px;
+  padding: 2px 6px;
   border-radius: 3px;
   display: flex;
   align-items: center;
@@ -2441,49 +2599,39 @@ li.tree-file:hover .del-btn,
 
 #btn-bottom-toggle-sidebar {
   position: static;
-  padding: 0;
-  width: 14px;
-  height: 14px;
+  padding: 2px 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 3px;
   background: transparent;
   border: none;
-  transition: background 50ms, border .1s;
+  transition: background 60ms, color 60ms;
   margin: 0;
+  color: var(--text-muted);
 }
-
-/* White circle only on hover when collapsed */
-#btn-bottom-toggle-sidebar.collapsed:hover {
-  width: 14px;
-  height: 14px;
-  background: white;
-  border: 1px solid white;
+#btn-bottom-toggle-sidebar:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 #sidebar-toggle-icon {
-  font-size: 14px;
-  font-weight: bold;
-  color: var(--text);
-  transition: opacity .1s;
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0.7;
+  transition: opacity 60ms;
+}
+#btn-bottom-toggle-sidebar:hover #sidebar-toggle-icon {
+  opacity: 1;
 }
 
-/* Hide text when collapsed */
+/* Subtle dimming when sidebar is collapsed */
 #btn-bottom-toggle-sidebar.collapsed #sidebar-toggle-icon {
-  color: transparent;
-  font-size: 0;
+  opacity: 0.4;
 }
-
-/* Dot indicator for collapsed state on hover */
-#btn-bottom-toggle-sidebar.collapsed:hover #sidebar-toggle-icon::after {
-  content: '●';
-  position: absolute;
-  color: white;
-  font-size: 8px;
+#btn-bottom-toggle-sidebar.collapsed:hover #sidebar-toggle-icon {
+  opacity: 1;
 }
 
 #vim-mode-indicator {
@@ -2493,26 +2641,25 @@ li.tree-file:hover .del-btn,
   background: var(--bg-hover);
   color: var(--text);
 }
-.statusbar-toggle-btn svg { 
+.statusbar-toggle-btn svg {
   flex-shrink: 0;
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
-.statusbar-toggle-btn span { color: var(--text-muted); font-size: 10px; }
 
-/* Bottom control buttons in statusbar */
+/* Bottom control buttons in statusbar — Zed-style */
 .bottom-control-btn {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 5px 8px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  transition: background 50ms, color 50ms;
+  gap: 5px;
+  font-size: 11.5px;
+  transition: background 60ms, color 60ms;
   white-space: nowrap;
   -webkit-app-region: no-drag;
 }
@@ -2524,6 +2671,11 @@ li.tree-file:hover .del-btn,
 
 .bottom-control-btn svg {
   flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 60ms;
+}
+.bottom-control-btn:hover svg {
+  opacity: 1;
 }
 
 .file-name-btn {
@@ -2538,24 +2690,26 @@ li.tree-file:hover .del-btn,
 }
 
 .doc-status {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 3px;
   font-weight: 500;
   flex-shrink: 0;
   line-height: 1.4;
+  letter-spacing: 0.02em;
 }
-.doc-status.new    { color: var(--accent); background: rgba(88,166,255,.12); }
-.doc-status.draft  { color: var(--yellow); background: rgba(210,153,34,.12); }
-.doc-status.saved  { color: var(--accent-2); background: rgba(63,185,80,.12); }
+.doc-status.new    { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.doc-status.draft  { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+.doc-status.saved  { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 12%, transparent); }
 
-/* vim indicator */
+/* vim indicator — Zed-style badge */
 .vim-mode {
-  font-family: var(--font-code);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  padding: 1px 6px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: 1px 7px;
   border-radius: 3px;
   flex-shrink: 0;
   line-height: 1.4;
@@ -2747,6 +2901,25 @@ li.tree-file:hover .del-btn,
 }
 #modal label input:focus { border-color: var(--accent); }
 #modal hr { border: none; border-top: 1px solid var(--border-dim); margin: 16px 0; }
+
+.opacity-control {
+  display: flex; align-items: center; gap: 10px;
+}
+.opacity-control input[type="range"] {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+  background: var(--border); border-radius: 2px; outline: none;
+  cursor: pointer;
+}
+.opacity-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-app);
+  cursor: pointer;
+}
+.opacity-control span {
+  font-size: 12px; color: var(--text-muted);
+  min-width: 36px; text-align: right; font-variant-numeric: tabular-nums;
+}
 
 .cloud-row {
   display: flex; align-items: center; gap: 10px;

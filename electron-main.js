@@ -1,7 +1,8 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 
 // Only disable GPU if needed (env var override)
 if (process.env.LECTURA_DISABLE_GPU) {
@@ -10,18 +11,68 @@ if (process.env.LECTURA_DISABLE_GPU) {
   app.commandLine.appendSwitch('disable-software-rasterizer');
 }
 
+// Zed-like snappiness: enable GPU compositing & reduce latency
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,VaapiVideoEncoder');
+app.commandLine.appendSwitch('disable-frame-rate-limit');
+app.commandLine.appendSwitch('force-gpu-mem-available-mb', '512');
+
 let mainWindow;
 let pythonProcess;
 
+// Load saved opacity from a simple JSON file in data dir
+function getSavedOpacity() {
+  try {
+    const configPath = path.join(getDataDir(), 'window-config.json');
+    if (fs.existsSync(configPath)) {
+      const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return data.opacity ?? 1.0;
+    }
+  } catch {}
+  return 1.0;
+}
+
+function saveWindowConfig(config) {
+  const configPath = path.join(getDataDir(), 'window-config.json');
+  fs.mkdirSync(getDataDir(), { recursive: true });
+  let existing = {};
+  try { existing = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
+  fs.writeFileSync(configPath, JSON.stringify({ ...existing, ...config }));
+}
+
+// When running as AppImage, __dirname is read-only (squashfs).
+// We extract the bundled venv to a writable data dir on first run.
+function getDataDir() {
+  return path.join(os.homedir(), '.local', 'share', 'lectura');
+}
+
+function ensureVenv() {
+  const dataDir = getDataDir();
+  const venvDest = path.join(dataDir, 'venv');
+  const bundledVenv = path.join(__dirname, 'bundled-venv');
+
+  // If a bundled venv exists (AppImage build) and destination doesn't, copy it
+  if (fs.existsSync(bundledVenv) && !fs.existsSync(venvDest)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    execFileSync('cp', ['-a', bundledVenv, venvDest]);
+    // Fix shebangs so venv works from new location
+    execFileSync('python3', ['-m', 'venv', '--upgrade', venvDest]);
+  }
+
+  return venvDest;
+}
+
 function startPython() {
   const isWin = os.platform() === 'win32';
-  // Use pythonw on Windows to avoid spawning a console window
+  const venvDir = ensureVenv();
   const pythonCmd = isWin
-    ? path.join(__dirname, 'venv', 'Scripts', 'pythonw.exe')
-    : path.join(__dirname, 'venv', 'bin', 'python3');
-  
-  pythonProcess = spawn(pythonCmd, ['main.py'], {
-    cwd: __dirname,
+    ? path.join(venvDir, 'Scripts', 'pythonw.exe')
+    : path.join(venvDir, 'bin', 'python3');
+
+  // main.py lives in __dirname (inside AppImage squashfs, read-only is fine for source)
+  pythonProcess = spawn(pythonCmd, [path.join(__dirname, 'main.py')], {
+    cwd: getDataDir(),
     stdio: 'pipe'
   });
   
@@ -31,6 +82,9 @@ function startPython() {
 
 function createWindow() {
   console.log('[Electron] Creating window...');
+  const savedOpacity = getSavedOpacity();
+  const isTransparent = savedOpacity < 1.0;
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -39,15 +93,25 @@ function createWindow() {
     title: 'Lectura',
     icon: path.join(__dirname, 'static', 'icons', 'icon-256.png'),
     show: false,
-    backgroundColor: '#0d1117',
+    backgroundColor: isTransparent ? undefined : '#0d1117',
+    transparent: isTransparent,
+    titleBarStyle: 'hiddenInset',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      devTools: false,  // Disable developer tools
-      cache: true  // Enable cache for faster startup
+      devTools: false,
+      cache: true,
+      backgroundThrottling: false,  // Keep responsive when backgrounded
+      enableBlinkFeatures: 'CSSContainmentBlockSize',
+      v8CacheOptions: 'code',  // Cache compiled JS for faster startup
     }
   });
+
+  // Apply saved opacity
+  if (savedOpacity < 1.0) {
+    mainWindow.setOpacity(savedOpacity);
+  }
   console.log('[Electron] Window created');
 
   // Hide native menu bar
@@ -63,7 +127,7 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'static', 'splash.html'));
 
   // Once server is ready, reload from the live server
-  waitForServer('http://127.0.0.1:8000', 20).then(() => {
+  waitForServer('http://127.0.0.1:8000', 10).then(() => {
     console.log('[Electron] Server ready, loading URL...');
     mainWindow.loadURL('http://127.0.0.1:8000');
   });
@@ -104,6 +168,19 @@ function waitForServer(url, intervalMs, maxAttempts = 100) {
     check();
   });
 }
+
+ipcMain.handle('set-window-opacity', async (event, opacity) => {
+  const value = Math.max(0.3, Math.min(1.0, parseFloat(opacity) || 1.0));
+  if (mainWindow) {
+    mainWindow.setOpacity(value);
+  }
+  saveWindowConfig({ opacity: value });
+  return value;
+});
+
+ipcMain.handle('get-window-opacity', async () => {
+  return getSavedOpacity();
+});
 
 ipcMain.handle('open-folder-dialog', async (event, defaultPath) => {
   if (!mainWindow) return null;

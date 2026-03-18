@@ -218,15 +218,15 @@ function updateDocStatus() {
   const el = document.getElementById("doc-status");
   if (!el) return;
   if (isDirty) {
-    el.textContent = "● Draft";
+    el.textContent = "Modified";
     el.className = "doc-status draft";
     el.title = "Unsaved changes";
   } else if (currentFile === "untitled.md") {
-    el.textContent = "● New";
+    el.textContent = "New";
     el.className = "doc-status new";
     el.title = "New document";
   } else {
-    el.textContent = "● Saved";
+    el.textContent = "Saved";
     el.className = "doc-status saved";
     el.title = "Saved locally";
   }
@@ -817,7 +817,7 @@ function updateLineIndicator() {
   const line = view.state.doc.lineAt(pos);
   const lineNum = line.number;
   const col = pos - line.from + 1;
-  indicator.textContent = `${lineNum}:${col}`;
+  indicator.textContent = `Ln ${lineNum}, Col ${col}`;
 }
 
 function updateBreadcrumb() {
@@ -1101,6 +1101,7 @@ const wordPrediction = autocompletion({
 // ═══════════════════════════════════════════════════════════════════════════════
 const updateListener = EditorView.updateListener.of(update => {
   if (update.docChanged) {
+    dismissWelcomeScreen();
     renderPreview();
     markDirty();
     // Detect /graph command
@@ -1642,16 +1643,8 @@ function toggleSidebar() {
 
 function updateSidebarToggleIcon() {
   const btn = document.getElementById("btn-bottom-toggle-sidebar");
-  const icon = document.getElementById("sidebar-toggle-icon");
   const isCollapsed = document.getElementById("sidebar").classList.contains("collapsed");
-  
-  if (isCollapsed) {
-    icon.textContent = "";
-    btn.classList.add("collapsed");
-  } else {
-    icon.textContent = "❮";
-    btn.classList.remove("collapsed");
-  }
+  btn.classList.toggle("collapsed", isCollapsed);
 }
 
 document.getElementById("btn-sidebar").addEventListener("click", toggleSidebar);
@@ -2873,10 +2866,8 @@ document.getElementById("file-input").addEventListener("change", async e => {
   });
   
   if (saveRes.ok) {
-    currentFile = fullPath;
-    document.getElementById("filename-input").value = fileName;
-    setContent(content);
     await loadFileList();
+    await openTab(fullPath);
     setStatus(`Imported ${file.name}`);
   } else {
     setStatus("Failed to save imported file", true);
@@ -3244,10 +3235,31 @@ async function openSettings() {
   document.getElementById("cfg-font-weight").value = prefs.fontWeight || "400";
   document.getElementById("cfg-line-height").value = prefs.lineHeight || "1.6";
 
+  // Load opacity from Electron or localStorage
+  const opacitySlider = document.getElementById("cfg-opacity");
+  const opacityLabel = document.getElementById("cfg-opacity-value");
+  if (window.electronAPI?.getWindowOpacity) {
+    const opacity = await window.electronAPI.getWindowOpacity();
+    opacitySlider.value = opacity;
+    opacityLabel.textContent = Math.round(opacity * 100) + "%";
+  } else {
+    opacitySlider.value = prefs.opacity || 1.0;
+    opacityLabel.textContent = Math.round((prefs.opacity || 1.0) * 100) + "%";
+  }
+
   document.getElementById("modal-overlay").classList.remove("hidden");
 }
 
 document.getElementById("btn-settings")?.addEventListener("click", () => openSettings());
+
+// Live opacity preview while dragging the slider
+document.getElementById("cfg-opacity")?.addEventListener("input", (e) => {
+  const val = parseFloat(e.target.value);
+  document.getElementById("cfg-opacity-value").textContent = Math.round(val * 100) + "%";
+  if (window.electronAPI?.setWindowOpacity) {
+    window.electronAPI.setWindowOpacity(val);
+  }
+});
 document.getElementById("btn-close-modal")?.addEventListener("click", () => document.getElementById("modal-overlay").classList.add("hidden"));
 document.getElementById("btn-open-theme-folder")?.addEventListener("click", async () => {
   await fetch("/themes/open-folder", { method: "POST" });
@@ -3276,6 +3288,7 @@ document.getElementById("btn-save-config")?.addEventListener("click", async () =
     fontFamily: document.getElementById("cfg-font-family").value,
     fontWeight: document.getElementById("cfg-font-weight").value,
     lineHeight: document.getElementById("cfg-line-height").value,
+    opacity: parseFloat(document.getElementById("cfg-opacity").value),
   };
   
   // Save to localStorage
@@ -3314,7 +3327,12 @@ document.getElementById("btn-save-config")?.addEventListener("click", async () =
   if (prefs.lineHeight) {
     document.documentElement.style.setProperty("--editor-line-height", prefs.lineHeight);
   }
-  
+
+  // Apply window opacity (persisted via Electron IPC)
+  if (window.electronAPI?.setWindowOpacity) {
+    window.electronAPI.setWindowOpacity(prefs.opacity ?? 1.0);
+  }
+
   setStatus("Settings saved");
   document.getElementById("modal-overlay").classList.add("hidden");
 });
@@ -3365,6 +3383,7 @@ function getActiveTab() {
 }
 
 async function openTab(path, { preview = false, focus = true } = {}) {
+  dismissWelcomeScreen();
   console.log('openTab called:', path, { preview, focus });
   
   // If preview mode and preview tab exists for different file, replace it
@@ -5203,6 +5222,65 @@ function applyPreferences() {
 
 applyPreferences();
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// WELCOME SCREEN (Zed-style)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function dismissWelcomeScreen() {
+  const ws = document.getElementById("welcome-screen");
+  if (ws) ws.classList.add("hidden");
+}
+
+function showWelcomeScreen() {
+  const ws = document.getElementById("welcome-screen");
+  if (!ws) return;
+
+  // Populate recent projects
+  const recentLocations = JSON.parse(localStorage.getItem("lectura-recent-locations") || "[]");
+  const recentSection = document.getElementById("welcome-recent-section");
+  const recentList = document.getElementById("welcome-recent-list");
+
+  if (recentLocations.length > 0 && recentSection && recentList) {
+    recentSection.style.display = "";
+    recentList.innerHTML = recentLocations.slice(0, 5).map((loc, i) => {
+      const name = loc.split("/").pop() || loc;
+      const shortcut = i < 3 ? `Ctrl+${i + 1}` : "";
+      return `<button class="welcome-recent-item" data-path="${loc.replace(/"/g, "&quot;")}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        <span class="welcome-recent-name">${name}</span>
+        ${shortcut ? `<span class="welcome-recent-shortcut">${shortcut}</span>` : ""}
+      </button>`;
+    }).join("");
+
+    // Click handler for recent items
+    recentList.querySelectorAll(".welcome-recent-item").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const folderPath = btn.dataset.path;
+        dismissWelcomeScreen();
+        await setWorkspace(folderPath);
+        await loadFileList();
+        updateBottomFolderName();
+      });
+    });
+  }
+
+  ws.classList.remove("hidden");
+}
+
+// Welcome screen action buttons
+document.getElementById("welcome-new-file")?.addEventListener("click", () => {
+  dismissWelcomeScreen();
+  document.getElementById("btn-bottom-new-file")?.click();
+});
+document.getElementById("welcome-open-folder")?.addEventListener("click", () => {
+  dismissWelcomeScreen();
+  openFolderDialog();
+});
+document.getElementById("welcome-command-palette")?.addEventListener("click", () => {
+  dismissWelcomeScreen();
+  openCommandPalette();
+});
+
 // ── Bottom control bar event listeners ──────────────────────────────────────
 function toggleEditorPane() {
   // Reuse the Zed-style toggle
@@ -5649,10 +5727,8 @@ setTimeout(async () => {
 
   switch (onLaunch) {
     case "new":
-      // Start with a blank untitled file — don't open last folder's file
-      currentFile = "untitled.md";
-      document.getElementById("filename-input").value = "untitled.md";
-      setContent("");
+      // Show Zed-style welcome screen instead of blank file
+      showWelcomeScreen();
       await loadFileList();
       break;
 
@@ -5660,31 +5736,28 @@ setTimeout(async () => {
       // Restore last open file and folder
       await loadFileList();
       if (!restoreEditorHistory()) {
-        // Nothing to restore — fall back to blank
-        currentFile = "untitled.md";
-        document.getElementById("filename-input").value = "untitled.md";
-        setContent("");
+        // Nothing to restore — show welcome screen
+        showWelcomeScreen();
+      } else {
+        dismissWelcomeScreen();
       }
       break;
 
     case "restore-folders":
-      // Restore last workspace/folder but start with blank file
+      // Restore last workspace/folder but show welcome screen
       await loadFileList();
-      currentFile = "untitled.md";
-      document.getElementById("filename-input").value = "untitled.md";
-      setContent("");
+      showWelcomeScreen();
       break;
 
     case "custom":
       // Custom folder — workspace is already loaded from config by loadWorkspace()
       await loadFileList();
-      currentFile = "untitled.md";
-      document.getElementById("filename-input").value = "untitled.md";
-      setContent("");
+      showWelcomeScreen();
       break;
 
     default:
       await loadFileList();
+      showWelcomeScreen();
       break;
   }
 
