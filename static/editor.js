@@ -176,6 +176,9 @@ let currentFolder = "";
 let isDirty = false;
 let autoSaveTimer = null;
 const AUTOSAVE_DELAY = 1500; // Slightly faster autosave for snappier feel
+
+// Encode a relative file path for use in /files/ API URLs (preserves slashes)
+const fileURL = p => `/files/${p.split('/').map(encodeURIComponent).join('/')}`;
 let sidebarMode = "files";
 let filesViewMode = "tree"; // tree or list
 
@@ -2098,7 +2101,7 @@ async function saveFile(silent = false) {
   
   // Handle rename
   if (currentFile !== newFileName && currentFile !== "untitled.md" && !currentFile.includes("/untitled.md")) {
-    await fetch(`/files/${encodeURIComponent(currentFile)}`, { method: "DELETE" });
+    await fetch(`${fileURL(currentFile)}`, { method: "DELETE" });
     tab.path = newFileName;
     tab.name = newFileName.split("/").pop();
   }
@@ -2106,7 +2109,7 @@ async function saveFile(silent = false) {
   currentFile = newFileName;
   document.getElementById("filename-input").value = newFileName.split("/").pop();
   
-  const res = await fetch(`/files/${encodeURIComponent(currentFile)}`, {
+  const res = await fetch(`${fileURL(currentFile)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: getContent() }),
@@ -2130,7 +2133,7 @@ async function saveFile(silent = false) {
 
 async function deleteFile(name) {
   if (!confirm(`Delete "${name}"?`)) return;
-  await fetch(`/files/${encodeURIComponent(name)}`, { method: "DELETE" });
+  await fetch(`${fileURL(name)}`, { method: "DELETE" });
   
   // Close both editor and preview tabs if open
   const editorTab = getTabByPath(name);
@@ -2151,15 +2154,15 @@ async function deleteFile(name) {
 
 async function moveFile(sourcePath, newPath) {
   try {
-    const res = await fetch(`/files/${encodeURIComponent(sourcePath)}`);
+    const res = await fetch(`${fileURL(sourcePath)}`);
     if (!res.ok) { setStatus("Failed to read file", true); return; }
     const { content } = await res.json();
-    const saveRes = await fetch(`/files/${encodeURIComponent(newPath)}`, {
+    const saveRes = await fetch(`${fileURL(newPath)}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
     if (!saveRes.ok) { setStatus("Failed to create file at new location", true); return; }
-    const delRes = await fetch(`/files/${encodeURIComponent(sourcePath)}`, { method: "DELETE" });
+    const delRes = await fetch(`${fileURL(sourcePath)}`, { method: "DELETE" });
     if (!delRes.ok) { setStatus("Failed to delete original file", true); return; }
     
     // Update both editor and preview tabs if open
@@ -2197,7 +2200,7 @@ document.getElementById("btn-new").addEventListener("click", async () => {
     
     if (filePath) {
       // Create empty file on disk
-      const r = await fetch(`/files/${encodeURIComponent(filePath)}`, {
+      const r = await fetch(`${fileURL(filePath)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: "" })
@@ -2229,7 +2232,7 @@ document.getElementById("btn-new").addEventListener("click", async () => {
     counter++;
   }
   
-  const r = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+  const r = await fetch(`${fileURL(fullPath)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: "" })
@@ -2414,7 +2417,7 @@ contextMenu.addEventListener("click", async (e) => {
         counter++;
       }
 
-      const r = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+      const r = await fetch(`${fileURL(fullPath)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: "" })
@@ -2464,7 +2467,7 @@ contextMenu.addEventListener("click", async (e) => {
         counter++;
       }
 
-      const r = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+      const r = await fetch(`${fileURL(fullPath)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: "" })
@@ -2524,7 +2527,7 @@ contextMenu.addEventListener("click", async (e) => {
     }
     case "duplicate": {
       if (!target) break;
-      const r = await fetch(`/files/${encodeURIComponent(target)}`);
+      const r = await fetch(`${fileURL(target)}`);
       if (!r.ok) break;
       const { content } = await r.json();
       const parent = target.substring(0, target.lastIndexOf("/"));
@@ -2534,8 +2537,8 @@ contextMenu.addEventListener("click", async (e) => {
         counter++;
         copyName = counter === 1 ? `${base} copy.md` : `${base} copy ${counter}.md`;
         newFull = parent ? `${parent}/${copyName}` : copyName;
-      } while ((await fetch(`/files/${encodeURIComponent(newFull)}`)).ok);
-      await fetch(`/files/${encodeURIComponent(newFull)}`, {
+      } while ((await fetch(`${fileURL(newFull)}`)).ok);
+      await fetch(`${fileURL(newFull)}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
       });
       loadFileList();
@@ -2655,10 +2658,10 @@ contextMenu.addEventListener("click", async (e) => {
         }
         
         if (operation === 'copy') {
-          const r = await fetch(`/files/${encodeURIComponent(srcPath)}`);
+          const r = await fetch(`${fileURL(srcPath)}`);
           if (r.ok) {
             const { content } = await r.json();
-            const createRes = await fetch(`/files/${encodeURIComponent(destPath)}`, {
+            const createRes = await fetch(`${fileURL(destPath)}`, {
               method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
             });
             if (createRes.ok) {
@@ -2685,12 +2688,12 @@ contextMenu.addEventListener("click", async (e) => {
       if (isFolder) {
         const leaf = target.replace(/\/$/, "").split("/").pop();
         if (!confirm(`Delete folder "${leaf}" and all contents?`)) break;
-        const r = await fetch(`/files/${encodeURIComponent(target)}`, { method: "DELETE" });
+        const r = await fetch(`${fileURL(target)}`, { method: "DELETE" });
         if (r.ok) { loadFileList(); setStatus(`Deleted "${leaf}"`); }
       } else {
         const leaf = target.split("/").pop();
         if (!confirm(`Delete "${leaf}"?`)) break;
-        await fetch(`/files/${encodeURIComponent(target)}`, { method: "DELETE" });
+        await fetch(`${fileURL(target)}`, { method: "DELETE" });
         if (currentFile === target) {
           setContent(""); currentFile = "untitled.md";
           document.getElementById("filename-input").value = "untitled.md";
@@ -2859,7 +2862,7 @@ document.getElementById("file-input").addEventListener("change", async e => {
   const fullPath = folder ? `${folder}/${fileName}` : fileName;
   
   // Save the imported content
-  const saveRes = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+  const saveRes = await fetch(fileURL(fullPath), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
@@ -3409,7 +3412,7 @@ async function openTab(path, { preview = false, focus = true } = {}) {
 
   console.log('Fetching file content...');
   // Fetch file content
-  const resp = await fetch(`/files/${encodeURIComponent(path)}`);
+  const resp = await fetch(fileURL(path));
   if (!resp.ok) {
     console.error('Failed to fetch file:', resp.status);
     setStatus("Could not open file", true);
@@ -5104,7 +5107,7 @@ function makeFileNameEditable(fileEl, filePath, currentName) {
     const parent = filePath.includes("/") ? filePath.substring(0, filePath.lastIndexOf("/")) : "";
     const newPath = parent ? `${parent}/${finalName}` : finalName;
     
-    const r = await fetch(`/files/${encodeURIComponent(filePath)}`);
+    const r = await fetch(`${fileURL(filePath)}`);
     if (!r.ok) {
       input.replaceWith(nameSpan);
       showToast("Failed to rename");
@@ -5112,7 +5115,7 @@ function makeFileNameEditable(fileEl, filePath, currentName) {
     }
     
     const { content } = await r.json();
-    const createRes = await fetch(`/files/${encodeURIComponent(newPath)}`, {
+    const createRes = await fetch(`${fileURL(newPath)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content })
@@ -5124,7 +5127,7 @@ function makeFileNameEditable(fileEl, filePath, currentName) {
       return;
     }
     
-    await fetch(`/files/${encodeURIComponent(filePath)}`, { method: "DELETE" });
+    await fetch(`${fileURL(filePath)}`, { method: "DELETE" });
     
     if (currentFile === filePath) {
       currentFile = newPath;
@@ -5306,7 +5309,7 @@ document.getElementById("btn-bottom-new-file")?.addEventListener("click", async 
   }
   
   // Create empty file
-  const r = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+  const r = await fetch(`${fileURL(fullPath)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: "" })

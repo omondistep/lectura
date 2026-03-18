@@ -520,7 +520,6 @@ html, body {
   min-width: 0;
   max-width: 500px;
   background: var(--bg-surface);
-  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -545,14 +544,13 @@ html, body {
   height: 100%;
   cursor: col-resize;
   z-index: 50;
-  background: var(--border-dim);
-  opacity: 0.3;
-  transition: opacity .15s, background .15s;
+  background: transparent;
+  transition: background .15s;
 }
 #sidebar-resize-handle:hover,
 #sidebar-resize-handle.dragging {
   background: var(--accent);
-  opacity: .6;
+  opacity: .5;
 }
 
 .context-menu-sep {
