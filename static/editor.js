@@ -1104,7 +1104,7 @@ const wordPrediction = autocompletion({
 // ═══════════════════════════════════════════════════════════════════════════════
 const updateListener = EditorView.updateListener.of(update => {
   if (update.docChanged) {
-    dismissWelcomeScreen();
+    dismissWelcomeScreen(true);
     renderPreview();
     markDirty();
     // Detect /graph command
@@ -3398,7 +3398,7 @@ function getActiveTab() {
 }
 
 async function openTab(path, { preview = false, focus = true } = {}) {
-  dismissWelcomeScreen();
+  dismissWelcomeScreen(true);
   console.log('openTab called:', path, { preview, focus });
   
   // If preview mode and preview tab exists for different file, replace it
@@ -5243,9 +5243,11 @@ applyPreferences();
 // WELCOME SCREEN (Zed-style)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function dismissWelcomeScreen() {
+function dismissWelcomeScreen(skipLoad = false) {
   const ws = document.getElementById("welcome-screen");
-  if (ws) ws.classList.add("hidden");
+  if (!ws || ws.classList.contains("hidden")) return;
+  ws.classList.add("hidden");
+  if (!skipLoad) loadFileList();
 }
 
 function showWelcomeScreen() {
@@ -5273,9 +5275,8 @@ function showWelcomeScreen() {
     recentList.querySelectorAll(".welcome-recent-item").forEach(btn => {
       btn.addEventListener("click", async () => {
         const folderPath = btn.dataset.path;
-        dismissWelcomeScreen();
         await setWorkspace(folderPath);
-        await loadFileList();
+        dismissWelcomeScreen();
         updateBottomFolderName();
       });
     });
@@ -5744,36 +5745,27 @@ setTimeout(async () => {
 
   switch (onLaunch) {
     case "new":
-      // Show Zed-style welcome screen instead of blank file
       showWelcomeScreen();
-      await loadFileList();
       break;
 
     case "restore-all":
-      // Restore last open file and folder
       await loadFileList();
       if (!restoreEditorHistory()) {
-        // Nothing to restore — show welcome screen
         showWelcomeScreen();
       } else {
-        dismissWelcomeScreen();
+        dismissWelcomeScreen(true);
       }
       break;
 
     case "restore-folders":
-      // Restore last workspace/folder but show welcome screen
-      await loadFileList();
       showWelcomeScreen();
       break;
 
     case "custom":
-      // Custom folder — workspace is already loaded from config by loadWorkspace()
-      await loadFileList();
       showWelcomeScreen();
       break;
 
     default:
-      await loadFileList();
       showWelcomeScreen();
       break;
   }
