@@ -1281,13 +1281,22 @@ li.tree-folder > .folder-header:hover { background: var(--bg-hover); }
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  margin-right: 6px;
-  color: var(--text-muted);
-  opacity: .7;
+  margin-right: 5px;
+  color: var(--text-dim);
+  opacity: var(--icon-opacity, 1);
+  transition: color 80ms, opacity 80ms;
+}
+li.tree-file:hover .file-icon {
+  color: var(--accent);
+  opacity: 1;
+}
+li.tree-file.active-file .file-icon {
+  color: var(--accent);
+  opacity: 1;
 }
 .file-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .folder-name {
@@ -1381,17 +1390,9 @@ li.tree-file .file-name {
   line-height: 1.4;
 }
 
-/* file icon — subtle, not emoji */
+/* file icon — rendered via JS .file-icon span */
 li.tree-file .file-name::before {
-  content: "";
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-right: 6px;
-  vertical-align: -2px;
-  background: var(--text-muted);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.75 2h5.5a.75.75 0 01.53.22l3 3a.75.75 0 01.22.53v7.5A1.75 1.75 0 0111.25 15h-7.5A1.75 1.75 0 012 13.25V3.75C2 2.784 2.784 2 3.75 2zm5.22 1.5H3.75a.25.25 0 00-.25.25v9.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25V6.31L8.97 3.5z'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.75 2h5.5a.75.75 0 01.53.22l3 3a.75.75 0 01.22.53v7.5A1.75 1.75 0 0111.25 15h-7.5A1.75 1.75 0 012 13.25V3.75C2 2.784 2.784 2 3.75 2zm5.22 1.5H3.75a.25.25 0 00-.25.25v9.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25V6.31L8.97 3.5z'/%3E%3C/svg%3E") center/contain no-repeat;
+  content: none;
 }
 
 /* files in subfolders — thin guide line */

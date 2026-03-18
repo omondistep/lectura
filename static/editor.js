@@ -3250,6 +3250,12 @@ async function openSettings() {
     opacityLabel.textContent = Math.round((prefs.opacity || 1.0) * 100) + "%";
   }
 
+  const iconOpacitySlider = document.getElementById("cfg-icon-opacity");
+  const iconOpacityLabel = document.getElementById("cfg-icon-opacity-value");
+  const iconOpacity = prefs.iconOpacity ?? 1.0;
+  iconOpacitySlider.value = iconOpacity;
+  iconOpacityLabel.textContent = Math.round(iconOpacity * 100) + "%";
+
   document.getElementById("modal-overlay").classList.remove("hidden");
 }
 
@@ -3262,6 +3268,11 @@ document.getElementById("cfg-opacity")?.addEventListener("input", (e) => {
   if (window.electronAPI?.setWindowOpacity) {
     window.electronAPI.setWindowOpacity(val);
   }
+});
+document.getElementById("cfg-icon-opacity")?.addEventListener("input", (e) => {
+  const val = parseFloat(e.target.value);
+  document.getElementById("cfg-icon-opacity-value").textContent = Math.round(val * 100) + "%";
+  document.documentElement.style.setProperty("--icon-opacity", val);
 });
 document.getElementById("btn-close-modal")?.addEventListener("click", () => document.getElementById("modal-overlay").classList.add("hidden"));
 document.getElementById("btn-open-theme-folder")?.addEventListener("click", async () => {
@@ -3292,6 +3303,7 @@ document.getElementById("btn-save-config")?.addEventListener("click", async () =
     fontWeight: document.getElementById("cfg-font-weight").value,
     lineHeight: document.getElementById("cfg-line-height").value,
     opacity: parseFloat(document.getElementById("cfg-opacity").value),
+    iconOpacity: parseFloat(document.getElementById("cfg-icon-opacity").value),
   };
   
   // Save to localStorage
@@ -5221,6 +5233,8 @@ function applyPreferences() {
   // Apply line height
   const lineHeight = prefs.lineHeight || "1.6";
   document.documentElement.style.setProperty("--editor-line-height", lineHeight);
+  // Apply icon opacity
+  document.documentElement.style.setProperty("--icon-opacity", prefs.iconOpacity ?? 1.0);
 }
 
 applyPreferences();
