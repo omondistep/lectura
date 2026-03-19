@@ -81,10 +81,9 @@
 <header id="menubar">
   <div class="menu-left">
     <button id="btn-sidebar" class="menu-btn" title="Toggle sidebar (Ctrl+Shift+L)">
+      <!-- Zed layout panel icon: left panel + content area -->
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-        <rect x="1" y="3" width="14" height="1.5" rx=".75"/>
-        <rect x="1" y="7.25" width="14" height="1.5" rx=".75"/>
-        <rect x="1" y="11.5" width="14" height="1.5" rx=".75"/>
+        <path fill-rule="evenodd" d="M1.75 2A1.75 1.75 0 000 3.75v8.5C0 13.216.784 14 1.75 14h12.5A1.75 1.75 0 0016 12.25v-8.5A1.75 1.75 0 0014.25 2H1.75zm0 1.5h3.75v7H1.75a.25.25 0 01-.25-.25v-6.5a.25.25 0 01.25-.25zm5.25 0h7.25a.25.25 0 01.25.25v6.5a.25.25 0 01-.25.25H7V3.5z"/>
       </svg>
     </button>
   </div>
@@ -277,19 +276,27 @@
   <aside id="sidebar" style="visibility: hidden;">
     <!-- sidebar mode tabs -->
     <div class="sidebar-tabs">
-      <button class="sidebar-tab active" data-mode="files" title="Files">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 1A1.5 1.5 0 001 2.5V6h14V4.5A1.5 1.5 0 0013.5 3H9.121a1.5 1.5 0 01-1.06-.44L6.939 1.44A1.5 1.5 0 005.879 1H2.5z"/><path d="M1 7v5.5A1.5 1.5 0 002.5 14h11a1.5 1.5 0 001.5-1.5V7H1z"/></svg>
-        <span>Files</span>
+      <!-- Files/Project: Zed folder icon -->
+      <button class="sidebar-tab active" data-mode="files" title="Project (Files)">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M1.75 1A1.75 1.75 0 000 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0016 13.25v-8.5A1.75 1.75 0 0014.25 3H7.5a.25.25 0 01-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75z"/>
+        </svg>
       </button>
+      <!-- Outline: indented lines -->
       <button class="sidebar-tab" data-mode="outline" title="Outline">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3.5a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h7a.5.5 0 010 1h-7a.5.5 0 01-.5-.5zm-2 3a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5z"/></svg>
-        <span>Outline</span>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+          <path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h10.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zM2 8a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 012 8zm0 3.25a.75.75 0 01.75-.75h5a.75.75 0 010 1.5h-5A.75.75 0 012 11.25z"/>
+        </svg>
       </button>
-      <button class="sidebar-tab" data-mode="git" title="Git">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <!-- Git: branch fork icon -->
+      <button class="sidebar-tab" data-mode="git" title="Source Control (Git)">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+          <path fill-rule="evenodd" d="M5 3.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm0 2.122a2.25 2.25 0 10-1.5 0v.878A2.25 2.25 0 005.75 8.5h1.5v2.128a2.251 2.251 0 101.5 0V8.5h1.5a2.25 2.25 0 002.25-2.25v-.878a2.25 2.25 0 10-1.5 0v.878a.75.75 0 01-.75.75h-4.5A.75.75 0 015 6.25v-.878zm3.75 7.378a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm3-8.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+        </svg>
       </button>
+      <!-- Google Drive: colored Drive logo -->
       <button class="sidebar-tab" data-mode="gdrive" title="Google Drive">
-        <svg width="15" height="15" viewBox="0 0 87.3 78" fill="currentColor">
+        <svg width="14" height="13" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
           <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
           <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
           <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
@@ -313,6 +320,20 @@
 
     <!-- tree mode content -->
     <div class="sidebar-content" data-for="tree">
+      <div class="sidebar-panel-header" id="project-panel-header">
+        <span class="sidebar-panel-title">Project</span>
+        <div class="sidebar-panel-actions">
+          <button class="sidebar-panel-btn" id="btn-new-file-panel" title="New file">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/></svg>
+          </button>
+          <button class="sidebar-panel-btn" id="btn-new-folder-panel" title="New folder">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M.75 3A.75.75 0 000 3.75v8.5C0 12.664.336 13 .75 13h14.5A.75.75 0 0016 12.25v-7.5A.75.75 0 0015.25 4H8.5a.25.25 0 01-.2-.1l-.9-1.2C7.07 2.26 6.55 2 6 2H.75z"/><path d="M8 8.75a.75.75 0 01.75-.75h1.75v-1.75a.75.75 0 011.5 0V8h1.75a.75.75 0 010 1.5H12v1.75a.75.75 0 01-1.5 0V9.5H8.75A.75.75 0 018 8.75z"/></svg>
+          </button>
+          <button class="sidebar-panel-btn" id="btn-collapse-all" title="Collapse all">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M9 11.75a.75.75 0 01.75-.75h4.5a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75zm0-8a.75.75 0 01.75-.75h4.5a.75.75 0 010 1.5h-4.5A.75.75 0 019 3.75zM1.72 3.47a.75.75 0 011.06 0L5.53 6.22l2.75-2.75a.75.75 0 111.06 1.06L6.59 7.28l2.75 2.75a.75.75 0 11-1.06 1.06L5.53 8.34l-2.75 2.75a.75.75 0 01-1.06-1.06l2.75-2.75-2.75-2.75a.75.75 0 010-1.06z"/></svg>
+          </button>
+        </div>
+      </div>
       <ul id="file-list"></ul>
     </div>
 
@@ -323,8 +344,11 @@
 
     <!-- outline mode content -->
     <div class="sidebar-content" data-for="outline" style="display:none">
+      <div class="sidebar-panel-header">
+        <span class="sidebar-panel-title">Outline</span>
+      </div>
       <ul id="outline-list"></ul>
-      <div id="outline-empty" class="sidebar-empty">No headings</div>
+      <div id="outline-empty" class="sidebar-empty">No headings found</div>
     </div>
 
     <!-- search mode content -->
@@ -338,53 +362,99 @@
 
     <!-- git mode content -->
     <div class="sidebar-content" data-for="git" style="display:none">
+
+      <!-- Panel header -->
+      <div class="sidebar-panel-header">
+        <span class="sidebar-panel-title">Source Control</span>
+        <div class="sidebar-panel-actions">
+          <button class="sidebar-panel-btn" id="btn-git-refresh" title="Refresh">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.418A6 6 0 118 2v1z"/><path d="M8 4.466V.534a.25.25 0 01.41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 018 4.466z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Not authenticated -->
       <div id="git-auth" class="git-section">
+        <p class="git-empty-msg">Connect to GitHub to sync your notes.</p>
         <button id="btn-github-signin" class="git-signin-btn">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
           </svg>
           Sign in with GitHub
         </button>
       </div>
-      
+
+      <!-- Authenticated panel -->
       <div id="git-panel" class="git-section hidden">
+
+        <!-- User strip -->
         <div class="git-user-info">
           <img id="git-avatar" class="git-avatar" src="" alt="">
           <div class="git-user-details">
             <div id="git-username" class="git-username"></div>
             <div id="git-repo" class="git-repo"></div>
           </div>
-          <button id="btn-github-signout" class="git-signout-btn" title="Sign out">×</button>
+          <button id="btn-github-signout" class="git-signout-btn" title="Sign out">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>
+          </button>
         </div>
 
-        <!-- Repo selector (shown when no repo is selected) -->
+        <!-- Repo selector (shown when no repo selected) -->
         <div id="git-repo-selector" class="git-section">
           <select id="git-repo-list" class="git-repo-select">
-            <option value="">Select a repository...</option>
+            <option value="">Select a repository…</option>
           </select>
           <button id="btn-select-repo" class="git-btn git-btn-primary" disabled style="margin-top:6px;width:100%">Clone &amp; Connect</button>
           <div id="git-repo-status" class="git-status-msg"></div>
         </div>
 
-        <!-- Working area (shown after repo is selected) -->
+        <!-- Working area (shown after repo selected) -->
         <div id="git-working" class="hidden">
+
+          <!-- Branch + sync row -->
           <div class="git-status">
-            <div id="git-branch" class="git-branch">main</div>
+            <div id="git-branch" class="git-branch">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0">
+                <path fill-rule="evenodd" d="M5 3.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm0 2.122a2.25 2.25 0 10-1.5 0v.878A2.25 2.25 0 005.75 8.5h1.5v2.128a2.251 2.251 0 101.5 0V8.5h1.5a2.25 2.25 0 002.25-2.25v-.878a2.25 2.25 0 10-1.5 0v.878a.75.75 0 01-.75.75h-4.5A.75.75 0 015 6.25v-.878zm3.75 7.378a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm3-8.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+              </svg>
+              <span id="git-branch-name">main</span>
+            </div>
             <div id="git-changes" class="git-changes">No changes</div>
           </div>
 
+          <!-- Commit message + actions -->
           <div class="git-commit-section">
-            <textarea id="git-commit-message" placeholder="Commit message..." rows="2"></textarea>
+            <textarea id="git-commit-message" placeholder="Message (Ctrl+Enter to commit)" rows="3"></textarea>
             <div class="git-actions">
-              <button id="btn-git-commit" class="git-btn git-btn-primary" disabled>Commit</button>
-              <button id="btn-git-push" class="git-btn git-btn-secondary" disabled>Push</button>
+              <button id="btn-git-commit" class="git-btn git-btn-primary" disabled>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="margin-right:4px"><path d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6A2.5 2.5 0 0110 8.5H6a1 1 0 00-1 1v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.836A2.492 2.492 0 016 7h4a1 1 0 001-1v-.628A2.25 2.25 0 019.5 3.25zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>
+                Commit
+              </button>
+              <button id="btn-git-push" class="git-btn git-btn-secondary" disabled>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="margin-right:4px"><path d="M2.5 7.775V2.75a.25.25 0 01.25-.25h5.025a.25.25 0 01.177.073l6.25 6.25a.25.25 0 010 .354l-5.025 5.025a.25.25 0 01-.354 0l-6.25-6.25a.25.25 0 01-.073-.177z"/></svg>
+                Push
+              </button>
             </div>
           </div>
 
-          <div id="git-file-changes" class="git-file-list">
+          <!-- Changed files section -->
+          <div class="git-files-section-header">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="transform:rotate(90deg);transition:transform .1s"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"/></svg>
+            <span>Changes</span>
+            <span class="git-files-count" id="git-files-count"></span>
+            <div style="flex:1"></div>
+            <button class="sidebar-panel-btn" id="btn-git-stage-all" title="Stage all changes">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/></svg>
+            </button>
+            <button class="sidebar-panel-btn" id="btn-git-discard-all" title="Discard all changes">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>
+            </button>
           </div>
-        </div>
-      </div>
+
+          <div id="git-file-changes" class="git-file-list"></div>
+
+        </div><!-- /git-working -->
+      </div><!-- /git-panel -->
     </div>
 
     <!-- google drive mode content -->
