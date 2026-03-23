@@ -776,24 +776,8 @@ html, body {
 .sidebar-more-popup .pin-btn:hover,
 .sidebar-more-popup .pin-btn.pinned { opacity: 1; }
 
-/* ── sidebar tabs (mode toggle) ───────────────────────────────────────────── */
-.sidebar-tabs {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 4px 0;
-  gap: 1px;
-  border-right: 1px solid var(--border-dim);
-  flex-shrink: 0;
-  width: 36px;
-  background: var(--bg-app);
-  height: 100%;
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 5;
-}
+/* ── sidebar tabs (mode toggle) — now in statusbar ────────────────────────── */
+.sidebar-tabs { display: none; }
 
 .sidebar-tab {
   background: none;
@@ -821,7 +805,7 @@ html, body {
 .sidebar-tab.active::after {
   content: '';
   position: absolute;
-  bottom: -2px;
+  top: -2px;
   left: 50%;
   transform: translateX(-50%);
   width: 14px;
@@ -1338,7 +1322,7 @@ html, body {
   min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: var(--text-muted) transparent;
-  margin-left: 36px;
+  margin-left: 0;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -2726,6 +2710,7 @@ li.tree-file:hover .del-btn,
   z-index: 70;
   font-family: var(--font-ui);
   letter-spacing: 0.01em;
+  position: relative;
 }
 
 .status-left, .status-center, .status-right {
@@ -2735,9 +2720,8 @@ li.tree-file:hover .del-btn,
   white-space: nowrap;
 }
 .status-left {
-  flex-shrink: 1;
+  flex-shrink: 0;
   min-width: 0;
-  overflow: hidden;
 }
 .status-center {
   flex: 1;
