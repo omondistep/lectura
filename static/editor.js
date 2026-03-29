@@ -1750,7 +1750,24 @@ function updateSidebarToggleIcon() {
   btn.classList.toggle("collapsed", isCollapsed);
 }
 
-document.getElementById("btn-sidebar").addEventListener("click", toggleSidebar);
+document.getElementById("btn-sidebar").addEventListener("click", e => {
+  e.stopPropagation();
+  const nav = document.querySelector(".menu-items");
+  const name = document.getElementById("menubar-project-name");
+  const opening = !nav.classList.contains("nav-open");
+  nav.classList.toggle("nav-open", opening);
+  if (name) name.style.display = opening ? "none" : "";
+  view.focus();
+});
+document.addEventListener("click", () => {
+  const nav = document.querySelector(".menu-items");
+  if (nav.classList.contains("nav-open")) {
+    nav.classList.remove("nav-open");
+    const name = document.getElementById("menubar-project-name");
+    if (name) name.style.display = "";
+    view.focus();
+  }
+});
 document.getElementById("btn-toggle-sidebar")?.addEventListener("click", () => { closeAllMenus(); toggleSidebar(); });
 document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", () => { closeAllMenus(); toggleSidebar(); });
 
@@ -1760,6 +1777,11 @@ document.querySelectorAll(".sidebar-tab[data-mode]").forEach(tab => {
     const mode = tab.dataset.mode;
     const sidebar = document.getElementById("sidebar");
     if (sidebar.classList.contains("collapsed")) toggleSidebar();
+    if (mode === "files" && sidebarMode === "files") {
+      filesViewMode = filesViewMode === "tree" ? "list" : "tree";
+      switchSidebarMode("files");
+      return;
+    }
     if (mode === sidebarMode) return;
     switchSidebarMode(mode);
   });
@@ -2089,9 +2111,12 @@ function renderTree(node, container) {
     const fileContent = document.createElement("div");
     fileContent.className = "file-content";
     
+    const isPdf = file.name.toLowerCase().endsWith(".pdf");
     const fileIcon = document.createElement("span");
     fileIcon.className = "file-icon";
-    fileIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0H4zm0 1h5v3.5A1.5 1.5 0 0010.5 6H13v8a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1zm6.5 0v3a.5.5 0 00.5.5h3l-3.5-3.5z"/></svg>';
+    fileIcon.innerHTML = isPdf
+      ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0H4zm0 1h5v3.5A1.5 1.5 0 0010.5 6H13v8a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1zm6.5 0v3a.5.5 0 00.5.5h3l-3.5-3.5z"/><text x="2" y="14" font-size="5" fill="red" font-family="sans-serif">PDF</text></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0H4zm0 1h5v3.5A1.5 1.5 0 0010.5 6H13v8a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1zm6.5 0v3a.5.5 0 00.5.5h3l-3.5-3.5z"/></svg>';
     fileContent.appendChild(fileIcon);
     
     const span = document.createElement("span");
@@ -2107,6 +2132,31 @@ function renderTree(node, container) {
     }
     
     li.appendChild(fileContent);
+
+    // PDF click → import and convert to md in same dir
+    if (isPdf) {
+      li.title = "Click to import as Markdown";
+      li.addEventListener("click", async () => {
+        setStatus(`Importing ${file.name}…`);
+        const res = await fetch(`/files/${file.path}`, { cache: "no-cache" });
+        if (!res.ok) { setStatus("Failed to fetch PDF", true); return; }
+        const blob = await res.blob();
+        const form = new FormData();
+        form.append("file", new File([blob], file.name, { type: "application/pdf" }));
+        const importRes = await fetch("/import", { method: "POST", body: form });
+        if (!importRes.ok) { setStatus("Import failed", true); return; }
+        const { content } = await importRes.json();
+        const mdPath = file.path.replace(/\.pdf$/i, ".md");
+        const saveRes = await fetch(fileURL(mdPath), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        });
+        if (saveRes.ok) { await loadFileList(); await openTab(mdPath); setStatus(`Imported ${file.name}`); }
+        else setStatus("Failed to save imported file", true);
+      });
+      return;
+    }
 
     // Single-click → preview, double-click → pin (open)
     let clickTimer = null;
@@ -3757,7 +3807,7 @@ function renderTabs() {
     `;
   }).join('');
   
-  tabBar.innerHTML = `
+  const navButtons = tabs.length > 0 ? `
     <div class="tab-nav-buttons">
       <button id="btn-tab-back" class="tab-nav-btn" title="Previous Tab">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
@@ -3769,7 +3819,8 @@ function renderTabs() {
           <path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
         </svg>
       </button>
-    </div>` + tabsHTML + '<button id="btn-new-tab" class="new-tab-btn" title="New File (Ctrl+N)">+</button>';
+    </div>` : '';
+  tabBar.innerHTML = navButtons + tabsHTML + '<button id="btn-new-tab" class="new-tab-btn" title="New File (Ctrl+N)">+</button>';
 
   // Attach event listeners
   tabBar.querySelectorAll('.tab').forEach(el => {
@@ -5144,6 +5195,15 @@ async function browseTo(dirPath) {
 
 document.getElementById("btn-open-folder")?.addEventListener("click", openFolderDialog);
 document.getElementById("workspace-name")?.addEventListener("click", openFolderDialog);
+
+// Mirror workspace name in menubar
+const _wsName = document.getElementById("workspace-name");
+const _mbName = document.getElementById("menubar-project-name");
+if (_wsName && _mbName) {
+  const syncName = () => { _mbName.textContent = _wsName.textContent; };
+  syncName();
+  new MutationObserver(syncName).observe(_wsName, { childList: true, characterData: true, subtree: true });
+}
 document.getElementById("folder-dialog-close")?.addEventListener("click", closeFolderDialog);
 document.getElementById("folder-dialog-overlay")?.addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closeFolderDialog();

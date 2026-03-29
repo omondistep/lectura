@@ -565,7 +565,7 @@ async def list_files(folder: str = "", recursive: bool = True):
         folders = []
         
         for p in NOTES.rglob("*"):
-            if p.is_file() and p.suffix == ".md":
+            if p.is_file() and p.suffix in (".md", ".pdf"):
                 rel_path = p.relative_to(NOTES).as_posix()
                 # Get first line preview
                 preview = ""
@@ -573,12 +573,14 @@ async def list_files(folder: str = "", recursive: bool = True):
                     with open(p, 'r', encoding='utf-8') as f:
                         first_line = f.readline().strip()
                         # Remove markdown formatting for preview
+                        import re as _re
                         preview = first_line.lstrip('#').lstrip('*').lstrip('-').lstrip('>').strip()
+                        preview = _re.sub(r'!\[.*?\]\(.*?\)', '', preview).strip()
                         if len(preview) > 60:
                             preview = preview[:60] + "..."
                 except:
                     preview = ""
-                files.append({"path": rel_path, "preview": preview})
+                files.append({"path": rel_path, "preview": preview if p.suffix == ".md" else ""})
             elif p.is_dir():
                 folders.append(p.relative_to(NOTES).as_posix() + "/")
         
@@ -588,19 +590,21 @@ async def list_files(folder: str = "", recursive: bool = True):
     else:
         # Non-recursive: only items in the specified folder
         files = []
-        for p in target_dir.glob("*.md"):
+        for p in list(target_dir.glob("*.md")) + list(target_dir.glob("*.pdf")):
             if p.is_file():
                 rel_path = p.relative_to(NOTES).as_posix()
                 preview = ""
                 try:
                     with open(p, 'r', encoding='utf-8') as f:
                         first_line = f.readline().strip()
+                        import re as _re
                         preview = first_line.lstrip('#').lstrip('*').lstrip('-').lstrip('>').strip()
+                        preview = _re.sub(r'!\[.*?\]\(.*?\)', '', preview).strip()
                         if len(preview) > 60:
                             preview = preview[:60] + "..."
                 except:
                     preview = ""
-                files.append({"path": rel_path, "preview": preview})
+                files.append({"path": rel_path, "preview": preview if p.suffix == ".md" else ""})
         files = sorted(files, key=lambda x: x["path"])
         
         folders = []
@@ -621,6 +625,8 @@ async def read_file(name: str):
         raise HTTPException(404, "File not found")
     if path.is_dir():
         raise HTTPException(400, "Path is a directory, not a file")
+    if path.suffix.lower() != ".md":
+        return FileResponse(path)
     return {"name": name, "content": path.read_text()}
 
 
