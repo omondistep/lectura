@@ -1132,7 +1132,7 @@ async def github_select_repo(request: SelectRepoRequest):
             else:
                 if cache.exists():
                     import shutil; shutil.rmtree(cache)
-                git.Repo.clone_from(authed_url, cache, branch=request.branch)
+                git.Repo.clone_from(authed_url, cache, branch=request.branch, depth=1)
         await asyncio.get_event_loop().run_in_executor(None, do_clone)
     except Exception as e:
         raise HTTPException(500, f"Clone failed: {e}")
