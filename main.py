@@ -1024,6 +1024,13 @@ async def github_get_token():
     data = json.loads(GITHUB_TOKEN_PATH.read_text())
     return {"token": data.get("access_token", "")}
 
+@app.post("/github/clear-repo")
+async def github_clear_repo():
+    cfg = load_config()
+    cfg.get("github", {}).pop("repo_url", None)
+    save_config(cfg)
+    return {"ok": True}
+
 @app.post("/github/signout")
 async def github_signout():
     if GITHUB_TOKEN_PATH.exists():
@@ -1122,7 +1129,7 @@ async def github_select_repo(request: SelectRepoRequest):
     except Exception as e:
         raise HTTPException(500, f"Clone failed: {e}")
 
-    return {"status": "ok", "repo_url": request.repo_url, "branch": request.branch}
+    return {"status": "ok", "repo_url": request.repo_url, "branch": request.branch, "local_path": str(cache)}
 
 
 # ── Publish to Cloud ───────────────────────────────────────────────────────────
@@ -1301,7 +1308,11 @@ async def github_device_poll(body: dict):
         save_config(cfg)
         GITHUB_TOKEN_PATH.write_text(json.dumps(data))
         return {"status": "ok"}
-    return {"status": data.get("error", "pending")}  # authorization_pending | slow_down | expired_token
+    error = data.get("error", "pending")
+    # slow_down means add 5s to interval; tell frontend the new interval
+    if error == "slow_down":
+        return {"status": "slow_down", "interval": body.get("interval", 5) + 5}
+    return {"status": error}
 
 
 if __name__ == "__main__":

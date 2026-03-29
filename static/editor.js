@@ -4275,24 +4275,35 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
 
     if (window.electronAPI?.openExternal) window.electronAPI.openExternal(verification_uri);
 
-    const poll = setInterval(async () => {
+    let pollInterval = interval * 1000;
+    let pollActive = true;
+    setTimeout(() => clearActive = false, 900000);
+    const doPoll = async () => {
+      if (!pollActive) return;
       try {
         const pr = await fetch('/auth/github/device/poll', {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ device_code })
+          body: JSON.stringify({ device_code, interval: pollInterval / 1000 })
         });
         const pd = await pr.json();
+        const s = document.getElementById('git-device-status');
         if (pd.status === 'ok') {
-          clearInterval(poll);
+          pollActive = false;
           await handleGitHubCallback();
+          return;
         } else if (pd.status === 'expired_token' || pd.status === 'access_denied') {
-          clearInterval(poll);
-          const s = document.getElementById('git-device-status');
+          pollActive = false;
           if (s) s.textContent = 'Expired — please try again.';
           setTimeout(() => handleGitHubCallback(), 2000);
+          return;
+        } else if (pd.status === 'slow_down') {
+          pollInterval = (pd.interval || pollInterval / 1000 + 5) * 1000;
         }
       } catch {}
-    }, interval * 1000);
+      if (pollActive) setTimeout(doPoll, pollInterval);
+    };
+    setTimeout(doPoll, pollInterval);
+    setTimeout(() => { pollActive = false; }, 900000);
     setTimeout(() => clearInterval(poll), 900000);
   } catch (e) {
     setStatus('GitHub sign-in failed: ' + e.message, true);
@@ -4442,6 +4453,15 @@ async function handleGitHubCallback() {
 }
 
 // Sign out
+document.getElementById('btn-github-change-repo')?.addEventListener('click', async () => {
+  await fetch('/github/clear-repo', { method: 'POST' }).catch(() => {});
+  currentRepo = null;
+  document.getElementById('git-repo').textContent = '';
+  document.getElementById('git-repo-selector').classList.remove('hidden');
+  document.getElementById('git-working').classList.add('hidden');
+  loadRepoList();
+});
+
 document.getElementById('btn-github-signout')?.addEventListener('click', async () => {
   await fetch('/github/signout', { method: 'POST' }).catch(() => {});
   githubToken = null;
@@ -4605,6 +4625,12 @@ document.getElementById('btn-select-repo')?.addEventListener('click', async () =
     document.getElementById('git-working').classList.remove('hidden');
     setStatus(`Connected to ${currentRepo}`);
     updateGitStatus();
+
+    // Switch to files view and open the cloned folder
+    if (data.local_path) {
+      await setWorkspace(data.local_path);
+    }
+    switchSidebarMode('files');
   } catch (e) {
     statusEl.textContent = e.message;
     statusEl.style.color = 'var(--red, #e55)';
