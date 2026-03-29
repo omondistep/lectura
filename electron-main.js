@@ -70,6 +70,11 @@ function startPython() {
     ? path.join(venvDir, 'Scripts', 'pythonw.exe')
     : path.join(venvDir, 'bin', 'python3');
 
+  // Kill any stale process on port 8000 before starting
+  if (!isWin) {
+    try { require('child_process').execSync('fuser -k 8000/tcp 2>/dev/null || true'); } catch {}
+  }
+
   // main.py lives in __dirname (inside AppImage squashfs, read-only is fine for source)
   pythonProcess = spawn(pythonCmd, [path.join(__dirname, 'main.py')], {
     cwd: getDataDir(),

@@ -1112,7 +1112,6 @@ async def github_select_repo(request: SelectRepoRequest):
     cfg["github"]["branch"] = request.branch
     save_config(cfg)
 
-    # Clone or update the repo — use repo name as folder
     git = _get_git()
     if not git:
         raise HTTPException(501, "gitpython not installed")
@@ -1121,22 +1120,129 @@ async def github_select_repo(request: SelectRepoRequest):
     cache = BASE / repo_name
     authed_url = request.repo_url.replace("https://", f"https://{token}@")
     try:
-        import asyncio, concurrent.futures
+        import asyncio
         def do_clone():
             if cache.exists() and (cache / ".git").exists():
                 repo = git.Repo(cache)
                 repo.remotes.origin.set_url(authed_url)
-                repo.remotes.origin.pull()
+                # stash any local changes before pulling
+                if repo.is_dirty(untracked_files=True):
+                    repo.git.stash()
+                repo.remotes.origin.pull(request.branch)
             else:
                 if cache.exists():
                     import shutil; shutil.rmtree(cache)
                 git.Repo.clone_from(authed_url, cache, branch=request.branch)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, do_clone)
+        await asyncio.get_event_loop().run_in_executor(None, do_clone)
     except Exception as e:
         raise HTTPException(500, f"Clone failed: {e}")
 
     return {"status": "ok", "repo_url": request.repo_url, "branch": request.branch, "local_path": str(cache)}
+
+
+def _get_repo():
+    """Get the current git repo and authed remote URL."""
+    cfg = load_config()
+    gh = cfg.get("github", {})
+    repo_url = gh.get("repo_url", "")
+    token = gh.get("token", "")
+    if not repo_url or not token:
+        return None, None, None
+    repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    cache = BASE / repo_name
+    git = _get_git()
+    if not git or not cache.exists():
+        return None, None, None
+    try:
+        repo = git.Repo(cache)
+    except Exception:
+        return None, None, None
+    authed_url = repo_url.replace("https://", f"https://{token}@")
+    return repo, authed_url, cache
+
+
+@app.post("/git/status")
+async def git_status():
+    repo, _, _ = _get_repo()
+    if not repo:
+        raise HTTPException(400, "No repo connected")
+    changed = [item.a_path for item in repo.index.diff(None)]
+    untracked = repo.untracked_files
+    staged = [item.a_path for item in repo.index.diff("HEAD")] if repo.head.is_valid() else []
+    return {"changed": changed, "untracked": untracked, "staged": staged, "branch": repo.active_branch.name}
+
+
+@app.post("/git/stage-all")
+async def git_stage_all():
+    repo, _, _ = _get_repo()
+    if not repo:
+        raise HTTPException(400, "No repo connected")
+    repo.git.add(A=True)
+    return {"ok": True}
+
+
+@app.post("/git/commit")
+async def git_commit(body: dict):
+    repo, authed_url, _ = _get_repo()
+    if not repo:
+        raise HTTPException(400, "No repo connected")
+    message = body.get("message", "").strip()
+    if not message:
+        raise HTTPException(400, "Commit message required")
+    repo.git.add(A=True)
+    repo.index.commit(message)
+    return {"ok": True}
+
+
+@app.post("/git/push")
+async def git_push():
+    repo, authed_url, _ = _get_repo()
+    if not repo:
+        raise HTTPException(400, "No repo connected")
+    import asyncio
+    def do_push():
+        repo.remotes.origin.set_url(authed_url)
+        repo.remotes.origin.push()
+    try:
+        await asyncio.get_event_loop().run_in_executor(None, do_push)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+    return {"ok": True}
+
+
+@app.post("/git/pull")
+async def git_pull(body: dict = {}):
+    repo, authed_url, _ = _get_repo()
+    if not repo:
+        raise HTTPException(400, "No repo connected")
+    rebase = body.get("rebase", False)
+    import asyncio
+    def do_pull():
+        repo.remotes.origin.set_url(authed_url)
+        if rebase:
+            if repo.is_dirty():
+                repo.git.stash()
+            repo.git.pull("--rebase", "origin", repo.active_branch.name)
+        else:
+            repo.remotes.origin.pull(repo.active_branch.name)
+    try:
+        await asyncio.get_event_loop().run_in_executor(None, do_pull)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+    return {"ok": True}
+
+
+@app.post("/git/stash")
+async def git_stash(body: dict = {}):
+    repo, _, _ = _get_repo()
+    if not repo:
+        raise HTTPException(400, "No repo connected")
+    action = body.get("action", "push")  # push | pop
+    if action == "pop":
+        repo.git.stash("pop")
+    else:
+        repo.git.stash()
+    return {"ok": True}
 
 
 # ── Publish to Cloud ───────────────────────────────────────────────────────────

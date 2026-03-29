@@ -4277,7 +4277,7 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
 
     let pollInterval = interval * 1000;
     let pollActive = true;
-    setTimeout(() => clearActive = false, 900000);
+    setTimeout(() => pollActive = false, 900000);
     const doPoll = async () => {
       if (!pollActive) return;
       try {
@@ -4304,10 +4304,9 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
     };
     setTimeout(doPoll, pollInterval);
     setTimeout(() => { pollActive = false; }, 900000);
-    setTimeout(() => clearInterval(poll), 900000);
   } catch (e) {
     setStatus('GitHub sign-in failed: ' + e.message, true);
-    checkGitHubStatus();
+    updateGitPanel();
   }
 });
 
@@ -4475,54 +4474,43 @@ document.getElementById('btn-github-signout')?.addEventListener('click', async (
 // Commit changes — uses the publish endpoint to actually push to GitHub
 document.getElementById('btn-git-commit')?.addEventListener('click', async () => {
   const message = document.getElementById('git-commit-message').value.trim();
-  if (!message) {
-    setStatus('Commit message required', true);
-    return;
-  }
-
-  if (!currentFile || currentFile === 'untitled.md') {
-    setStatus('Save the file first', true);
-    return;
-  }
-
+  if (!message) { setStatus('Commit message required', true); return; }
   try {
-    setStatus('Publishing to GitHub...');
-    await saveFile(true);
-    const res = await fetch(`/publish/${encodeURIComponent(currentFile)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: getContent(), message }),
+    setStatus('Committing…');
+    const res = await fetch('/git/commit', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message })
     });
     const data = await res.json();
     if (res.ok) {
       document.getElementById('git-commit-message').value = '';
+      document.getElementById('btn-git-push').disabled = false;
       updateGitStatus();
-      setStatus(`Published ${currentFile} to GitHub`);
-    } else {
-      setStatus(data.detail || 'Publish failed', true);
-    }
-  } catch (error) {
-    setStatus('Publish failed', true);
-  }
+      setStatus('Committed');
+    } else { setStatus(data.detail || 'Commit failed', true); }
+  } catch { setStatus('Commit failed', true); }
 });
 
-// Push all — uses the bulk publish endpoint
+// Push
 document.getElementById('btn-git-push')?.addEventListener('click', async () => {
   try {
-    setStatus('Publishing all notes...');
-    const res = await fetch('/publish', { method: 'POST' });
+    setStatus('Pushing…');
+    const res = await fetch('/git/push', { method: 'POST' });
     const data = await res.json();
-    if (res.ok) {
-      let msg = `Published ${data.published} notes`;
-      if (data.results?.github) msg += ` — GitHub: ${data.results.github}`;
-      updateGitStatus();
-      setStatus(msg);
-    } else {
-      setStatus(data.detail || 'Publish failed', true);
-    }
-  } catch (error) {
-    setStatus('Publish failed', true);
-  }
+    if (res.ok) { updateGitStatus(); setStatus('Pushed to remote'); }
+    else { setStatus(data.detail || 'Push failed', true); }
+  } catch { setStatus('Push failed', true); }
+});
+
+// Pull
+document.getElementById('btn-git-pull')?.addEventListener('click', async () => {
+  try {
+    setStatus('Pulling…');
+    const res = await fetch('/git/pull', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({rebase: false}) });
+    const data = await res.json();
+    if (res.ok) { loadFileList(); updateGitStatus(); setStatus('Pulled from remote'); }
+    else { setStatus(data.detail || 'Pull failed', true); }
+  } catch { setStatus('Pull failed', true); }
 });
 
 // Update Git panel UI
@@ -4641,48 +4629,33 @@ document.getElementById('btn-select-repo')?.addEventListener('click', async () =
 });
 
 // Update Git status
-function updateGitStatus() {
+async function updateGitStatus() {
   const changesEl = document.getElementById('git-changes');
   const commitBtn = document.getElementById('btn-git-commit');
-  const pushBtn = document.getElementById('btn-git-push');
   const messageInput = document.getElementById('git-commit-message');
-  
-  // Simulate checking for changes
-  const hasChanges = isDirty; // Use existing dirty state
-  const hasCommits = false; // Simulate no unpushed commits
-  
-  if (hasChanges) {
-    changesEl.textContent = '1 file changed';
-    commitBtn.disabled = !messageInput.value.trim();
-    updateFileChanges();
-  } else {
-    changesEl.textContent = 'No changes';
-    commitBtn.disabled = true;
-  }
-  
-  pushBtn.disabled = !hasCommits;
-}
-
-// Update file changes list
-function updateFileChanges() {
   const fileList = document.getElementById('git-file-changes');
-  
-  if (isDirty && currentFile) {
-    fileList.innerHTML = `
-      <div class="git-file-item">
-        <span class="git-file-status modified">M</span>
-        <span class="git-file-name">${currentFile}</span>
-      </div>
-    `;
-  } else {
-    fileList.innerHTML = '';
-  }
+  try {
+    const res = await fetch('/git/status', { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const all = [...data.changed, ...data.untracked];
+    changesEl.textContent = all.length ? `${all.length} file${all.length > 1 ? 's' : ''} changed` : 'No changes';
+    commitBtn.disabled = !messageInput.value.trim() || all.length === 0;
+    const branchEl = document.getElementById('git-branch-name');
+    if (branchEl) branchEl.textContent = data.branch || 'main';
+    const bottomBranch = document.getElementById('bottom-git-branch');
+    if (bottomBranch) bottomBranch.textContent = data.branch || 'main';
+    fileList.innerHTML = data.changed.map(f =>
+      `<div class="git-file-item"><span class="git-file-status modified">M</span><span class="git-file-name">${f}</span></div>`
+    ).join('') + data.untracked.map(f =>
+      `<div class="git-file-item"><span class="git-file-status" style="color:var(--green,#3fb950)">U</span><span class="git-file-name">${f}</span></div>`
+    ).join('');
+  } catch {}
 }
 
 // Enable/disable commit button based on message
-document.getElementById('git-commit-message')?.addEventListener('input', (e) => {
-  const commitBtn = document.getElementById('btn-git-commit');
-  commitBtn.disabled = !e.target.value.trim() || !isDirty;
+document.getElementById('git-commit-message')?.addEventListener('input', () => {
+  updateGitStatus();
 });
 
 // Initialize GitHub integration
