@@ -3807,6 +3807,7 @@ function renderTabs() {
     `;
   }).join('');
   
+  document.querySelector(".editor-overlay-buttons").style.visibility = tabs.length > 0 ? "" : "hidden";
   const navButtons = tabs.length > 0 ? `
     <div class="tab-nav-buttons">
       <button id="btn-tab-back" class="tab-nav-btn" title="Previous Tab">
