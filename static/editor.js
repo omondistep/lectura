@@ -235,7 +235,7 @@ async function initMermaid() {
   if (mermaidLoading) return;
   if (window.mermaid && !mermaidInitialized) {
     try {
-      const theme = (typeof currentTheme !== "undefined" && ["dark","midnight","void","ember","cobalt","coral","ocean","sunset","nord","drake","ursine","lapis"].includes(currentTheme)) ? "dark" : "default";
+      const theme = (typeof currentTheme !== "undefined" && ["dark","midnight","void","ember","cobalt","coral","ocean","sunset","nord","drake","ursine","lapis","ethereal","gruvbox","osaka-jade"].includes(currentTheme)) ? "dark" : "default";
       mermaid.initialize({ startOnLoad: false, theme, securityLevel: "loose" });
     } catch (e) { console.warn("Mermaid init:", e); }
     mermaidInitialized = true;
@@ -1556,7 +1556,7 @@ async function applyTheme(themeName) {
       
       // Determine if dark or light based on theme name patterns
       const isDark = themeName.toLowerCase().includes('dark') ||
-                     ['nord', 'midnight', 'void', 'ember', 'cobalt', 'coral', 'ocean', 'sunset', 'drake', 'ursine', 'lapis'].includes(themeName.toLowerCase());
+                     ['nord', 'midnight', 'void', 'ember', 'cobalt', 'coral', 'ocean', 'sunset', 'drake', 'ursine', 'lapis', 'ethereal', 'gruvbox', 'osaka-jade'].includes(themeName.toLowerCase());
       const themeAttr = isDark ? 'dark' : 'light';
       document.documentElement.setAttribute("data-theme", themeAttr);
     } else {

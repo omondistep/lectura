@@ -31,7 +31,7 @@
       if (inline.indexOf(t) !== -1) {
         document.documentElement.setAttribute('data-theme', t);
       } else {
-        var dark = ['nord','drake','ursine','lapis'];
+        var dark = ['nord','drake','ursine','lapis','ethereal','gruvbox','osaka-jade'];
         var attr = dark.indexOf(t) !== -1 || t.indexOf('dark') !== -1 ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', attr);
       }
@@ -228,6 +228,7 @@
         <button data-theme="osaka-jade" class="theme-option">Osaka Jade</button>
       </div>
     </div>
+    <div class="menu-dropdown" data-menu="help">
       <button class="menu-trigger">Help</button>
       <div class="menu-panel">
         <button id="btn-help">Markdown Reference</button>
