@@ -359,7 +359,7 @@ GITHUB_TOKEN_PATH = BASE / ".github_token.json"
 
 # Google Drive OAuth
 GDRIVE_CLIENT_ID = os.getenv("GDRIVE_CLIENT_ID", "337821946016-jml660ds3tvf7ecdpevulg8s56aupe3h.apps.googleusercontent.com")
-GDRIVE_CLIENT_SECRET = os.getenv("GDRIVE_CLIENT_SECRET", "")
+GDRIVE_CLIENT_SECRET = os.getenv("GDRIVE_CLIENT_SECRET", "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")
 GDRIVE_TOKEN_PATH = BASE / ".gdrive_token.json"
 GDRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 GDRIVE_CLIENT_CONFIG = {
