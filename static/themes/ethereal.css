@@ -1,0 +1,53 @@
+/*
+ * Ethereal — Omarchy theme by Dizziee
+ * Deep void purple with teal/orange neon accents
+ */
+
+body {
+  --bg-app: #0e091d;
+  --bg-editor: #0e091d;
+  --bg-preview: #0e091d;
+  --bg-surface: #160d2a;
+  --bg-sidebar: #130b24;
+  --bg-panel: #160d2a;
+  --bg-input: #1a1030;
+  --bg-hover: #1e1438;
+  --text: #14B9B5;
+  --text-muted: #11AEB3;
+  --text-dim: #0d8a87;
+  --border: #2a1a4a;
+  --border-dim: #1e1238;
+  --accent: #FF7F41;
+  --accent-2: #14B9B5;
+  --red: #E20342;
+  --green: #7cd699;
+  --yellow: #c8e967;
+  --blue: #04C5F0;
+
+  --font-prose: "Georgia", "Times New Roman", serif;
+  --font-ui: system-ui, sans-serif;
+}
+
+.cm-editor { background-color: #0e091d !important; }
+.cm-gutters { background-color: #130b24 !important; border-right: 1px solid #2a1a4a !important; }
+.cm-activeLineGutter { background-color: #1a1030 !important; }
+.cm-activeLine { background-color: rgba(255,127,65,0.06) !important; }
+.cm-cursor { border-left-color: #FF7F41 !important; }
+.cm-selectionBackground { background-color: rgba(20,185,181,0.2) !important; }
+.cm-content { color: #14B9B5 !important; caret-color: #FF7F41 !important; }
+.cm-line { color: #14B9B5; }
+
+#preview, #preview-split {
+  color: #c8d8d8;
+  background: #0e091d;
+  font-family: "Georgia", serif;
+}
+#preview h1, #preview h2, #preview h3,
+#preview-split h1, #preview-split h2, #preview-split h3 { color: #FF7F41; }
+#preview h4, #preview h5, #preview h6,
+#preview-split h4, #preview-split h5, #preview-split h6 { color: #14B9B5; }
+#preview a, #preview-split a { color: #04C5F0; }
+#preview code, #preview-split code { background: #160d2a; color: #ffbe74; }
+#preview pre, #preview-split pre { background: #130b24; border: 1px solid #2a1a4a; }
+#preview blockquote, #preview-split blockquote { border-left-color: #FF7F41; color: #0d8a87; }
+#preview mark, #preview-split mark { background: rgba(255,127,65,0.3); color: #fff; }

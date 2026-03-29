@@ -1,0 +1,55 @@
+/*
+ * Gruvbox — Omarchy official theme by DHH
+ * Warm retro palette: dark brown bg, muted earth tones
+ */
+
+body {
+  --bg-app: #282828;
+  --bg-editor: #282828;
+  --bg-preview: #282828;
+  --bg-surface: #3c3836;
+  --bg-sidebar: #32302f;
+  --bg-panel: #3c3836;
+  --bg-input: #1d2021;
+  --bg-hover: #504945;
+  --text: #ebdbb2;
+  --text-muted: #a89984;
+  --text-dim: #928374;
+  --border: #504945;
+  --border-dim: #3c3836;
+  --accent: #d79921;
+  --accent-2: #98971a;
+  --red: #cc241d;
+  --green: #98971a;
+  --yellow: #d79921;
+  --blue: #458588;
+
+  --font-prose: "Georgia", "Times New Roman", serif;
+  --font-ui: system-ui, sans-serif;
+}
+
+.cm-editor { background-color: #282828 !important; }
+.cm-gutters { background-color: #32302f !important; border-right: 1px solid #504945 !important; }
+.cm-activeLineGutter { background-color: #3c3836 !important; }
+.cm-activeLine { background-color: rgba(215,153,33,0.08) !important; }
+.cm-cursor { border-left-color: #d79921 !important; }
+.cm-selectionBackground { background-color: rgba(80,73,69,0.6) !important; }
+.cm-content { color: #ebdbb2 !important; caret-color: #d79921 !important; }
+.cm-line { color: #ebdbb2; }
+
+#preview, #preview-split {
+  color: #ebdbb2;
+  background: #282828;
+  font-family: "Georgia", serif;
+}
+#preview h1, #preview h2, #preview h3,
+#preview-split h1, #preview-split h2, #preview-split h3 { color: #d79921; }
+#preview h4, #preview h5, #preview h6,
+#preview-split h4, #preview-split h5, #preview-split h6 { color: #98971a; }
+#preview a, #preview-split a { color: #458588; }
+#preview code, #preview-split code { background: #3c3836; color: #b8bb26; }
+#preview pre, #preview-split pre { background: #32302f; border: 1px solid #504945; }
+#preview blockquote, #preview-split blockquote { border-left-color: #d79921; color: #a89984; }
+#preview mark, #preview-split mark { background: rgba(215,153,33,0.35); color: #282828; }
+#preview strong, #preview-split strong { color: #fb4934; }
+#preview em, #preview-split em { color: #83a598; }

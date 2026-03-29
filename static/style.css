@@ -4265,3 +4265,26 @@ li.tree-file.active-file .file-name { color: #fff; }
 li.tree-file.active-file .file-icon { color: rgba(255,255,255,0.8); }
 li.tree-file.active-file .file-git-status { color: rgba(255,255,255,0.7) !important; }
 
+
+/* ── Git gutter decorations ─────────────────────────────────────────────────── */
+.cm-git-added { border-left: 3px solid #3fb950; padding-left: 2px; }
+.cm-git-modified { border-left: 3px solid #d29922; padding-left: 2px; }
+
+/* ── Minimap ────────────────────────────────────────────────────────────────── */
+#minimap { transition: opacity 0.2s; }
+#editor-pane:hover #minimap { opacity: 0.55; }
+#minimap-thumb:hover { background: rgba(255,255,255,0.28) !important; }
+
+/* ── Draggable tabs ─────────────────────────────────────────────────────────── */
+.tab-dragging { opacity: 0.4; }
+.tab-drag-over { border-left: 2px solid var(--accent) !important; }
+
+/* ── CodeMirror search panel ────────────────────────────────────────────────── */
+.cm-search { background: var(--bg-panel, #161b22); border-top: 1px solid var(--border, #30363d); padding: 6px 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cm-search input { background: var(--bg-input, #0d1117); border: 1px solid var(--border, #30363d); color: var(--text, #e6edf3); border-radius: 4px; padding: 3px 7px; font-size: 12px; outline: none; }
+.cm-search input:focus { border-color: var(--accent, #58a6ff); }
+.cm-search button { background: var(--bg-input, #0d1117); border: 1px solid var(--border, #30363d); color: var(--text, #e6edf3); border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
+.cm-search button:hover { background: var(--bg-hover, #21262d); }
+.cm-search label { color: var(--text-muted, #8b949e); font-size: 11px; display: flex; align-items: center; gap: 4px; }
+.cm-searchMatch { background: rgba(88,166,255,0.25); border-radius: 2px; }
+.cm-searchMatch-selected { background: rgba(88,166,255,0.5); }

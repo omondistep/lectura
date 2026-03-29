@@ -1,0 +1,55 @@
+/*
+ * Osaka Jade — Omarchy theme by Justin Lowry
+ * Deep forest green bg with warm sand/gold text
+ */
+
+body {
+  --bg-app: #111c18;
+  --bg-editor: #111c18;
+  --bg-preview: #111c18;
+  --bg-surface: #1a2b23;
+  --bg-sidebar: #162219;
+  --bg-panel: #1a2b23;
+  --bg-input: #0d1710;
+  --bg-hover: #23372b;
+  --text: #C1C497;
+  --text-muted: #9eebb3;
+  --text-dim: #63b07a;
+  --border: #2d4a38;
+  --border-dim: #1e3328;
+  --accent: #2DD5B7;
+  --accent-2: #549e6a;
+  --red: #FF5345;
+  --green: #549e6a;
+  --yellow: #E5C736;
+  --blue: #ACD4CF;
+
+  --font-prose: "Georgia", "Times New Roman", serif;
+  --font-ui: system-ui, sans-serif;
+}
+
+.cm-editor { background-color: #111c18 !important; }
+.cm-gutters { background-color: #162219 !important; border-right: 1px solid #2d4a38 !important; }
+.cm-activeLineGutter { background-color: #1a2b23 !important; }
+.cm-activeLine { background-color: rgba(45,213,183,0.06) !important; }
+.cm-cursor { border-left-color: #2DD5B7 !important; }
+.cm-selectionBackground { background-color: rgba(84,158,106,0.25) !important; }
+.cm-content { color: #C1C497 !important; caret-color: #2DD5B7 !important; }
+.cm-line { color: #C1C497; }
+
+#preview, #preview-split {
+  color: #C1C497;
+  background: #111c18;
+  font-family: "Georgia", serif;
+}
+#preview h1, #preview h2, #preview h3,
+#preview-split h1, #preview-split h2, #preview-split h3 { color: #2DD5B7; }
+#preview h4, #preview h5, #preview h6,
+#preview-split h4, #preview-split h5, #preview-split h6 { color: #E5C736; }
+#preview a, #preview-split a { color: #ACD4CF; }
+#preview code, #preview-split code { background: #1a2b23; color: #9eebb3; }
+#preview pre, #preview-split pre { background: #162219; border: 1px solid #2d4a38; }
+#preview blockquote, #preview-split blockquote { border-left-color: #2DD5B7; color: #63b07a; }
+#preview mark, #preview-split mark { background: rgba(229,199,54,0.3); color: #111c18; }
+#preview strong, #preview-split strong { color: #F6F5DD; }
+#preview em, #preview-split em { color: #D2689C; }

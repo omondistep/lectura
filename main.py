@@ -1172,6 +1172,58 @@ async def git_status():
     return {"changed": changed, "untracked": untracked, "staged": staged, "branch": repo.active_branch.name}
 
 
+@app.get("/git/diff")
+async def git_diff(file: str = ""):
+    """Return added/modified line numbers for a file compared to HEAD."""
+    repo, _, _ = _get_repo()
+    if not repo or not file:
+        return {"added": [], "modified": []}
+    try:
+        import re as _re2
+        diff_text = repo.git.diff("HEAD", "--unified=0", "--", file)
+        added, modified = [], []
+        current_line = 0
+        for line in diff_text.splitlines():
+            if line.startswith("@@"):
+                m = _re2.search(r'\+(\d+)(?:,(\d+))?', line)
+                if m:
+                    current_line = int(m.group(1))
+            elif line.startswith("+") and not line.startswith("+++"):
+                added.append(current_line)
+                current_line += 1
+            elif line.startswith("-") and not line.startswith("---"):
+                modified.append(current_line)
+        return {"added": added, "modified": modified}
+    except Exception:
+        return {"added": [], "modified": []}
+
+
+@app.get("/git/diff")
+async def git_diff(file: str = ""):
+    """Return added/modified line numbers for a file compared to HEAD."""
+    repo, _, _ = _get_repo()
+    if not repo or not file:
+        return {"added": [], "modified": []}
+    try:
+        diff_text = repo.git.diff("HEAD", "--unified=0", "--", file)
+        added, modified = [], []
+        current_line = 0
+        for line in diff_text.splitlines():
+            if line.startswith("@@"):
+                import re as _re2
+                m = _re2.search(r'\+(\d+)(?:,(\d+))?', line)
+                if m:
+                    current_line = int(m.group(1))
+            elif line.startswith("+") and not line.startswith("+++"):
+                added.append(current_line)
+                current_line += 1
+            elif line.startswith("-") and not line.startswith("---"):
+                modified.append(current_line)
+        return {"added": added, "modified": modified}
+    except Exception:
+        return {"added": [], "modified": []}
+
+
 @app.post("/git/stage-all")
 async def git_stage_all():
     repo, _, _ = _get_repo()

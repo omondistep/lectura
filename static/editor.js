@@ -2,14 +2,96 @@
 // Lectura Editor — Typora-inspired Markdown editor
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, dropCursor, rectangularSelection, crosshairCursor } from "@codemirror/view";
-import { EditorState, Compartment } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, dropCursor, rectangularSelection, crosshairCursor, Decoration, ViewPlugin, WidgetType } from "@codemirror/view";
+import { EditorState, Compartment, StateField, StateEffect, RangeSetBuilder } from "@codemirror/state";
 import { defaultKeymap, historyKeymap, history, indentWithTab, undo, redo, selectAll } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
+import { search, openSearchPanel, closeSearchPanel, searchKeymap, findNext, selectNextOccurrence } from "@codemirror/search";
 import { vim, Vim } from "@replit/codemirror-vim";
 import { GraphCanvas } from "./graph-canvas.js";
+
+// ── Inline image preview widget ────────────────────────────────────────────────
+class ImageWidget extends WidgetType {
+  constructor(url) { super(); this.url = url; }
+  eq(other) { return other.url === this.url; }
+  toDOM() {
+    const img = document.createElement("img");
+    img.src = this.url;
+    img.style.cssText = "max-width:100%;max-height:200px;display:block;margin:4px 0;border-radius:4px;cursor:pointer;";
+    img.onerror = () => img.remove();
+    return img;
+  }
+  ignoreEvent() { return false; }
+}
+
+const inlineImagePlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) { if (update.docChanged || update.viewportChanged) this.decorations = this.build(update.view); }
+  build(view) {
+    const builder = new RangeSetBuilder();
+    const imgRe = /!\[[^\]]*\]\(([^)]+)\)/g;
+    for (const { from, to } of view.visibleRanges) {
+      const text = view.state.doc.sliceString(from, to);
+      let m;
+      while ((m = imgRe.exec(text)) !== null) {
+        const url = m[1].trim();
+        if (!url.startsWith("http") && !url.startsWith("/") && !url.startsWith("data:")) continue;
+        const lineEnd = view.state.doc.lineAt(from + m.index).to;
+        builder.add(lineEnd, lineEnd, Decoration.widget({ widget: new ImageWidget(url), side: 1 }));
+      }
+    }
+    return builder.finish();
+  }
+}, { decorations: v => v.decorations });
+
+// ── Git gutter decorations ─────────────────────────────────────────────────────
+const setGitDiff = StateEffect.define();
+const gitDiffField = StateField.define({
+  create: () => ({ added: new Set(), modified: new Set() }),
+  update(val, tr) {
+    for (const e of tr.effects) if (e.is(setGitDiff)) return e.value;
+    return val;
+  }
+});
+
+const gitGutterPlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) {
+    if (update.docChanged || update.transactions.some(t => t.effects.some(e => e.is(setGitDiff))))
+      this.decorations = this.build(update.view);
+  }
+  build(view) {
+    const builder = new RangeSetBuilder();
+    const diff = view.state.field(gitDiffField, false);
+    if (!diff) return builder.finish();
+    for (let i = 1; i <= view.state.doc.lines; i++) {
+      const line = view.state.doc.line(i);
+      if (diff.added.has(i)) {
+        builder.add(line.from, line.from, Decoration.line({ class: "cm-git-added" }));
+      } else if (diff.modified.has(i)) {
+        builder.add(line.from, line.from, Decoration.line({ class: "cm-git-modified" }));
+      }
+    }
+    return builder.finish();
+  }
+}, { decorations: v => v.decorations });
+
+// ── Centered typewriter scrolling ──────────────────────────────────────────────
+const centeredCursorPlugin = ViewPlugin.fromClass(class {
+  update(update) {
+    if (!document.body.classList.contains("typewriter-mode")) return;
+    if (!update.selectionSet && !update.docChanged) return;
+    const view = update.view;
+    requestAnimationFrame(() => {
+      const head = view.state.selection.main.head;
+      const block = view.lineBlockAt(head);
+      const targetScrollTop = block.top - view.scrollDOM.clientHeight / 2 + block.height / 2;
+      view.scrollDOM.scrollTop = Math.max(0, targetScrollTop);
+    });
+  }
+});
 
 // ── markdown-it ────────────────────────────────────────────────────────────────
 const md = window.markdownit({
@@ -802,9 +884,7 @@ const ACTIONS = {
       selection: { anchor: line.from + next.text.length + 1 + (cursor - line.from) },
     });
   },
-  "find": () => {
-    document.getElementById("search-input")?.focus();
-  },
+  "find": () => { openSearchPanel(view); },
   "copy-as-markdown": () => {
     const { from, to } = view.state.selection.main;
     const text = from !== to ? view.state.sliceDoc(from, to) : view.state.doc.toString();
@@ -1164,6 +1244,8 @@ const customKeymap = keymap.of([
   { key: "Ctrl-Alt-v", run: () => { toggleVim(); return true; } },
   { key: "Ctrl-n", run: () => { document.getElementById("btn-new").click(); return true; } },
   { key: "Ctrl-p", run: () => { document.getElementById("search-input").focus(); return true; } },
+  { key: "Ctrl-f", run: () => { openSearchPanel(view); return true; } },
+  { key: "Ctrl-h", run: () => { openSearchPanel(view); return true; } },
   { key: "Ctrl-Shift-s", run: () => { saveAs(); return true; } },
   { key: "Ctrl-w", run: () => { 
     const tab = getActiveTab();
@@ -1185,7 +1267,7 @@ const customKeymap = keymap.of([
   { key: "Ctrl-Shift-[", run: () => { ACTIONS.ol(); return true; } },
   { key: "Ctrl-Shift-]", run: () => { ACTIONS.ul(); return true; } },
   { key: "Ctrl-l", run: () => { selectLine(); return true; } },
-  { key: "Ctrl-d", run: () => { selectWord(); return true; } },
+  { key: "Ctrl-d", run: () => { selectNextOccurrence(view); return true; } },
   { key: "Ctrl-Shift-d", run: () => { ACTIONS["duplicate-line"](); return true; } },
   { key: "Alt-ArrowUp", run: () => { ACTIONS["move-line-up"](); return true; } },
   { key: "Alt-ArrowDown", run: () => { ACTIONS["move-line-down"](); return true; } },
@@ -1206,10 +1288,15 @@ const view = new EditorView({
       rectangularSelection(),
       crosshairCursor(),
       markdown(),
+      search({ top: true }),
+      gitDiffField,
+      gitGutterPlugin,
+      inlineImagePlugin,
+      centeredCursorPlugin,
       themeCompartment.of(oneDark),
       wordPrediction,
       autocorrectPlugin,
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab, ...completionKeymap]),
+      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab, ...completionKeymap, ...searchKeymap]),
       customKeymap,
       updateListener,
       EditorView.lineWrapping,
@@ -1437,13 +1524,16 @@ const themeConfig = {
   ursine: { cmTheme: oneDark, label: "Ursine" },
   lapis: { cmTheme: oneDark, label: "Lapis" },
   vue: { cmTheme: lightCmTheme, label: "Vue" },
+  ethereal: { cmTheme: oneDark, label: "Ethereal" },
+  gruvbox: { cmTheme: oneDark, label: "Gruvbox" },
+  "osaka-jade": { cmTheme: oneDark, label: "Osaka Jade" },
 };
 
 let currentTheme = "dark";
 let loadedThemes = {}; // Store dynamically loaded themes
 
 // Themes that have CSS files
-const themesWithCSS = ['github', 'nord', 'drake', 'pie', 'ursine', 'lapis', 'vue'];
+const themesWithCSS = ['github', 'nord', 'drake', 'pie', 'ursine', 'lapis', 'vue', 'ethereal', 'gruvbox', 'osaka-jade'];
 
 // Apply theme - handles both built-in and loaded themes
 async function applyTheme(themeName) {
@@ -3387,10 +3477,15 @@ function getEditorExtensions() {
     rectangularSelection(),
     crosshairCursor(),
     markdown(),
+    search({ top: true }),
+    gitDiffField,
+    gitGutterPlugin,
+    inlineImagePlugin,
+    centeredCursorPlugin,
     themeCompartment.of(oneDark),
     wordPrediction,
     autocorrectPlugin,
-    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab, ...completionKeymap]),
+    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab, ...completionKeymap, ...searchKeymap]),
     customKeymap,
     updateListener,
     EditorView.lineWrapping,
@@ -4650,6 +4745,18 @@ async function updateGitStatus() {
     ).join('') + data.untracked.map(f =>
       `<div class="git-file-item"><span class="git-file-status" style="color:var(--green,#3fb950)">U</span><span class="git-file-name">${f}</span></div>`
     ).join('');
+    // Update gutter decorations for current file
+    if (currentFile && all.includes(currentFile)) updateGitGutter(currentFile);
+  } catch {}
+}
+
+// Fetch line-level diff for current file and apply gutter decorations
+async function updateGitGutter(filePath) {
+  try {
+    const res = await fetch(`/git/diff?file=${encodeURIComponent(filePath)}`);
+    if (!res.ok) return;
+    const { added = [], modified = [] } = await res.json();
+    view.dispatch({ effects: setGitDiff.of({ added: new Set(added), modified: new Set(modified) }) });
   } catch {}
 }
 
@@ -5982,3 +6089,130 @@ updateSidebarToggleIcon();
 
 // Initialize file type indicator
 updateFileType();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MINIMAP
+// ═══════════════════════════════════════════════════════════════════════════════
+(function initMinimap() {
+  const previewEl = document.getElementById("preview");
+  if (!previewEl) return;
+
+  const minimap = document.createElement("div");
+  minimap.id = "minimap";
+  minimap.style.cssText = `
+    position:absolute; right:0; top:0; width:60px; height:100%;
+    overflow:hidden; pointer-events:none; opacity:0.35;
+    background:var(--bg-editor,#0d1117); z-index:10;
+    display:none;
+  `;
+
+  const thumb = document.createElement("div");
+  thumb.id = "minimap-thumb";
+  thumb.style.cssText = `
+    position:absolute; right:0; width:100%;
+    background:rgba(255,255,255,0.15); border-radius:2px;
+    pointer-events:auto; cursor:pointer; min-height:20px;
+  `;
+  minimap.appendChild(thumb);
+
+  const editorPane = document.getElementById("editor-pane");
+  if (editorPane) {
+    editorPane.style.position = "relative";
+    editorPane.appendChild(minimap);
+  }
+
+  function updateMinimap() {
+    const scroller = view.scrollDOM;
+    const totalH = scroller.scrollHeight;
+    const visibleH = scroller.clientHeight;
+    if (totalH <= visibleH) { minimap.style.display = "none"; return; }
+    minimap.style.display = "block";
+    const ratio = visibleH / totalH;
+    const thumbH = Math.max(20, ratio * minimap.clientHeight);
+    const thumbTop = (scroller.scrollTop / totalH) * minimap.clientHeight;
+    thumb.style.height = thumbH + "px";
+    thumb.style.top = thumbTop + "px";
+  }
+
+  view.scrollDOM.addEventListener("scroll", updateMinimap);
+  view.dom.addEventListener("keyup", updateMinimap);
+
+  thumb.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startScroll = view.scrollDOM.scrollTop;
+    const totalH = view.scrollDOM.scrollHeight;
+    const onMove = (ev) => {
+      const dy = ev.clientY - startY;
+      const ratio = dy / minimap.clientHeight;
+      view.scrollDOM.scrollTop = startScroll + ratio * totalH;
+    };
+    const onUp = () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+
+  // Show minimap only when content is long enough
+  setTimeout(updateMinimap, 500);
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DRAGGABLE TABS
+// ═══════════════════════════════════════════════════════════════════════════════
+(function initDraggableTabs() {
+  let dragSrcId = null;
+
+  document.getElementById("tab-bar").addEventListener("dragstart", (e) => {
+    const tab = e.target.closest(".tab");
+    if (!tab) return;
+    dragSrcId = parseInt(tab.dataset.tabId);
+    e.dataTransfer.effectAllowed = "move";
+    tab.classList.add("tab-dragging");
+  });
+
+  document.getElementById("tab-bar").addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const tab = e.target.closest(".tab");
+    if (tab && parseInt(tab.dataset.tabId) !== dragSrcId) {
+      tab.classList.add("tab-drag-over");
+    }
+  });
+
+  document.getElementById("tab-bar").addEventListener("dragleave", (e) => {
+    const tab = e.target.closest(".tab");
+    if (tab) tab.classList.remove("tab-drag-over");
+  });
+
+  document.getElementById("tab-bar").addEventListener("drop", (e) => {
+    e.preventDefault();
+    const targetTab = e.target.closest(".tab");
+    if (!targetTab || !dragSrcId) return;
+    const targetId = parseInt(targetTab.dataset.tabId);
+    if (targetId === dragSrcId) return;
+    const srcIdx = tabs.findIndex(t => t.id === dragSrcId);
+    const dstIdx = tabs.findIndex(t => t.id === targetId);
+    if (srcIdx === -1 || dstIdx === -1) return;
+    const [moved] = tabs.splice(srcIdx, 1);
+    tabs.splice(dstIdx, 0, moved);
+    renderTabs();
+    targetTab.classList.remove("tab-drag-over");
+  });
+
+  document.getElementById("tab-bar").addEventListener("dragend", (e) => {
+    document.querySelectorAll(".tab-dragging, .tab-drag-over").forEach(el => {
+      el.classList.remove("tab-dragging", "tab-drag-over");
+    });
+    dragSrcId = null;
+  });
+
+  // Make tabs draggable when rendered — patch renderTabs to add draggable attr
+  const _origRenderTabs = renderTabs;
+  // We patch via MutationObserver instead to avoid circular reference
+  const observer = new MutationObserver(() => {
+    document.querySelectorAll(".tab:not([draggable])").forEach(el => {
+      el.setAttribute("draggable", "true");
+    });
+  });
+  observer.observe(document.getElementById("tab-bar"), { childList: true, subtree: true });
+})();
