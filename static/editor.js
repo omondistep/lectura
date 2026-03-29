@@ -4252,80 +4252,51 @@ let currentRepo = null;
 
 // GitHub OAuth flow
 document.getElementById('btn-github-signin')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-github-signin');
+  btn.disabled = true;
+  btn.textContent = 'Connecting…';
   try {
-    // Fetch client ID from the backend (configured via GITHUB_CLIENT_ID env var)
-    const idRes = await fetch('/auth/github/client-id');
-    if (!idRes.ok) {
-      setStatus('GitHub OAuth not configured — set GITHUB_CLIENT_ID env var', true);
-      return;
-    }
-    const { client_id: CLIENT_ID } = await idRes.json();
-    const REDIRECT_URI = `http://localhost:8000/auth/github/callback`;
-    const SCOPE = 'repo,user:email';
+    const res = await fetch('/auth/github/device');
+    if (!res.ok) throw new Error(await res.text());
+    const { user_code, verification_uri, device_code, interval = 5 } = await res.json();
 
-    // Generate state for security
-    const state = Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('github-oauth-state', state);
+    // Show the user code in the auth section
+    const authDiv = document.getElementById('git-auth');
+    authDiv.innerHTML = `
+      <p class="git-empty-msg">Open the link below and enter the code:</p>
+      <div style="text-align:center;margin:8px 0">
+        <code style="font-size:18px;font-weight:700;letter-spacing:3px;color:var(--accent)">${user_code}</code>
+      </div>
+      <a href="${verification_uri}" target="_blank"
+         style="display:block;text-align:center;margin:6px 0;padding:6px;background:var(--accent);color:#fff;border-radius:4px;text-decoration:none;font-size:12px">
+        Open ${verification_uri}
+      </a>
+      <p class="git-empty-msg" id="git-device-status">Waiting for authorisation…</p>`;
 
-    // Build OAuth URL
-    const authUrl = `https://github.com/login/oauth/authorize?` +
-      `client_id=${CLIENT_ID}&` +
-      `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-      `scope=${encodeURIComponent(SCOPE)}&` +
-      `state=${state}`;
-    
-    if (window.electronAPI?.openExternal) {
-      // Electron: open in system browser where user is already signed in
-      await window.electronAPI.openExternal(authUrl);
-      // Poll for auth completion since callback goes to localhost
-      const checkAuth = setInterval(async () => {
-        try {
-          const res = await fetch('/github/status');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.connected) {
-              clearInterval(checkAuth);
-              await handleGitHubCallback();
-            }
-          }
-        } catch {}
-      }, 2000);
-      // Stop polling after 5 minutes
-      setTimeout(() => clearInterval(checkAuth), 300000);
-    } else {
-      // Browser: open popup
-      const popup = window.open(
-        authUrl,
-        'github-oauth',
-        'width=600,height=700,scrollbars=yes,resizable=yes'
-      );
+    if (window.electronAPI?.openExternal) window.electronAPI.openExternal(verification_uri);
 
-      const handleMessage = async (event) => {
-        if (event.origin !== window.location.origin) return;
-
-        if (event.data.type === 'github-auth-success') {
-          popup.close();
-          window.removeEventListener('message', handleMessage);
+    const poll = setInterval(async () => {
+      try {
+        const pr = await fetch('/auth/github/device/poll', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ device_code })
+        });
+        const pd = await pr.json();
+        if (pd.status === 'ok') {
+          clearInterval(poll);
           await handleGitHubCallback();
-        } else if (event.data.type === 'github-auth-error') {
-          popup.close();
-          window.removeEventListener('message', handleMessage);
-          setStatus('GitHub authentication failed', true);
+        } else if (pd.status === 'expired_token' || pd.status === 'access_denied') {
+          clearInterval(poll);
+          const s = document.getElementById('git-device-status');
+          if (s) s.textContent = 'Expired — please try again.';
+          setTimeout(() => handleGitHubCallback(), 2000);
         }
-      };
-
-      window.addEventListener('message', handleMessage);
-
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', handleMessage);
-        }
-      }, 1000);
-    }
-    
-  } catch (error) {
-    setStatus('GitHub signin failed', true);
+      } catch {}
+    }, interval * 1000);
+    setTimeout(() => clearInterval(poll), 900000);
+  } catch (e) {
+    setStatus('GitHub sign-in failed: ' + e.message, true);
+    checkGitHubStatus();
   }
 });
 
@@ -4438,25 +4409,41 @@ async function loadGdriveFiles() {
 }
 
 document.getElementById("btn-gdrive-refresh")?.addEventListener("click", loadGdriveFiles);
+document.getElementById("btn-gdrive-signout")?.addEventListener("click", async () => {
+  await fetch('/gdrive/signout', { method: 'POST' }).catch(() => {});
+  checkGdriveStatus();
+  setStatus('Signed out of Google Drive');
+});
 
 // Handle OAuth callback (this would be called from the callback page)
 async function handleGitHubCallback() {
-  // Token exchange now happens server-side in the callback endpoint.
-  // Just refresh the git panel to reflect the new connection.
   try {
     const statusRes = await fetch('/github/status');
     const status = await statusRes.json();
-    if (status.connected) {
-      updateGitPanel();
-      setStatus('GitHub connected!');
+    if (!status.connected) { setStatus('GitHub auth failed', true); return; }
+    // Fetch user info using the saved token
+    const cfg = await fetch('/github/token').then(r => r.json()).catch(() => ({}));
+    const token = cfg.token || '';
+    if (token) {
+      const user = await fetch('https://api.github.com/user', {
+        headers: { 'Authorization': `token ${token}` }
+      }).then(r => r.ok ? r.json() : null);
+      if (user) {
+        githubToken = token;
+        githubUser = user;
+        sessionStorage.setItem('github-token', token);
+      }
     }
-  } catch (error) {
+    updateGitPanel();
+    setStatus('GitHub connected!');
+  } catch (e) {
     setStatus('GitHub authentication failed', true);
   }
 }
 
 // Sign out
-document.getElementById('btn-github-signout')?.addEventListener('click', () => {
+document.getElementById('btn-github-signout')?.addEventListener('click', async () => {
+  await fetch('/github/signout', { method: 'POST' }).catch(() => {});
   githubToken = null;
   githubUser = null;
   currentRepo = null;
@@ -4673,21 +4660,19 @@ document.getElementById('git-commit-message')?.addEventListener('input', (e) => 
 });
 
 // Initialize GitHub integration
-if (githubToken) {
-  // Verify stored token on startup
-  fetch('https://api.github.com/user', {
-    headers: { 'Authorization': `token ${githubToken}` }
-  })
-  .then(response => response.ok ? response.json() : Promise.reject())
-  .then(user => {
+// Initialize GitHub integration — check server-side token on startup
+fetch('/github/token')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(({ token }) => fetch('https://api.github.com/user', {
+    headers: { 'Authorization': `token ${token}` }
+  }).then(r => r.ok ? r.json().then(user => ({ token, user })) : Promise.reject()))
+  .then(({ token, user }) => {
+    githubToken = token;
     githubUser = user;
+    sessionStorage.setItem('github-token', token);
     updateGitPanel();
   })
-  .catch(() => {
-    sessionStorage.removeItem('github-token');
-    githubToken = null;
-  });
-}
+  .catch(() => { githubToken = null; githubUser = null; });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELP PANEL

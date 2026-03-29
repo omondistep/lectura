@@ -127,7 +127,7 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'static', 'splash.html'));
 
   // Once server is ready, reload from the live server
-  waitForServer('http://127.0.0.1:8000', 10).then(() => {
+  waitForServer('http://127.0.0.1:8000', 200, 60).then(() => {
     console.log('[Electron] Server ready, loading URL...');
     mainWindow.loadURL('http://127.0.0.1:8000');
   });

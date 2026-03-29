@@ -780,32 +780,16 @@ html, body {
 .sidebar-tabs { display: none; }
 
 .sidebar-tab {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 50ms, color 50ms;
-  font-size: 13px;
+  /* inherits all styling from .bottom-control-btn */
   position: relative;
-  flex-shrink: 0;
 }
-.sidebar-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
-.sidebar-tab:hover { background: var(--bg-hover); color: var(--text-dim); }
 .sidebar-tab.active {
   color: var(--text);
-  background: var(--bg-hover);
 }
 .sidebar-tab.active::after {
   content: '';
   position: absolute;
-  top: -2px;
+  bottom: -1px;
   left: 50%;
   transform: translateX(-50%);
   width: 14px;
@@ -2740,18 +2724,7 @@ li.tree-file:hover .del-btn,
 }
 
 .statusbar-toggle-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  transition: background 50ms, color 50ms, margin-left .15s ease;
-  -webkit-app-region: no-drag;
+  /* alias — same as bottom-control-btn */
 }
 
 /* Git branch label in bottom bar */
@@ -2771,99 +2744,73 @@ li.tree-file:hover .del-btn,
 }
 
 /* Hide sidebar controls when sidebar is collapsed */
-#sidebar.collapsed ~ footer .bottom-control-btn {
+#sidebar.collapsed ~ footer .bottom-control-btn:not(#btn-bottom-toggle-sidebar) {
   display: none;
 }
 
-/* Hide folder name by default, show on sidebar hover */
-#btn-bottom-folder-name {
-  opacity: 0;
-  transition: opacity 60ms ease;
-}
-
-#sidebar:hover ~ footer #btn-bottom-folder-name {
-  opacity: 1;
+#btn-bottom-folder-name,
+#btn-bottom-view-toggle {
+  display: none !important;
 }
 
 #btn-bottom-toggle-sidebar {
   position: static;
-  padding: 2px 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 3px;
-  background: transparent;
-  border: none;
-  transition: background 60ms, color 60ms;
   margin: 0;
-  color: var(--text-muted);
-}
-#btn-bottom-toggle-sidebar:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-#sidebar-toggle-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.7;
-  transition: opacity 60ms;
-}
-#btn-bottom-toggle-sidebar:hover #sidebar-toggle-icon {
-  opacity: 1;
-}
-
-/* Subtle dimming when sidebar is collapsed */
-#btn-bottom-toggle-sidebar.collapsed #sidebar-toggle-icon {
-  opacity: 0.4;
-}
-#btn-bottom-toggle-sidebar.collapsed:hover #sidebar-toggle-icon {
-  opacity: 1;
 }
 
 #vim-mode-indicator {
   /* Stays in status-right, no absolute positioning */
 }
-.statusbar-toggle-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.statusbar-toggle-btn svg {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-}
 
 /* Bottom control buttons in statusbar — Zed-style */
-.bottom-control-btn {
+.bottom-control-btn,
+#btn-bottom-toggle-sidebar {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
+  padding: 0 7px;
+  height: 22px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-size: 11.5px;
   transition: background 60ms, color 60ms;
   white-space: nowrap;
   -webkit-app-region: no-drag;
+  flex-shrink: 0;
 }
 
-.bottom-control-btn:hover {
+.bottom-control-btn:hover,
+#btn-bottom-toggle-sidebar:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
 
-.bottom-control-btn svg {
+.bottom-control-btn svg,
+#btn-bottom-toggle-sidebar svg {
   flex-shrink: 0;
   opacity: 0.7;
   transition: opacity 60ms;
+  width: 14px;
+  height: 14px;
 }
-.bottom-control-btn:hover svg {
+.bottom-control-btn:hover svg,
+#btn-bottom-toggle-sidebar:hover svg {
   opacity: 1;
+}
+
+/* thin separator after toggle button */
+#btn-bottom-toggle-sidebar::after {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 12px;
+  background: var(--border-dim);
+  margin-left: 6px;
+  opacity: 0.5;
+  flex-shrink: 0;
 }
 
 .file-name-btn {

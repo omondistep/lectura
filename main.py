@@ -354,7 +354,6 @@ NOTES = _init_notes_dir()
 
 # GitHub OAuth
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', 'Ov23li70jsJUucF7xlgH')
-GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '5abf8eeaacb82592b5498063858815a1cb3e20ba')
 GITHUB_TOKEN_PATH = BASE / ".github_token.json"
 
 
@@ -1016,11 +1015,32 @@ async def gdrive_open(name: str):
 
 # ── GitHub OAuth ───────────────────────────────────────────────────────────────
 
-@app.get("/auth/github/client-id")
-async def github_client_id():
-    """Return the OAuth client ID so the frontend can initiate the flow."""
-    return {"client_id": GITHUB_CLIENT_ID}
 
+@app.get("/github/token")
+async def github_get_token():
+    """Return the saved token so the frontend can call GitHub API directly."""
+    if not GITHUB_TOKEN_PATH.exists():
+        raise HTTPException(401, "Not signed in")
+    data = json.loads(GITHUB_TOKEN_PATH.read_text())
+    return {"token": data.get("access_token", "")}
+
+@app.post("/github/signout")
+async def github_signout():
+    if GITHUB_TOKEN_PATH.exists():
+        GITHUB_TOKEN_PATH.unlink()
+    cfg = load_config()
+    cfg.get("github", {}).pop("token", None)
+    save_config(cfg)
+    return {"ok": True}
+
+@app.post("/gdrive/signout")
+async def gdrive_signout():
+    if GDRIVE_TOKEN_PATH.exists():
+        GDRIVE_TOKEN_PATH.unlink()
+    cfg = load_config()
+    cfg.get("gdrive", {}).pop("enabled", None)
+    save_config(cfg)
+    return {"ok": True}
 
 @app.get("/github/status")
 async def github_status():
@@ -1242,96 +1262,43 @@ async def post_config(body: ConfigBody):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# GITHUB OAUTH ENDPOINTS
+# GITHUB DEVICE FLOW
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# GitHub OAuth token exchange
+@app.get("/auth/github/device")
+async def github_device_start():
+    """Step 1: request a device code from GitHub."""
+    httpx = _get_httpx()
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "https://github.com/login/device/code",
+            data={"client_id": GITHUB_CLIENT_ID, "scope": "repo,user:email"},
+            headers={"Accept": "application/json"},
+        )
+    data = r.json()
+    if "error" in data:
+        raise HTTPException(400, data.get("error_description", data["error"]))
+    return data  # user_code, verification_uri, device_code, interval, expires_in
 
-class GitHubTokenRequest(BaseModel):
-    code: str
-
-@app.post("/auth/github/token")
-async def github_token_exchange(request: GitHubTokenRequest):
-    """Exchange GitHub OAuth code for access token"""
-    try:
-        httpx = _get_httpx()
-        async with httpx.AsyncClient() as client:
-            # Exchange code for access token
-            token_response = await client.post(
-                'https://github.com/login/oauth/access_token',
-                data={
-                    'client_id': GITHUB_CLIENT_ID,
-                    'client_secret': GITHUB_CLIENT_SECRET,
-                    'code': request.code,
-                },
-                headers={'Accept': 'application/json'}
-            )
-            
-            if token_response.status_code != 200:
-                raise HTTPException(status_code=400, detail="Token exchange failed")
-            
-            token_data = token_response.json()
-            
-            if 'error' in token_data:
-                raise HTTPException(status_code=400, detail=token_data.get('error_description', 'OAuth error'))
-            
-            access_token = token_data.get('access_token')
-            # Save token to config so git operations can use it
-            cfg = load_config()
-            cfg.setdefault("github", {})["token"] = access_token
-            save_config(cfg)
-            GITHUB_TOKEN_PATH.write_text(json.dumps(token_data))
-            return {"access_token": access_token}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"GitHub OAuth error: {e}")
-        raise HTTPException(status_code=500, detail="OAuth request failed")
-
-@app.get("/auth/github/callback")
-async def github_callback(code: str = None, state: str = None, error: str = None):
-    """Handle GitHub OAuth callback — works both as popup and system browser redirect."""
-    if error:
-        return HTMLResponse(f"<html><body><h2>GitHub auth failed</h2><p>{error}</p></body></html>")
-
-    if not code or not state:
-        return HTMLResponse("<html><body><h2>GitHub auth failed</h2><p>Missing code or state</p></body></html>")
-
-    # Exchange token server-side so it works from the system browser too
-    try:
-        httpx = _get_httpx()
-        async with httpx.AsyncClient() as client:
-            token_response = await client.post(
-                'https://github.com/login/oauth/access_token',
-                data={
-                    'client_id': GITHUB_CLIENT_ID,
-                    'client_secret': GITHUB_CLIENT_SECRET,
-                    'code': code,
-                },
-                headers={'Accept': 'application/json'}
-            )
-            token_data = token_response.json()
-            if 'error' in token_data:
-                return HTMLResponse(f"<html><body><h2>GitHub auth failed</h2><p>{token_data.get('error_description', 'OAuth error')}</p></body></html>")
-            access_token = token_data.get('access_token')
-            cfg = load_config()
-            cfg.setdefault("github", {})["token"] = access_token
-            save_config(cfg)
-            GITHUB_TOKEN_PATH.write_text(json.dumps(token_data))
-    except Exception as e:
-        logger.error(f"GitHub OAuth callback error: {e}")
-        return HTMLResponse(f"<html><body><h2>GitHub auth failed</h2><p>{e}</p></body></html>")
-
-    return HTMLResponse("""<html><body>
-        <h2>GitHub connected!</h2><p>You can close this tab.</p>
-        <script>
-            if (window.opener) {
-                window.opener.postMessage({ type: 'github-auth-success' }, '*');
-            }
-            window.close();
-        </script>
-    </body></html>""")
+@app.post("/auth/github/device/poll")
+async def github_device_poll(body: dict):
+    """Step 2: poll until the user authorises."""
+    httpx = _get_httpx()
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data={"client_id": GITHUB_CLIENT_ID, "device_code": body["device_code"],
+                  "grant_type": "urn:ietf:params:oauth:grant-type:device_code"},
+            headers={"Accept": "application/json"},
+        )
+    data = r.json()
+    if "access_token" in data:
+        cfg = load_config()
+        cfg.setdefault("github", {})["token"] = data["access_token"]
+        save_config(cfg)
+        GITHUB_TOKEN_PATH.write_text(json.dumps(data))
+        return {"status": "ok"}
+    return {"status": data.get("error", "pending")}  # authorization_pending | slow_down | expired_token
 
 
 if __name__ == "__main__":
