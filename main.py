@@ -1112,20 +1112,27 @@ async def github_select_repo(request: SelectRepoRequest):
     cfg["github"]["branch"] = request.branch
     save_config(cfg)
 
-    # Clone or update the repo cache
+    # Clone or update the repo — use repo name as folder
     git = _get_git()
     if not git:
         raise HTTPException(501, "gitpython not installed")
 
+    repo_name = request.repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    cache = BASE / repo_name
     authed_url = request.repo_url.replace("https://", f"https://{token}@")
-    cache = BASE / ".git_repo_cache"
     try:
-        if cache.exists():
-            repo = git.Repo(cache)
-            repo.remotes.origin.set_url(authed_url)
-            repo.remotes.origin.pull()
-        else:
-            git.Repo.clone_from(authed_url, cache, branch=request.branch)
+        import asyncio, concurrent.futures
+        def do_clone():
+            if cache.exists() and (cache / ".git").exists():
+                repo = git.Repo(cache)
+                repo.remotes.origin.set_url(authed_url)
+                repo.remotes.origin.pull()
+            else:
+                if cache.exists():
+                    import shutil; shutil.rmtree(cache)
+                git.Repo.clone_from(authed_url, cache, branch=request.branch)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, do_clone)
     except Exception as e:
         raise HTTPException(500, f"Clone failed: {e}")
 
