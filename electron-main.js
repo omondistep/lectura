@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 const os = require('os');
@@ -224,6 +224,10 @@ ipcMain.handle('create-new-folder-dialog', async (event, defaultPath) => {
     return result.filePaths[0].replace(/\\/g, '/');
   }
   return null;
+});
+
+ipcMain.handle('open-external', async (event, url) => {
+  await shell.openExternal(url);
 });
 
 ipcMain.handle('open-in-new-window', async (event, filePath) => {

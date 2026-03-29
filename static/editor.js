@@ -206,7 +206,8 @@ function setStatus(msg, isError = false) {
 function updateWordCount() {
   const text = getContent().trim();
   const words = text ? text.split(/\s+/).length : 0;
-  document.getElementById("word-count").textContent = `${words} word${words !== 1 ? "s" : ""}`;
+  const wc = document.getElementById("word-count");
+  if (wc) wc.textContent = `${words} word${words !== 1 ? "s" : ""}`;
 }
 
 function updateReadingTime() {
@@ -233,6 +234,14 @@ function updateDocStatus() {
     el.className = "doc-status saved";
     el.title = "Saved locally";
   }
+}
+
+function updateFileType() {
+  const el = document.getElementById("file-type-indicator");
+  if (!el) return;
+  const ext = (currentFile || "").split(".").pop().toLowerCase();
+  const typeMap = { md: "Markdown", txt: "Plain Text", json: "JSON", js: "JavaScript", ts: "TypeScript", html: "HTML", css: "CSS", py: "Python", rs: "Rust", go: "Go", yaml: "YAML", yml: "YAML", toml: "TOML", xml: "XML" };
+  el.textContent = typeMap[ext] || "Plain Text";
 }
 
 function updateDirtyBadge() {
@@ -311,6 +320,7 @@ function doRenderPreview() {
   updateWordCount();
   updateReadingTime();
   updateDocStatus();
+  updateFileType();
 
   // Update outline if in outline mode (use rAF for smoothness)
   if (sidebarMode === "outline") {
@@ -1658,6 +1668,8 @@ document.getElementById("btn-bottom-toggle-sidebar")?.addEventListener("click", 
 document.querySelectorAll(".sidebar-tab[data-mode]").forEach(tab => {
   tab.addEventListener("click", () => {
     const mode = tab.dataset.mode;
+    const sidebar = document.getElementById("sidebar");
+    if (sidebar.classList.contains("collapsed")) toggleSidebar();
     if (mode === sidebarMode) return;
     switchSidebarMode(mode);
   });
@@ -1672,13 +1684,14 @@ function switchSidebarMode(mode) {
   // Handle files mode with sub-views (tree/list)
   document.querySelectorAll(".sidebar-content").forEach(panel => {
     const panelMode = panel.dataset.for;
+    let visible;
     if (mode === "files") {
-      // For files mode, show tree or list based on filesViewMode
-      panel.style.display = (panelMode === "tree" || panelMode === "list") && panelMode === filesViewMode ? "" : "none";
+      visible = (panelMode === "tree" || panelMode === "list") && panelMode === filesViewMode;
     } else {
-      // For other modes, match directly
-      panel.style.display = panelMode === mode ? "" : "none";
+      visible = panelMode === mode;
     }
+    panel.classList.toggle("hidden", !visible);
+    panel.style.display = "";
   });
   
   // Update bottom controls visibility
@@ -3584,6 +3597,7 @@ function switchTab(tabId) {
     cmEditor.style.cssText = "display:block;visibility:visible";
     preview.style.cssText = "display:none;visibility:hidden";
     view.setState(tab.state);
+    renderPreview();
     requestAnimationFrame(() => {
       view.scrollDOM.scrollTop = tab.scrollTop;
       view.focus();
@@ -4246,7 +4260,7 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
       return;
     }
     const { client_id: CLIENT_ID } = await idRes.json();
-    const REDIRECT_URI = `${window.location.origin}/auth/github/callback`;
+    const REDIRECT_URI = `http://localhost:8000/auth/github/callback`;
     const SCOPE = 'repo,user:email';
 
     // Generate state for security
@@ -4260,37 +4274,55 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
       `scope=${encodeURIComponent(SCOPE)}&` +
       `state=${state}`;
     
-    // Open popup window (like Zed does)
-    const popup = window.open(
-      authUrl,
-      'github-oauth',
-      'width=600,height=700,scrollbars=yes,resizable=yes'
-    );
-    
-    // Listen for OAuth callback
-    const handleMessage = async (event) => {
-      if (event.origin !== window.location.origin) return;
-      
-      if (event.data.type === 'github-auth-success') {
-        popup.close();
-        window.removeEventListener('message', handleMessage);
-        await handleGitHubCallback(event.data.code, event.data.state);
-      } else if (event.data.type === 'github-auth-error') {
-        popup.close();
-        window.removeEventListener('message', handleMessage);
-        setStatus('GitHub authentication failed', true);
-      }
-    };
-    
-    window.addEventListener('message', handleMessage);
-    
-    // Handle popup closed manually
-    const checkClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', handleMessage);
-      }
-    }, 1000);
+    if (window.electronAPI?.openExternal) {
+      // Electron: open in system browser where user is already signed in
+      await window.electronAPI.openExternal(authUrl);
+      // Poll for auth completion since callback goes to localhost
+      const checkAuth = setInterval(async () => {
+        try {
+          const res = await fetch('/github/status');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.connected) {
+              clearInterval(checkAuth);
+              await handleGitHubCallback();
+            }
+          }
+        } catch {}
+      }, 2000);
+      // Stop polling after 5 minutes
+      setTimeout(() => clearInterval(checkAuth), 300000);
+    } else {
+      // Browser: open popup
+      const popup = window.open(
+        authUrl,
+        'github-oauth',
+        'width=600,height=700,scrollbars=yes,resizable=yes'
+      );
+
+      const handleMessage = async (event) => {
+        if (event.origin !== window.location.origin) return;
+
+        if (event.data.type === 'github-auth-success') {
+          popup.close();
+          window.removeEventListener('message', handleMessage);
+          await handleGitHubCallback();
+        } else if (event.data.type === 'github-auth-error') {
+          popup.close();
+          window.removeEventListener('message', handleMessage);
+          setStatus('GitHub authentication failed', true);
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 1000);
+    }
     
   } catch (error) {
     setStatus('GitHub signin failed', true);
@@ -4298,16 +4330,45 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
 });
 
 // Google Drive sign-in
-document.getElementById('btn-gdrive-signin')?.addEventListener('click', () => {
-  const popup = window.open("/gdrive/auth", "_blank", "width=600,height=700");
-  // Poll for popup close, then refresh gdrive status
-  if (popup) {
-    const check = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(check);
-        checkGdriveStatus();
-      }
-    }, 1000);
+document.getElementById('btn-gdrive-signin')?.addEventListener('click', async () => {
+  if (window.electronAPI?.openExternal) {
+    // Electron: get auth URL and open in system browser
+    try {
+      const res = await fetch('/gdrive/auth?json=true');
+      if (!res.ok) throw new Error(await res.text());
+      const { auth_url } = await res.json();
+      await window.electronAPI.openExternal(auth_url);
+      // Poll for auth completion
+      const check = setInterval(async () => {
+        try {
+          const s = await fetch('/gdrive/status');
+          if (s.ok) {
+            const data = await s.json();
+            if (data.connected) {
+              clearInterval(check);
+              setStatus('Google Drive connected!');
+              checkGdriveStatus();
+            }
+          }
+        } catch {}
+      }, 2000);
+      setTimeout(() => clearInterval(check), 300000);
+    } catch (e) {
+      setStatus('Google Drive sign-in failed: ' + e.message, true);
+    }
+  } else {
+    // Browser: open popup
+    const popup = window.open("/gdrive/auth", "_blank", "width=600,height=700");
+    if (popup) {
+      const check = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(check);
+          checkGdriveStatus();
+        }
+      }, 1000);
+    } else {
+      setStatus('Could not open Google sign-in popup. Check your popup blocker.', true);
+    }
   }
 });
 
@@ -4379,41 +4440,16 @@ async function loadGdriveFiles() {
 document.getElementById("btn-gdrive-refresh")?.addEventListener("click", loadGdriveFiles);
 
 // Handle OAuth callback (this would be called from the callback page)
-async function handleGitHubCallback(code, state) {
+async function handleGitHubCallback() {
+  // Token exchange now happens server-side in the callback endpoint.
+  // Just refresh the git panel to reflect the new connection.
   try {
-    // Verify state
-    const storedState = localStorage.getItem('github-oauth-state');
-    if (state !== storedState) {
-      throw new Error('Invalid state parameter');
+    const statusRes = await fetch('/github/status');
+    const status = await statusRes.json();
+    if (status.connected) {
+      updateGitPanel();
+      setStatus('GitHub connected!');
     }
-    localStorage.removeItem('github-oauth-state');
-    
-    // Exchange code for access token
-    const response = await fetch('/auth/github/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code })
-    });
-    
-    if (!response.ok) throw new Error('Token exchange failed');
-    
-    const { access_token } = await response.json();
-    
-    // Get user info
-    const userResponse = await fetch('https://api.github.com/user', {
-      headers: { 'Authorization': `token ${access_token}` }
-    });
-    
-    if (!userResponse.ok) throw new Error('Failed to get user info');
-    
-    const user = await userResponse.json();
-    
-    githubToken = access_token;
-    githubUser = user;
-    sessionStorage.setItem('github-token', access_token);
-    
-    updateGitPanel();
-    setStatus(`Signed in as ${user.login}`);
   } catch (error) {
     setStatus('GitHub authentication failed', true);
   }
@@ -4516,6 +4552,8 @@ async function loadRepoList() {
       currentRepo = status.repo_url.split('/').slice(-1)[0];
       document.getElementById('git-repo').textContent = currentRepo;
       document.getElementById('git-branch').textContent = status.branch || 'main';
+      const bottomBranch = document.getElementById('bottom-git-branch');
+      if (bottomBranch) bottomBranch.textContent = status.branch || 'main';
       selector.classList.add('hidden');
       working.classList.remove('hidden');
       updateGitStatus();
@@ -4574,6 +4612,8 @@ document.getElementById('btn-select-repo')?.addEventListener('click', async () =
     currentRepo = repoUrl.split('/').slice(-1)[0].replace('.git', '');
     document.getElementById('git-repo').textContent = currentRepo;
     document.getElementById('git-branch').textContent = branch;
+    const bottomBranch2 = document.getElementById('bottom-git-branch');
+    if (bottomBranch2) bottomBranch2.textContent = branch;
     document.getElementById('git-repo-selector').classList.add('hidden');
     document.getElementById('git-working').classList.remove('hidden');
     setStatus(`Connected to ${currentRepo}`);
@@ -5361,11 +5401,7 @@ document.getElementById("btn-bottom-view-toggle")?.addEventListener("click", () 
   }
   
   // Update the displayed content
-  document.querySelectorAll(".sidebar-content").forEach(panel => {
-    if (panel.dataset.for === "tree" || panel.dataset.for === "list") {
-      panel.style.display = panel.dataset.for === filesViewMode ? "" : "none";
-    }
-  });
+  switchSidebarMode("files");
   
   updateViewToggleIcon();
 });
@@ -5959,3 +5995,6 @@ document.addEventListener("keydown", (e) => {
 
 // Initialize sidebar toggle icon
 updateSidebarToggleIcon();
+
+// Initialize file type indicator
+updateFileType();

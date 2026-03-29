@@ -359,9 +359,19 @@ GITHUB_TOKEN_PATH = BASE / ".github_token.json"
 
 
 # Google Drive OAuth
-GDRIVE_SECRETS_PATH = BASE / "gdrive_secrets.json"
+GDRIVE_CLIENT_ID = os.getenv("GDRIVE_CLIENT_ID", "337821946016-jml660ds3tvf7ecdpevulg8s56aupe3h.apps.googleusercontent.com")
+GDRIVE_CLIENT_SECRET = os.getenv("GDRIVE_CLIENT_SECRET", "")
 GDRIVE_TOKEN_PATH = BASE / ".gdrive_token.json"
 GDRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+GDRIVE_CLIENT_CONFIG = {
+    "web": {
+        "client_id": GDRIVE_CLIENT_ID,
+        "client_secret": GDRIVE_CLIENT_SECRET,
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "redirect_uris": ["http://localhost:8000/gdrive/callback"],
+    }
+}
 
 app = FastAPI(title="Lectura", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
@@ -903,39 +913,49 @@ async def publish(name: str, body: PublishBody):
 # ── google drive oauth ─────────────────────────────────────────────────────────
 
 @app.get("/gdrive/auth")
-async def gdrive_auth():
-    """Start Google OAuth2 flow. Requires gdrive_client_secrets.json next to main.py."""
+async def gdrive_auth(json: bool = False):
+    """Start Google OAuth2 flow."""
     gd = _get_gdrive()
     if not gd:
         raise HTTPException(501, "google SDK not installed")
-    if not GDRIVE_SECRETS_PATH.exists():
-        raise HTTPException(400, "gdrive_client_secrets.json not found. Download it from Google Cloud Console.")
-    flow = gd["Flow"].from_client_secrets_file(
-        str(GDRIVE_SECRETS_PATH),
+    flow = gd["Flow"].from_client_config(
+        GDRIVE_CLIENT_CONFIG,
         scopes=GDRIVE_SCOPES,
         redirect_uri="http://localhost:8000/gdrive/callback",
+        autogenerate_code_verifier=False,
     )
     auth_url, _ = flow.authorization_url(prompt="consent", access_type="offline")
+    if json:
+        return {"auth_url": auth_url}
     return RedirectResponse(auth_url)
 
 
 @app.get("/gdrive/callback")
-async def gdrive_callback(code: str, state: str = ""):
+async def gdrive_callback(code: str = None, state: str = "", error: str = None):
+    if error:
+        return HTMLResponse(f"<html><body><h2>Google Drive auth failed</h2><p>{error}</p></body></html>")
+    if not code:
+        return HTMLResponse("<html><body><h2>Google Drive auth failed</h2><p>Missing code</p></body></html>")
     gd = _get_gdrive()
     if not gd:
         raise HTTPException(501, "google SDK not installed")
-    flow = gd["Flow"].from_client_secrets_file(
-        str(GDRIVE_SECRETS_PATH),
-        scopes=GDRIVE_SCOPES,
-        redirect_uri="http://localhost:8000/gdrive/callback",
-    )
-    flow.fetch_token(code=code)
-    creds = flow.credentials
-    GDRIVE_TOKEN_PATH.write_text(creds.to_json())
-    # enable gdrive in config
-    cfg = load_config()
-    cfg.setdefault("gdrive", {})["enabled"] = True
-    save_config(cfg)
+    try:
+        flow = gd["Flow"].from_client_config(
+            GDRIVE_CLIENT_CONFIG,
+            scopes=GDRIVE_SCOPES,
+            redirect_uri="http://localhost:8000/gdrive/callback",
+            autogenerate_code_verifier=False,
+        )
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+        GDRIVE_TOKEN_PATH.write_text(creds.to_json())
+        # enable gdrive in config
+        cfg = load_config()
+        cfg.setdefault("gdrive", {})["enabled"] = True
+        save_config(cfg)
+    except Exception as e:
+        logger.error(f"Google Drive OAuth callback error: {e}")
+        return HTMLResponse(f"<html><body><h2>Google Drive auth failed</h2><p>{e}</p></body></html>")
     return HTMLResponse("<html><body><h2>Google Drive connected!</h2><p>You can close this tab.</p><script>window.close()</script></body></html>")
 
 
@@ -1271,39 +1291,47 @@ async def github_token_exchange(request: GitHubTokenRequest):
 
 @app.get("/auth/github/callback")
 async def github_callback(code: str = None, state: str = None, error: str = None):
-    """Handle GitHub OAuth callback"""
+    """Handle GitHub OAuth callback — works both as popup and system browser redirect."""
     if error:
-        return HTMLResponse(f"""
-            <script>
-                window.opener.postMessage({{
-                    type: 'github-auth-error',
-                    error: '{error}'
-                }}, '*');
-                window.close();
-            </script>
-        """)
-    
+        return HTMLResponse(f"<html><body><h2>GitHub auth failed</h2><p>{error}</p></body></html>")
+
     if not code or not state:
-        return HTMLResponse("""
-            <script>
-                window.opener.postMessage({
-                    type: 'github-auth-error',
-                    error: 'Missing code or state'
-                }, '*');
-                window.close();
-            </script>
-        """)
-    
-    return HTMLResponse(f"""
+        return HTMLResponse("<html><body><h2>GitHub auth failed</h2><p>Missing code or state</p></body></html>")
+
+    # Exchange token server-side so it works from the system browser too
+    try:
+        httpx = _get_httpx()
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                'https://github.com/login/oauth/access_token',
+                data={
+                    'client_id': GITHUB_CLIENT_ID,
+                    'client_secret': GITHUB_CLIENT_SECRET,
+                    'code': code,
+                },
+                headers={'Accept': 'application/json'}
+            )
+            token_data = token_response.json()
+            if 'error' in token_data:
+                return HTMLResponse(f"<html><body><h2>GitHub auth failed</h2><p>{token_data.get('error_description', 'OAuth error')}</p></body></html>")
+            access_token = token_data.get('access_token')
+            cfg = load_config()
+            cfg.setdefault("github", {})["token"] = access_token
+            save_config(cfg)
+            GITHUB_TOKEN_PATH.write_text(json.dumps(token_data))
+    except Exception as e:
+        logger.error(f"GitHub OAuth callback error: {e}")
+        return HTMLResponse(f"<html><body><h2>GitHub auth failed</h2><p>{e}</p></body></html>")
+
+    return HTMLResponse("""<html><body>
+        <h2>GitHub connected!</h2><p>You can close this tab.</p>
         <script>
-            window.opener.postMessage({{
-                type: 'github-auth-success',
-                code: '{code}',
-                state: '{state}'
-            }}, '*');
+            if (window.opener) {
+                window.opener.postMessage({ type: 'github-auth-success' }, '*');
+            }
             window.close();
         </script>
-    """)
+    </body></html>""")
 
 
 if __name__ == "__main__":

@@ -527,7 +527,7 @@ html, body {
   max-width: 500px;
   background: var(--bg-surface);
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
@@ -1637,23 +1637,6 @@ li.highlighted {
 #outline-list li.outline-h4 { padding-left: 40px; font-size: 11.5px; }
 #outline-list li.outline-h5 { padding-left: 50px; font-size: 11px; }
 #outline-list li.outline-h6 { padding-left: 60px; font-size: 11px; }
-
-/* Outline panel header */
-[data-for="outline"] {
-  display: none;
-  flex-direction: column;
-}
-[data-for="outline"]::before {
-  content: 'OUTLINE';
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  padding: 8px 12px 6px;
-  border-bottom: 1px solid var(--border-dim);
-  flex-shrink: 0;
-}
 
 /* ── search panel ─────────────────────────────────────────────────────────── */
 #search-panel-input-wrapper {
@@ -2769,6 +2752,22 @@ li.tree-file:hover .del-btn,
   font-size: 11px;
   transition: background 50ms, color 50ms, margin-left .15s ease;
   -webkit-app-region: no-drag;
+}
+
+/* Git branch label in bottom bar */
+.bottom-git-branch {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 2px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* File type indicator in status-right */
+.file-type-indicator {
+  opacity: 0.8;
 }
 
 /* Hide sidebar controls when sidebar is collapsed */
@@ -4277,7 +4276,6 @@ li.tree-file .file-git-status.U { color: var(--text-muted); }
 /* ─── Sidebar content padding fix for panel-header containing panels ──────────── */
 .sidebar-content[data-for="outline"],
 .sidebar-content[data-for="git"] {
-  display: flex;
   flex-direction: column;
 }
 .sidebar-content[data-for="outline"] ul,
