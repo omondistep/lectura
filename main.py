@@ -353,7 +353,7 @@ def _init_notes_dir() -> Path:
 NOTES = _init_notes_dir()
 
 # GitHub OAuth
-GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', 'Ov23li70jsJUucF7xlgH')
+GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', 'Ov23liRAx61UeLhPWx3s')
 GITHUB_TOKEN_PATH = BASE / ".github_token.json"
 
 
@@ -1277,7 +1277,10 @@ async def github_device_start():
         )
     data = r.json()
     if "error" in data:
-        raise HTTPException(400, data.get("error_description", data["error"]))
+        err = data.get("error_description") or data.get("error", "unknown")
+        if data.get("error") == "Not Found":
+            err = "Device flow not enabled — go to GitHub OAuth app settings and enable 'Device Flow'"
+        raise HTTPException(400, err)
     return data  # user_code, verification_uri, device_code, interval, expires_in
 
 @app.post("/auth/github/device/poll")

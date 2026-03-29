@@ -4267,7 +4267,7 @@ document.getElementById('btn-github-signin')?.addEventListener('click', async ()
       <div style="text-align:center;margin:8px 0">
         <code style="font-size:18px;font-weight:700;letter-spacing:3px;color:var(--accent)">${user_code}</code>
       </div>
-      <a href="${verification_uri}" target="_blank"
+      <a href="${verification_uri}" target="_blank" onclick="if(window.electronAPI?.openExternal){window.electronAPI.openExternal('${verification_uri}');event.preventDefault();}"
          style="display:block;text-align:center;margin:6px 0;padding:6px;background:var(--accent);color:#fff;border-radius:4px;text-decoration:none;font-size:12px">
         Open ${verification_uri}
       </a>
