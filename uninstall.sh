@@ -48,7 +48,7 @@ EOF
 printf "  ${YELLOW}This will remove Lectura and all its files.${NC}\n"
 printf "  ${YELLOW}Your notes in ~/Documents/lectura-notes will be preserved.${NC}\n"
 printf "\n  Continue? [y/N] "
-read -r confirm
+read -r confirm < /dev/tty 2>/dev/null || confirm=""
 case "$confirm" in
   [yY]|[yY][eE][sS]) ;;
   *) printf "\n  Aborted.\n"; exit 0 ;;
