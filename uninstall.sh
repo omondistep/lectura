@@ -44,16 +44,18 @@ cat <<'EOF'
 
 EOF
 
-# Confirm
-printf "  ${YELLOW}This will remove Lectura and all its files.${NC}\n"
-printf "  ${YELLOW}Your notes in ~/Documents/lectura-notes will be preserved.${NC}\n"
-printf "\n  Continue? [y/N] "
-read -r confirm < /dev/tty 2>/dev/null || confirm=""
-case "$confirm" in
-  [yY]|[yY][eE][sS]) ;;
-  *) printf "\n  Aborted.\n"; exit 0 ;;
-esac
-echo ""
+# Detect stdin and skip prompt when piped (curl | sh) or non-interactive
+if [ -t 0 ]; then
+  printf "  ${YELLOW}This will remove Lectura and all its files.${NC}\n"
+  printf "  ${YELLOW}Your notes in ~/Documents/lectura-notes will be preserved.${NC}\n"
+  printf "\n  Continue? [y/N] "
+  read -r confirm
+  case "$confirm" in
+    [yY]|[yY][eE][sS]) ;;
+    *) printf "\n  Aborted.\n"; exit 0 ;;
+  esac
+  echo ""
+fi
 
 case "$PLATFORM" in
   linux)
