@@ -8,7 +8,7 @@ set -e
 INSTALL_DIR="$HOME/Library/Application Support/Lectura"
 BIN_DIR="/usr/local/bin"
 APP_DIR="/Applications"
-APP_VERSION="1.0.0"
+APP_VERSION="2.0.0"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -110,8 +110,8 @@ setup_python() {
         cd "$INSTALL_DIR"
         python3 -m venv venv
         source venv/bin/activate
-        pip install -q --upgrade pip
-        pip install -q -r requirements.txt
+        pip install -q --no-cache-dir --upgrade pip 2>/dev/null
+        pip install -q --no-cache-dir -r requirements.txt 2>/dev/null
         deactivate
         print_ok "Python dependencies installed"
     fi

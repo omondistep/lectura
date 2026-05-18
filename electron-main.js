@@ -3,6 +3,40 @@ const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+let autoUpdater = null;
+try { autoUpdater = require('electron-updater').autoUpdater; } catch (e) {}
+if (autoUpdater) {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+}
+
+function setupAutoUpdater() {
+  if (!autoUpdater) return;
+  autoUpdater.on('checking-for-update', () => console.log('[Updater] Checking for updates...'));
+  autoUpdater.on('update-available', (info) => {
+    console.log('[Updater] Update available:', info.version);
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Available',
+      message: `Lectura ${info.version} is available.`,
+      detail: 'Downloading in the background…',
+    });
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[Updater] Update downloaded:', info.version);
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: `Lectura ${info.version} has been downloaded.`,
+      detail: 'Restart to apply the update.',
+      buttons: ['Restart Now', 'Later'],
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+  autoUpdater.on('error', (err) => console.log('[Updater] Error:', err.message));
+  autoUpdater.on('update-not-available', () => console.log('[Updater] Up to date'));
+}
 
 // Only disable GPU if needed (env var override)
 if (process.env.LECTURA_DISABLE_GPU) {
@@ -21,7 +55,6 @@ app.commandLine.appendSwitch('force-gpu-mem-available-mb', '512');
 let mainWindow;
 let pythonProcess;
 
-// Load saved opacity from a simple JSON file in data dir
 function getSavedOpacity() {
   try {
     const configPath = path.join(getDataDir(), 'window-config.json');
@@ -44,6 +77,9 @@ function saveWindowConfig(config) {
 // When running as AppImage, __dirname is read-only (squashfs).
 // We extract the bundled venv to a writable data dir on first run.
 function getDataDir() {
+  if (os.platform() === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', 'Lectura');
+  }
   return path.join(os.homedir(), '.local', 'share', 'lectura');
 }
 
@@ -80,7 +116,7 @@ function startPython() {
     cwd: getDataDir(),
     stdio: 'pipe'
   });
-  
+
   pythonProcess.stdout.on('data', (data) => console.log(`[Python] ${data}`));
   pythonProcess.stderr.on('data', (data) => console.error(`[Python] ${data}`));
 }
@@ -100,16 +136,16 @@ function createWindow() {
     show: false,
     backgroundColor: isTransparent ? undefined : '#0d1117',
     transparent: isTransparent,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: os.platform() === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       devTools: false,
       cache: true,
-      backgroundThrottling: false,  // Keep responsive when backgrounded
+      backgroundThrottling: false,
       enableBlinkFeatures: 'CSSContainmentBlockSize',
-      v8CacheOptions: 'code',  // Cache compiled JS for faster startup
+      v8CacheOptions: 'code',
     }
   });
 
@@ -254,9 +290,25 @@ ipcMain.handle('open-in-new-window', async (event, filePath) => {
   newWindow.loadURL(`http://127.0.0.1:8000?open=${encodedPath}`);
 });
 
+// ── IPC: app version for about dialog ───────────────────────────────────────
+ipcMain.handle('get-app-version', async () => {
+  try {
+    return require('./package.json').version;
+  } catch {
+    return '2.0.0';
+  }
+});
+
 app.on('ready', () => {
+  setupAutoUpdater();
   startPython();
   createWindow();
+  // Check for updates after a short delay (don't block startup)
+  if (autoUpdater) {
+    setTimeout(() => {
+      try { autoUpdater.checkForUpdates(); } catch (e) { console.log('[Updater] Check failed:', e.message); }
+    }, 5000);
+  }
 });
 
 app.on('window-all-closed', () => {

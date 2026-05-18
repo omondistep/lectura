@@ -19,7 +19,7 @@ def _get_httpx():
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, HttpUrl, Field, field_validator
@@ -446,7 +446,7 @@ class GDriveConfig(BaseModel):
 class AppConfig(BaseModel):
     """Application configuration model."""
     github: GitHubConfig = Field(default_factory=GitHubConfig)
-gdrive: GDriveConfig = Field(default_factory=GDriveConfig)
+    gdrive: GDriveConfig = Field(default_factory=GDriveConfig)
 
 
 # ── models ─────────────────────────────────────────────────────────────────────
@@ -1185,32 +1185,6 @@ async def git_diff(file: str = ""):
     if not repo or not file:
         return {"added": [], "modified": []}
     try:
-        import re as _re2
-        diff_text = repo.git.diff("HEAD", "--unified=0", "--", file)
-        added, modified = [], []
-        current_line = 0
-        for line in diff_text.splitlines():
-            if line.startswith("@@"):
-                m = _re2.search(r'\+(\d+)(?:,(\d+))?', line)
-                if m:
-                    current_line = int(m.group(1))
-            elif line.startswith("+") and not line.startswith("+++"):
-                added.append(current_line)
-                current_line += 1
-            elif line.startswith("-") and not line.startswith("---"):
-                modified.append(current_line)
-        return {"added": added, "modified": modified}
-    except Exception:
-        return {"added": [], "modified": []}
-
-
-@app.get("/git/diff")
-async def git_diff(file: str = ""):
-    """Return added/modified line numbers for a file compared to HEAD."""
-    repo, _, _ = _get_repo()
-    if not repo or not file:
-        return {"added": [], "modified": []}
-    try:
         diff_text = repo.git.diff("HEAD", "--unified=0", "--", file)
         added, modified = [], []
         current_line = 0
@@ -1484,6 +1458,172 @@ async def github_device_poll(body: dict):
     if error == "slow_down":
         return {"status": "slow_down", "interval": body.get("interval", 5) + 5}
     return {"status": error}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AI ASSISTANT (Zed AI-style)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AIRequest(BaseModel):
+    message: str
+    context: str = ""
+    current_file: str = ""
+    mode: str = "chat"
+
+@app.post("/ai/chat")
+async def ai_chat(body: AIRequest):
+    """AI Assistant endpoint. Uses configured AI provider or falls back to a simple local suggestion."""
+    try:
+        provider = os.environ.get("AI_PROVIDER", "ollama")
+        model = os.environ.get("AI_MODEL", "llama3.2")
+
+        if provider == "ollama":
+            httpx = _get_httpx()
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                system_prompt = f"You are Lectura AI, a helpful writing assistant integrated into a markdown note-taking app. The user is working on '{body.current_file}'. Respond concisely and format responses in markdown when appropriate."
+                if body.mode == "edit":
+                    system_prompt += "\nThe user wants you to edit their selected text. Return ONLY the edited text, nothing else."
+                elif body.mode == "complete":
+                    system_prompt += "\nThe user wants you to continue/complete their text naturally. Return ONLY the continuation, nothing else."
+
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": body.message},
+                    ],
+                    "stream": False,
+                    "options": {"num_predict": 1024},
+                }
+                resp = await client.post(
+                    os.environ.get("OLLAMA_URL", "http://localhost:11434") + "/api/chat",
+                    json=payload,
+                )
+                if resp.status_code != 200:
+                    return {"response": f"AI provider returned {resp.status_code}. Make sure Ollama is running (ollama serve)."}
+                data = resp.json()
+                return {"response": data.get("message", {}).get("content", "").strip()}
+
+        elif provider == "openai":
+            api_key = os.environ.get("OPENAI_API_KEY", "")
+            if not api_key:
+                return {"response": "OpenAI API key not configured. Set OPENAI_API_KEY environment variable."}
+            httpx = _get_httpx()
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                system_prompt = f"You are Lectura AI, a helpful writing assistant. Respond concisely."
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": body.message},
+                        ],
+                    },
+                )
+                data = resp.json()
+                return {"response": data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()}
+
+        else:
+            # Fallback: simple rule-based response
+            msg = body.message.lower()
+            if "hello" in msg or "hi" in msg:
+                return {"response": "Hello! How can I help with your notes today?"}
+            if "grammar" in msg or "fix" in msg:
+                return {"response": "To fix grammar, select the text you want to edit, then choose 'Edit Selection' mode above and describe the changes. For best results, configure an AI backend (see .env.example)."}
+            return {"response": f"AI mode: {body.mode}. You said: {body.message}\n\nTo enable AI suggestions, set up Ollama (ollama pull llama3.2) or configure OPENAI_API_KEY in your environment."}
+
+    except Exception as e:
+        logger.error(f"AI error: {e}")
+        return {"response": f"AI error: {e}\n\nMake sure Ollama is running (ollama serve) or configure an OpenAI API key."}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INTEGRATED TERMINAL (Zed-style)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import asyncio
+import sys as _sys
+
+@app.websocket("/terminal")
+async def terminal_websocket(websocket: WebSocket):
+    """WebSocket endpoint for the integrated terminal.
+    Spawns a shell process and bridges WebSocket I/O.
+    """
+    await websocket.accept()
+    logger.info("Terminal WebSocket connected")
+
+    is_win = _sys.platform == "win32"
+    shell_cmd = ["cmd.exe"] if is_win else [os.environ.get("SHELL", "/bin/bash")]
+
+    proc = None
+    try:
+        if is_win:
+            proc = await asyncio.create_subprocess_exec(
+                *shell_cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+
+            async def _read_win():
+                while True:
+                    line = await proc.stdout.readline()
+                    if not line:
+                        break
+                    await websocket.send_bytes(line)
+
+            async def _write_win():
+                while True:
+                    data = await websocket.receive_text()
+                    proc.stdin.write(data.encode())
+                    await proc.stdin.drain()
+
+            await asyncio.gather(_read_win(), _write_win())
+        else:
+            import pty as _pty
+            master_fd, slave_fd = _pty.openpty()
+            proc = await asyncio.create_subprocess_exec(
+                *shell_cmd,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                close_fds=True,
+            )
+            os.close(slave_fd)
+
+            loop = asyncio.get_event_loop()
+
+            async def _read_pty():
+                while True:
+                    try:
+                        data = await loop.run_in_executor(None, os.read, master_fd, 4096)
+                        if not data:
+                            break
+                        await websocket.send_bytes(data)
+                    except Exception:
+                        break
+
+            async def _write_pty():
+                while True:
+                    try:
+                        data = await websocket.receive_text()
+                        os.write(master_fd, data.encode())
+                    except Exception:
+                        break
+
+            await asyncio.gather(_read_pty(), _write_pty())
+
+    except Exception as e:
+        logger.error(f"Terminal error: {e}")
+    finally:
+        if proc:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        logger.info("Terminal WebSocket disconnected")
 
 
 if __name__ == "__main__":

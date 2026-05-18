@@ -8,5 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openInNewWindow: (filePath) => ipcRenderer.invoke('open-in-new-window', filePath),
   setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
   getWindowOpacity: () => ipcRenderer.invoke('get-window-opacity'),
-  openExternal: (url) => ipcRenderer.invoke('open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  getPlatform: () => process.platform
 });

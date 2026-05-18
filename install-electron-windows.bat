@@ -102,8 +102,8 @@ if exist "%INSTALL_DIR%\venv\Scripts\activate.bat" (
     cd /d "%INSTALL_DIR%"
     python -m venv venv
     call venv\Scripts\activate.bat
-    pip install -q --upgrade pip
-    pip install -q -r requirements.txt
+    pip install -q --no-cache-dir --upgrade pip 2>nul
+    pip install -q --no-cache-dir -r requirements.txt 2>nul
     call deactivate
     echo [+] Python dependencies installed
 )

@@ -1,17 +1,26 @@
 {
   "name": "lectura",
-  "version": "1.0.0",
-  "description": "Markdown note-taking app with cloud sync",
+  "version": "2.0.0",
+  "description": "A modern, self-hosted Markdown note-taking application with real-time preview, cloud sync, and Vim support",
   "main": "electron-main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
     "build-linux": "electron-builder --linux",
-    "build-win": "electron-builder --win"
+    "build-mac": "electron-builder --mac",
+    "build-mac-arm": "electron-builder --mac --arm64",
+    "build-win": "electron-builder --win",
+    "build-all": "electron-builder --linux --mac --win",
+    "publish": "electron-builder --linux --mac --win --publish always",
+    "install-deps": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.lectura.app",
     "productName": "Lectura",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "electron-main.js",
       "preload.js",
@@ -35,19 +44,118 @@
       "!.gdrive_*",
       "!screenshots/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "bundled-venv",
+        "to": "bundled-venv",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "linux": {
       "target": [
-        "AppImage",
-        "pacman"
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "pacman",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "freebsd",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "snap",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Office",
       "icon": "build/icon.png",
-      "maintainer": "Ondiek <ondiek@lectura.app>"
+      "maintainer": "Ondiek <ondiek@lectura.app>",
+      "synopsis": "Markdown Note-Taking App",
+      "description": "A modern, self-hosted Markdown note-taking application with real-time preview, cloud sync, and Vim support.",
+      "packageCategory": "Office",
+      "desktop": {
+        "Name": "Lectura",
+        "Comment": "Markdown Note-Taking App",
+        "Categories": "Office;TextEditor;Utility;",
+        "MimeType": "text/markdown;"
+      }
     },
-
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false
+    },
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "msi",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-win-${arch}-installer.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -55,17 +163,51 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Lectura"
+      "shortcutName": "Lectura",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "license": "LICENSE",
+      "language": "1033",
+      "runAfterFinish": true
+    },
+    "msi": {
+      "warningsAsErrors": false
+    },
+    "macZip": {
+      "artifactName": "${productName}-${version}-mac-${arch}.zip"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "omondistep",
+      "repo": "lectura",
+      "releaseType": "release",
+      "vPrefixedTagName": true,
+      "host": "https://github.com"
+    },
+    "electronDownload": {
+      "mirror": "https://github.com/electron/electron/releases/download/"
     }
   },
-  "homepage": "https://github.com/ondiekOS/lectura",
+  "homepage": "https://github.com/omondistep/lectura",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omondistep/lectura.git"
+  },
+  "bugs": {
+    "url": "https://github.com/omondistep/lectura/issues"
+  },
   "author": {
     "name": "Ondiek",
-    "email": "ondiek@lectura.app"
+    "email": "ondiek@lectura.app",
+    "url": "https://github.com/omondistep"
   },
   "license": "MIT",
   "devDependencies": {
     "electron": "^35.7.5",
     "electron-builder": "^26.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
   }
 }

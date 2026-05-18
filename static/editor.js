@@ -4846,6 +4846,11 @@ document.getElementById("btn-close-help")?.addEventListener("click", () => helpP
 document.getElementById("btn-about")?.addEventListener("click", () => { 
   closeAllMenus(); 
   document.getElementById("about-overlay").classList.remove("hidden");
+  // Populate version from Electron or fallback
+  const verEl = document.getElementById("about-version");
+  if (verEl && window.electronAPI?.getAppVersion) {
+    window.electronAPI.getAppVersion().then(v => { verEl.textContent = "version " + v; });
+  }
 });
 document.getElementById("btn-close-about")?.addEventListener("click", () => {
   document.getElementById("about-overlay").classList.add("hidden");
@@ -6001,7 +6006,7 @@ const COMMAND_PALETTE_ITEMS = [
   { label: "Duplicate Line", category: "edit", action: () => ACTIONS["duplicate-line"](), keys: "Ctrl+Shift+D" },
   { label: "Move Line Up", category: "edit", action: () => ACTIONS["move-line-up"](), keys: "Alt+Up" },
   { label: "Move Line Down", category: "edit", action: () => ACTIONS["move-line-down"](), keys: "Alt+Down" },
-  { label: "Find", category: "edit", action: () => ACTIONS.find(), keys: "Ctrl+P" },
+  { label: "Find", category: "edit", action: () => ACTIONS.find(), keys: "Ctrl+Shift+F" },
   // Format
   { label: "Bold", category: "format", action: () => ACTIONS.bold(), keys: "Ctrl+B" },
   { label: "Italic", category: "format", action: () => ACTIONS.italic(), keys: "Ctrl+I" },
@@ -6046,6 +6051,8 @@ const COMMAND_PALETTE_ITEMS = [
   { label: "Toggle Typewriter Mode", category: "view", action: () => toggleTypewriter(), keys: "F9" },
   { label: "Toggle Vim Mode", category: "view", action: () => toggleVim(), keys: "Ctrl+Alt+V" },
   { label: "Toggle Help", category: "view", action: () => toggleHelp() },
+  { label: "Toggle Terminal", category: "view", action: () => toggleTerminal(), keys: "Ctrl+`" },
+  { label: "Toggle AI Assistant", category: "view", action: () => toggleAIAssistant(), keys: "Ctrl+Shift+A" },
   // Settings
   { label: "Open Settings", category: "settings", action: () => openSettings(), keys: "Ctrl+," },
   { label: "Copy as Markdown", category: "export", action: () => ACTIONS["copy-as-markdown"]() },
@@ -6056,10 +6063,12 @@ const cmdInput = document.getElementById("cmd-palette-input");
 const cmdList = document.getElementById("cmd-palette-list");
 let cmdActiveIdx = 0;
 let cmdFiltered = [];
+let cmdFiles = [];
 
 function openCommandPalette() {
   cmdOverlay.classList.remove("hidden");
   cmdInput.value = "";
+  cmdFiles = [];
   filterCommandPalette("");
   cmdInput.focus();
 }
@@ -6077,22 +6086,60 @@ function filterCommandPalette(query) {
         c.category.toLowerCase().includes(q)
       )
     : COMMAND_PALETTE_ITEMS;
+  // Search files if query has >= 2 chars (Zed-style: Ctrl+P finds files too)
+  cmdFiles = [];
+  if (q.length >= 2) {
+    const allFiles = [...document.querySelectorAll(".tree-file[data-file-path]")];
+    for (const el of allFiles) {
+      const path = el.dataset.filePath || "";
+      if (path.toLowerCase().includes(q)) {
+        cmdFiles.push(path);
+      }
+    }
+  }
   cmdActiveIdx = 0;
   renderCommandPalette();
 }
 
 function renderCommandPalette() {
-  if (cmdFiltered.length === 0) {
+  if (cmdFiltered.length === 0 && cmdFiles.length === 0) {
     cmdList.innerHTML = '<div class="cmd-palette-empty">No matching commands</div>';
     return;
   }
-  cmdList.innerHTML = cmdFiltered.map((cmd, i) =>
-    `<div class="cmd-palette-item${i === cmdActiveIdx ? " active" : ""}" data-idx="${i}"><span class="cmd-cat">${cmd.category}:</span> <span class="cmd-text">${cmd.label.toLowerCase()}</span></div>`
-  ).join("");
+  // Show files first (Zed-style), then commands
+  let html = "";
+  if (cmdFiles.length > 0) {
+    html += '<div class="cmd-palette-group">Files</div>';
+    cmdFiles.forEach((f, i) => {
+      const idx = i;
+      html += `<div class="cmd-palette-item${idx === cmdActiveIdx ? " active" : ""}" data-file="${f}" data-idx="${idx}"><span class="cmd-cat">file:</span> <span class="cmd-text">${f}</span></div>`;
+    });
+    const offset = cmdFiles.length;
+    if (cmdFiltered.length > 0) {
+      html += '<div class="cmd-palette-group">Commands</div>';
+      cmdFiltered.forEach((cmd, i) => {
+        const idx = offset + i;
+        html += `<div class="cmd-palette-item${idx === cmdActiveIdx ? " active" : ""}" data-idx="${idx}"><span class="cmd-cat">${cmd.category}:</span> <span class="cmd-text">${cmd.label.toLowerCase()}</span></div>`;
+      });
+    }
+  } else {
+    html = cmdFiltered.map((cmd, i) =>
+      `<div class="cmd-palette-item${i === cmdActiveIdx ? " active" : ""}" data-idx="${i}"><span class="cmd-cat">${cmd.category}:</span> <span class="cmd-text">${cmd.label.toLowerCase()}</span></div>`
+    ).join("");
+  }
+  cmdList.innerHTML = html;
 }
 
 function executeCommandPaletteItem(idx) {
-  const cmd = cmdFiltered[idx];
+  // Check if it's a file item
+  if (cmdFiles.length > 0 && idx < cmdFiles.length) {
+    closeCommandPalette();
+    openFile(cmdFiles[idx]);
+    return;
+  }
+  const cmdOffset = cmdFiles.length;
+  const cmdIdx = idx - cmdOffset;
+  const cmd = cmdFiltered[cmdIdx];
   if (cmd) {
     closeCommandPalette();
     cmd.action();
@@ -6126,7 +6173,15 @@ cmdInput?.addEventListener("keydown", (e) => {
 
 cmdList?.addEventListener("click", (e) => {
   const item = e.target.closest(".cmd-palette-item");
-  if (item) executeCommandPaletteItem(Number(item.dataset.idx));
+  if (item) {
+    const idx = Number(item.dataset.idx);
+    if (item.dataset.file) {
+      closeCommandPalette();
+      openFile(item.dataset.file);
+    } else {
+      executeCommandPaletteItem(idx);
+    }
+  }
 });
 
 cmdOverlay?.addEventListener("mousedown", (e) => {
@@ -6137,13 +6192,301 @@ document.querySelector(".cmd-run-btn")?.addEventListener("click", () => {
   executeCommandPaletteItem(cmdActiveIdx);
 });
 
-// Ctrl+Shift+P to open command palette (global)
+// Ctrl+P (or Ctrl+Shift+P) to open command palette (Zed-style)
 document.addEventListener("keydown", (e) => {
-  if (e.ctrlKey && e.shiftKey && e.key === "P") {
+  if ((e.ctrlKey || e.metaKey) && e.key === "p" && !e.shiftKey) {
+    e.preventDefault();
+    openCommandPalette();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "p") {
     e.preventDefault();
     openCommandPalette();
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI ASSISTANT (Zed AI-style)
+// ═══════════════════════════════════════════════════════════════════════════════
+let aiActive = false;
+let aiMessages = [];
+
+function toggleAIAssistant() {
+  const panel = document.getElementById("ai-panel");
+  if (!aiActive) {
+    panel.classList.remove("hidden");
+    aiActive = true;
+    document.getElementById("btn-bottom-ai")?.classList.add("active");
+    document.getElementById("ai-input")?.focus();
+    if (terminalActive) {
+      // Don't overlap with terminal - hide terminal
+      document.getElementById("terminal-panel")?.classList.add("hidden");
+    }
+  } else {
+    panel.classList.add("hidden");
+    aiActive = false;
+    document.getElementById("btn-bottom-ai")?.classList.remove("active");
+  }
+  updateMainHeight();
+}
+
+function updateMainHeight() {
+  const main = document.getElementById("main");
+  let h = "100vh - var(--menubar-h) - var(--status-h)";
+  if (terminalActive) h += " - 200px";
+  if (aiActive) h += " - 250px";
+  main?.style.setProperty("height", `calc(${h})`);
+}
+
+async function sendAIMessage() {
+  const input = document.getElementById("ai-input");
+  const text = input.value.trim();
+  if (!text) return;
+  
+  input.value = "";
+  document.getElementById("btn-ai-send").disabled = true;
+  
+  const mode = document.getElementById("ai-mode").value;
+  
+  // Add user message
+  addAIMessage("user", text);
+  
+  // If in edit mode, include selected text
+  let prompt = text;
+  if (mode === "edit" || mode === "complete") {
+    const selected = view.state.sliceDoc(
+      view.state.selection.main.from,
+      view.state.selection.main.to
+    );
+    if (selected) {
+      const prefix = mode === "complete" 
+        ? "Complete the following text (continue naturally):\n\n"
+        : "Edit the following text according to this instruction: '" + text + "'. Return only the edited text:\n\n";
+      prompt = prefix + selected;
+    }
+  }
+  
+  // Add loading message
+  const loadingId = "ai-loading-" + Date.now();
+  addAIMessage("assistant", "Thinking...", loadingId);
+  
+  try {
+    const resp = await fetch("/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: prompt,
+        context: getContent(),
+        current_file: currentFile,
+        mode,
+      }),
+    });
+    
+    const data = await resp.json();
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) loadingEl.remove();
+    
+    let response = data.response || data.error || "No response";
+    addAIMessage("assistant", response);
+    
+    // If edit mode, apply the changes
+    if (mode === "edit" && view.state.selection.main.from !== view.state.selection.main.to) {
+      const { from, to } = view.state.selection.main;
+      view.dispatch({
+        changes: { from, to, insert: response },
+      });
+      view.focus();
+      showToast("AI edit applied");
+    }
+  } catch (err) {
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) loadingEl.remove();
+    addAIMessage("assistant", "Error: " + err.message + "\n\nMake sure the AI backend is configured.");
+  }
+  
+  document.getElementById("btn-ai-send").disabled = false;
+  input.focus();
+  
+  // Scroll to bottom
+  const messagesEl = document.getElementById("ai-messages");
+  setTimeout(() => { messagesEl.scrollTop = messagesEl.scrollHeight; }, 50);
+}
+
+function addAIMessage(role, content, id) {
+  const messagesEl = document.getElementById("ai-messages");
+  const div = document.createElement("div");
+  div.className = `ai-message ai-${role}`;
+  if (id) div.id = id;
+  const contentEl = document.createElement("div");
+  contentEl.className = "ai-msg-content";
+  contentEl.textContent = content;
+  div.appendChild(contentEl);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// AI event listeners
+document.getElementById("btn-bottom-ai")?.addEventListener("click", toggleAIAssistant);
+document.getElementById("btn-close-ai")?.addEventListener("click", toggleAIAssistant);
+document.getElementById("btn-ai-send")?.addEventListener("click", sendAIMessage);
+document.getElementById("ai-input")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    sendAIMessage();
+  }
+});
+document.getElementById("ai-input")?.addEventListener("input", () => {
+  const btn = document.getElementById("btn-ai-send");
+  const val = document.getElementById("ai-input").value.trim();
+  btn.disabled = !val;
+});
+
+// Ctrl+Shift+A to toggle AI assistant
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "a" || e.key === "A")) {
+    e.preventDefault();
+    toggleAIAssistant();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INTEGRATED TERMINAL (Zed-style)
+// ═══════════════════════════════════════════════════════════════════════════════
+let terminalInstance = null;
+let terminalSocket = null;
+let terminalActive = false;
+
+function toggleTerminal() {
+  const panel = document.getElementById("terminal-panel");
+  if (!terminalActive) {
+    panel.classList.remove("hidden");
+    terminalActive = true;
+    initTerminal();
+    document.getElementById("btn-bottom-terminal")?.classList.add("active");
+    // Adjust main content height
+    document.getElementById("main")?.style.setProperty("height", `calc(100vh - var(--menubar-h) - var(--status-h) - 200px)`);
+  } else {
+    panel.classList.add("hidden");
+    terminalActive = false;
+    document.getElementById("btn-bottom-terminal")?.classList.remove("active");
+    document.getElementById("main")?.style.removeProperty("height");
+  }
+}
+
+function initTerminal() {
+  if (terminalInstance) {
+    terminalInstance.focus();
+    return;
+  }
+  // Wait for xterm.js to be available
+  if (!window.Terminal) {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js";
+    script.onload = () => initTerminal();
+    document.head.appendChild(script);
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css";
+    document.head.appendChild(css);
+    return;
+  }
+  
+  const container = document.getElementById("terminal-container");
+  terminalInstance = new Terminal({
+    cursorBlink: true,
+    cursorStyle: "block",
+    fontSize: 13,
+    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+    theme: {
+      background: "#0a0e14",
+      foreground: "#e6edf3",
+      cursor: "#39ff14",
+      selectionBackground: "#1c2128",
+      black: "#0d1117",
+      red: "#ff1744",
+      green: "#39ff14",
+      yellow: "#ffd600",
+      blue: "#58a6ff",
+      magenta: "#bc8cff",
+      cyan: "#00e5ff",
+      white: "#e6edf3",
+      brightBlack: "#484f58",
+      brightRed: "#ff6b68",
+      brightGreen: "#39ff14",
+      brightYellow: "#ffd600",
+      brightBlue: "#58a6ff",
+      brightMagenta: "#bc8cff",
+      brightCyan: "#00e5ff",
+      brightWhite: "#f0f6fc",
+    },
+    allowTransparency: true,
+  });
+  
+  // Use fit addon if available
+  let fitAddon = null;
+  if (window.FitAddon) {
+    fitAddon = new window.FitAddon.FitAddon();
+    terminalInstance.loadAddon(fitAddon);
+  }
+  
+  terminalInstance.open(container);
+  
+  if (fitAddon) {
+    setTimeout(() => fitAddon.fit(), 50);
+  }
+  
+  // Connect WebSocket
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const wsUrl = `${protocol}//${window.location.host}/terminal`;
+  terminalSocket = new WebSocket(wsUrl);
+  
+  terminalSocket.onopen = () => {
+    terminalInstance.write("\r\n\x1b[32mLectura Terminal\x1b[0m connected\r\n");
+  };
+  
+  terminalSocket.onmessage = (event) => {
+    if (event.data instanceof Blob) {
+      event.data.arrayBuffer().then(buf => {
+        terminalInstance.write(new Uint8Array(buf));
+      });
+    } else {
+      terminalInstance.write(event.data);
+    }
+  };
+  
+  terminalSocket.onerror = () => {
+    terminalInstance.write("\r\n\x1b[31mTerminal connection error\x1b[0m\r\n");
+  };
+  
+  terminalSocket.onclose = () => {
+    terminalInstance.write("\r\n\x1b[33mTerminal disconnected\x1b[0m\r\n");
+    terminalSocket = null;
+  };
+  
+  terminalInstance.onData((data) => {
+    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+      terminalSocket.send(data);
+    }
+  });
+  
+  // Resize observer
+  const resizeObserver = new ResizeObserver(() => {
+    if (fitAddon) {
+      try { fitAddon.fit(); } catch (e) {}
+    }
+  });
+  resizeObserver.observe(container);
+}
+
+// Terminal toggle via Ctrl+`
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "`") {
+    e.preventDefault();
+    toggleTerminal();
+  }
+});
+
+document.getElementById("btn-bottom-terminal")?.addEventListener("click", toggleTerminal);
+document.getElementById("btn-close-terminal")?.addEventListener("click", toggleTerminal);
 
 // Initialize sidebar toggle icon
 updateSidebarToggleIcon();

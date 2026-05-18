@@ -174,8 +174,8 @@ setup_python() {
         cd "$INSTALL_DIR"
         python3 -m venv venv
         source venv/bin/activate
-        pip install -q --upgrade pip
-        pip install -q -r requirements.txt
+        pip install -q --no-cache-dir --upgrade pip
+        pip install -q --no-cache-dir -r requirements.txt
         deactivate
         print_ok "Python dependencies installed"
     fi
@@ -189,8 +189,8 @@ setup_electron() {
     if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
         print_ok "Electron dependencies already installed, skipping npm install"
     else
-        print_step "Installing Electron dependencies (this may take 2-5 minutes)..."
-        npm install --progress=true
+        print_step "Installing Electron dependencies..."
+        npm install --no-audit --no-fund --prefer-offline --loglevel=error 2>/dev/null
         print_ok "Electron installed"
     fi
 }
@@ -198,10 +198,9 @@ setup_electron() {
 # ── Create launcher ──────────────────────────────────────────────────────────
 create_launcher() {
     cat > "$BIN_DIR/lectura" << 'LAUNCHER'
-#!/bin/bash
-cd "$HOME/.local/share/lectura"
+#!/bin/sh
 export PATH="$HOME/.local/share/lectura/venv/bin:$PATH"
-npm start 2>/dev/null
+exec npm start --prefix "$HOME/.local/share/lectura" "$@"
 LAUNCHER
 
     chmod +x "$BIN_DIR/lectura"

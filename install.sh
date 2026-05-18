@@ -1,90 +1,102 @@
 #!/bin/sh
 # ═══════════════════════════════════════════════════════════════════════════════
-# Lectura — Unified Installer
-# Works on Linux, macOS, and Windows (via Git Bash / WSL)
-# Inspired by Zed's cross-platform installation experience.
+# Lectura — One-line install (Zed-style)
+#   curl -fsSL https://lectura.app/install.sh | sh
 # ═══════════════════════════════════════════════════════════════════════════════
 set -e
 
 APP_NAME="Lectura"
 APP_VERSION="2.0.0"
 
-# ── Platform detection ──────────────────────────────────────────────────────
-detect_platform() {
-  case "$(uname -s)" in
-    Linux*)  PLATFORM="linux" ;;
-    Darwin*) PLATFORM="macos" ;;
-    CYGWIN*|MINGW*|MSYS*|Windows*) PLATFORM="windows" ;;
-    *)       PLATFORM="unknown" ;;
-  esac
-  echo "  Detected platform: ${PLATFORM}"
-}
-
-# ── Colors (ANSI, works on all platforms) ──────────────────────────────────
+# ── Utils ────────────────────────────────────────────────────────────────────
+BOLD='\033[1m'
+DIM='\033[2m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-BOLD='\033[1m'
 NC='\033[0m'
 
-print_banner() {
-  echo ""
-  echo "${CYAN}${BOLD}================================================${NC}"
-  echo "${CYAN}${BOLD}   Lectura v${APP_VERSION} — Unified Installer${NC}"
-  echo "${CYAN}${BOLD}================================================${NC}"
-  echo ""
+info()  { printf "${CYAN}  \342\227\206${NC} %s\n" "$1"; }
+ok()    { printf "${GREEN}  \342\234\223${NC} %s\n" "$1"; }
+warn()  { printf "${YELLOW}  \342\232\240${NC} %s\n" "$1"; }
+err()   { printf "${RED}  \342\234\227${NC} %s\n" "$1"; exit 1; }
+
+detect_platform() {
+  case "$(uname -s)" in
+    Linux*)  PLATFORM="linux"   ;;
+    Darwin*) PLATFORM="macos"   ;;
+    CYGWIN*|MINGW*|MSYS*) PLATFORM="windows" ;;
+    *)       PLATFORM="unknown" ;;
+  esac
 }
 
-print_step()  { echo "${CYAN}  ◆${NC} $1"; }
-print_ok()    { echo "${GREEN}  ✓${NC} $1"; }
-print_warn()  { echo "${YELLOW}  ⚠${NC} $1"; }
-print_err()   { echo "${RED}  ✗${NC} $1"; }
+detect_init() {
+  if [ -f "${HOME}/.zshrc" ]; then INIT_FILE="${HOME}/.zshrc"
+  elif [ -f "${HOME}/.bashrc" ]; then INIT_FILE="${HOME}/.bashrc"
+  elif [ -f "${HOME}/.bash_profile" ]; then INIT_FILE="${HOME}/.bash_profile"
+  elif [ -f "${HOME}/.profile" ]; then INIT_FILE="${HOME}/.profile"
+  else INIT_FILE="${HOME}/.profile"
+  fi
+}
 
-# ── Dependency check ────────────────────────────────────────────────────────
-check_deps() {
-  print_step "Checking system dependencies..."
+# ── Banner ───────────────────────────────────────────────────────────────────
+banner() {
+  printf "\n"
+  printf "  \342\225\255──────────────────────────────────────────────────────\342\225\256\n"
+  printf "  \342\225\221                                                      \342\225\221\n"
+  printf "  \342\225\221   _            _                                     \342\225\221\n"
+  printf "  \342\225\221  | | ___ __ _| |_ _ __ __ _ _ __                    \342\225\221\n"
+  printf "  \342\225\221  | |/ / '__/ _\` | __| '__/ _\` | '__|               \342\225\221\n"
+  printf "  \342\225\221  |   <| | | (_| | |_| | | (_| | |                  \342\225\221\n"
+  printf "  \342\225\221  |_|\_\_|  \__,_|\__|_|  \__,_|_|                   \342\225\221\n"
+  printf "  \342\225\221                                                      \342\225\221\n"
+  printf "  \342\225\221         Markdown Note-Taking                         \342\225\221\n"
+  printf "  \342\225\221                                                      \342\225\221\n"
+  printf "  \342\225\251──────────────────────────────────────────────────────\342\225\271\n"
+  printf "\n"
+  printf "${BOLD}  Lectura v%s \342\200\224 Unified Installer${NC}\n\n" "$APP_VERSION"
+}
 
-  PYTHON=""
-  for cmd in python3 python; do
-    if command -v "$cmd" >/dev/null 2>&1; then
-      PYTHON="$cmd"
-      break
+# ── OS-level dependency install ──────────────────────────────────────────────
+install_system_deps() {
+  if [ "$PLATFORM" = "macos" ]; then
+    if ! command -v brew >/dev/null 2>&1; then
+      info "Installing Homebrew..."
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" 2>/dev/null || true
     fi
-  done
-
-  if [ -z "$PYTHON" ]; then
-    print_err "Python 3 is required."
-    case "$PLATFORM" in
-      linux)  echo "    Install: apt install python3 (Debian) / pacman -S python (Arch)" ;;
-      macos)  echo "    Install: brew install python" ;;
-      windows) echo "    Download: https://python.org/downloads/" ;;
-    esac
-    exit 1
+    return
   fi
 
-  python_ver=$("$PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-  print_ok "Python ${python_ver} found"
+  if [ "$PLATFORM" != "linux" ]; then return; fi
 
-  if ! command -v node >/dev/null 2>&1; then
-    print_err "Node.js is required."
-    case "$PLATFORM" in
-      linux)  echo "    Install: apt install nodejs npm (Debian) / pacman -S nodejs npm (Arch)" ;;
-      macos)  echo "    Install: brew install node" ;;
-      windows) echo "    Download: https://nodejs.org/" ;;
-    esac
-    exit 1
+  set -- "" "" "" "" ""
+  if ! command -v python3 >/dev/null 2>&1; then set -- "$@" "python3"; fi
+  if ! command -v node >/dev/null 2>&1; then set -- "$@" "nodejs"; fi
+  if ! command -v npm >/dev/null 2>&1; then set -- "$@" "npm"; fi
+  if command -v python3 >/dev/null 2>&1 && ! python3 -m venv --help >/dev/null 2>&1; then
+    set -- "$@" "python3-venv"
   fi
-  print_ok "Node.js $(node -v) found"
 
-  if ! command -v npm >/dev/null 2>&1; then
-    print_err "npm is required (should come with Node.js)."
-    exit 1
+  if [ $# -le 5 ]; then return; fi
+
+  shift 5
+  info "Installing system dependencies..."
+
+  if command -v apt >/dev/null 2>&1; then
+    sudo apt update -qq && sudo apt install -y -qq "$@"
+  elif command -v pacman >/dev/null 2>&1; then
+    sudo pacman -S --needed --noconfirm "$@"
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y "$@"
+  elif command -v apk >/dev/null 2>&1; then
+    sudo apk add --no-cache "$@"
+  else
+    warn "Could not auto-install: $*. Please install manually."
   fi
-  print_ok "npm found"
 }
 
-# ── Determine install paths ─────────────────────────────────────────────────
+# ── Paths ────────────────────────────────────────────────────────────────────
 set_paths() {
   case "$PLATFORM" in
     linux)
@@ -106,101 +118,111 @@ set_paths() {
       CONFIG_DIR="${APPDATA}/Lectura"
       ;;
   esac
-
-  mkdir -p "${INSTALL_DIR}" "${DATA_DIR}" "${CONFIG_DIR}"
-
-  if [ "$PLATFORM" = "linux" ]; then
-    mkdir -p "${BIN_DIR}" "${HOME}/.local/share/applications"
-  fi
 }
 
-# ── Install application files ───────────────────────────────────────────────
+# ── Install app files ────────────────────────────────────────────────────────
 install_files() {
-  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 
-  print_step "Copying files to ${INSTALL_DIR}..."
-
-  # Core app files
-  for f in main.py electron-main.js preload.js package.json requirements.txt; do
-    cp "${SCRIPT_DIR}/${f}" "${INSTALL_DIR}/"
-  done
-
-  # Static assets and build assets
-  cp -r "${SCRIPT_DIR}/static" "${INSTALL_DIR}/"
-  if [ -d "${SCRIPT_DIR}/build" ]; then
-    cp -r "${SCRIPT_DIR}/build" "${INSTALL_DIR}/"
-  fi
-
-  # Config files (if present)
-  for f in config.json github_secrets.json gdrive_secrets.json .env; do
-    if [ -f "${SCRIPT_DIR}/${f}" ]; then
-      cp "${SCRIPT_DIR}/${f}" "${INSTALL_DIR}/" 2>/dev/null || true
-    fi
-  done
-
-  # Create notes directory
-  mkdir -p "${INSTALL_DIR}/notes"
-
-  print_ok "Files copied"
-}
-
-# ── Setup Python virtual environment ────────────────────────────────────────
-setup_python() {
-  if [ -f "${INSTALL_DIR}/venv/bin/activate" ] || [ -f "${INSTALL_DIR}/venv/Scripts/activate" ]; then
-    print_ok "Python venv already exists, skipping"
-    return
-  fi
-
-  print_step "Setting up Python virtual environment..."
-
-  # Handle Windows differently for venv paths
-  if [ "$PLATFORM" = "windows" ]; then
-    "${PYTHON}" -m venv "${INSTALL_DIR}/venv"
-    # shellcheck disable=SC1091
-    . "${INSTALL_DIR}/venv/Scripts/activate"
-    pip install -q --upgrade pip
-    pip install -q -r "${INSTALL_DIR}/requirements.txt"
-    deactivate 2>/dev/null || true
+  if [ -f "$SCRIPT_DIR/main.py" ]; then
+    SOURCE="$SCRIPT_DIR"
   else
-    "${PYTHON}" -m venv "${INSTALL_DIR}/venv"
-    # shellcheck disable=SC1091
-    . "${INSTALL_DIR}/venv/bin/activate"
-    pip install -q --upgrade pip
-    pip install -q -r "${INSTALL_DIR}/requirements.txt"
-    deactivate
+    info "Downloading Lectura ${APP_VERSION}..."
+    tmpd=$(mktemp -d)
+    url="https://github.com/omondistep/lectura/releases/download/v${APP_VERSION}/lectura-${APP_VERSION}-${PLATFORM}-x64.tar.gz"
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$url" -o "$tmpd/lectura.tar.gz" 2>/dev/null || true
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q "$url" -O "$tmpd/lectura.tar.gz" 2>/dev/null || true
+    fi
+    if [ -f "$tmpd/lectura.tar.gz" ] && [ -s "$tmpd/lectura.tar.gz" ]; then
+      tar xzf "$tmpd/lectura.tar.gz" -C "$tmpd" 2>/dev/null
+      SOURCE="$tmpd/lectura-${APP_VERSION}"
+    else
+      warn "Could not download release."
+      err "Clone the repo: git clone https://github.com/omondistep/lectura.git && cd lectura && ./install.sh"
+    fi
   fi
 
-  print_ok "Python dependencies installed"
+  mkdir -p "${INSTALL_DIR}" "${DATA_DIR}" "${CONFIG_DIR}" "${BIN_DIR}"
+
+  info "Copying files..."
+  for f in main.py electron-main.js preload.js package.json requirements.txt; do
+    cp "${SOURCE}/${f}" "${INSTALL_DIR}/" 2>/dev/null || true
+  done
+  cp -r "${SOURCE}/static" "${INSTALL_DIR}/" 2>/dev/null || true
+  if [ -d "${SOURCE}/build" ]; then
+    cp -r "${SOURCE}/build" "${INSTALL_DIR}/" 2>/dev/null || true
+  fi
+  mkdir -p "${INSTALL_DIR}/notes"
+  ok "Files copied"
 }
 
-# ── Setup Node dependencies ─────────────────────────────────────────────────
-setup_node() {
-  if [ -d "${INSTALL_DIR}/node_modules" ] && [ -f "${INSTALL_DIR}/package-lock.json" ]; then
-    print_ok "Node modules already installed, skipping"
+# ── Python venv ──────────────────────────────────────────────────────────────
+setup_python() {
+  if [ -f "${INSTALL_DIR}/venv/bin/python3" ] && "${INSTALL_DIR}/venv/bin/python3" -c "import fastapi" 2>/dev/null; then
+    ok "Python venv ready"
     return
   fi
-
-  print_step "Installing Electron dependencies..."
-  (cd "${INSTALL_DIR}" && npm install --no-audit --no-fund --loglevel=error)
-  print_ok "Electron installed"
+  info "Setting up Python virtual environment..."
+  python3 -m venv "${INSTALL_DIR}/venv"
+  # shellcheck disable=SC1091
+  . "${INSTALL_DIR}/venv/bin/activate"
+  pip install --no-cache-dir --upgrade pip -q
+  pip install --no-cache-dir -r "${INSTALL_DIR}/requirements.txt" -q
+  deactivate
+  ok "Python dependencies installed"
 }
 
-# ── Create launchers ────────────────────────────────────────────────────────
-create_launchers() {
-  print_step "Creating launchers..."
+# ── Node / Electron ──────────────────────────────────────────────────────────
+setup_node() {
+  if [ -f "${INSTALL_DIR}/node_modules/electron/dist/electron" ]; then
+    ok "Electron ready"
+    return
+  fi
+  info "Installing Electron..."
+  cd "${INSTALL_DIR}"
+  # If electron package dir exists but binary missing, remove it to force reinstall
+  if [ -d "${INSTALL_DIR}/node_modules/electron" ] && [ ! -f "${INSTALL_DIR}/node_modules/electron/dist/electron" ]; then
+    rm -rf "${INSTALL_DIR}/node_modules/electron"
+  fi
+  ELECTRON_SKIP_BINARY_DOWNLOAD=0 npm install --no-audit --no-fund --loglevel=error
+  # Verify binary landed; if not, try extracting from cache
+  if [ ! -f "${INSTALL_DIR}/node_modules/electron/dist/electron" ]; then
+    cache_zip=$(find "${HOME}/.cache/electron" -name "electron-v*-linux-x64.zip" 2>/dev/null | head -1)
+    if [ -n "$cache_zip" ]; then
+      python3 -c "
+import zipfile, os
+dist = '${INSTALL_DIR}/node_modules/electron/dist'
+os.makedirs(dist, exist_ok=True)
+with zipfile.ZipFile('$cache_zip') as z:
+    z.extractall(dist)
+with open('${INSTALL_DIR}/node_modules/electron/path.txt', 'w') as f:
+    f.write('electron')
+" 2>/dev/null
+    fi
+  fi
+  # Ensure binary is executable
+  if [ -f "${INSTALL_DIR}/node_modules/electron/dist/electron" ]; then
+    chmod +x "${INSTALL_DIR}/node_modules/electron/dist/electron"
+  fi
+  ok "Electron ready"
+}
+
+# ── Launcher / desktop integration ───────────────────────────────────────────
+create_launcher() {
+  info "Creating launchers..."
 
   case "$PLATFORM" in
     linux)
       cat > "${BIN_DIR}/lectura" << 'LAUNCHER'
 #!/bin/sh
-cd "$HOME/.local/share/lectura"
 export PATH="$HOME/.local/share/lectura/venv/bin:$PATH"
-exec npm start "$@"
+exec npm start --prefix "$HOME/.local/share/lectura" "$@"
 LAUNCHER
       chmod +x "${BIN_DIR}/lectura"
-      print_ok "Launcher: ${BIN_DIR}/lectura"
+      ok "Command: ${BIN_DIR}/lectura"
 
-      # Desktop entry
       cat > "${HOME}/.local/share/applications/lectura.desktop" << DESKTOP
 [Desktop Entry]
 Version=1.0
@@ -213,27 +235,35 @@ Terminal=false
 Categories=Office;TextEditor;Utility;
 StartupNotify=true
 Keywords=markdown;notes;editor;writing;
+MimeType=text/markdown;
 DESKTOP
       chmod +x "${HOME}/.local/share/applications/lectura.desktop"
       update-desktop-database "${HOME}/.local/share/applications" 2>/dev/null || true
-      print_ok "Desktop entry created"
       ;;
 
     macos)
-      # Create .app bundle
-      mkdir -p "${INSTALL_DIR}/Lectura.app/Contents/MacOS"
-      mkdir -p "${INSTALL_DIR}/Lectura.app/Contents/Resources"
-
-      cat > "${INSTALL_DIR}/Lectura.app/Contents/MacOS/Lectura" << 'LAUNCHER'
+      cat > "${BIN_DIR}/lectura" << 'LAUNCHER'
 #!/bin/bash
 DIR="$HOME/Library/Application Support/Lectura"
-cd "$DIR"
 export PATH="$DIR/venv/bin:$PATH"
-exec npm start "$@"
+exec npm start --prefix "$DIR" "$@"
 LAUNCHER
-      chmod +x "${INSTALL_DIR}/Lectura.app/Contents/MacOS/Lectura"
+      if [ -w "${BIN_DIR}" ]; then
+        chmod +x "${BIN_DIR}/lectura"
+      else
+        sudo chmod +x "${BIN_DIR}/lectura" 2>/dev/null || true
+      fi
 
-      cat > "${INSTALL_DIR}/Lectura.app/Contents/Info.plist" << PLIST
+      APP_BUNDLE="${INSTALL_DIR}/Lectura.app"
+      mkdir -p "${APP_BUNDLE}/Contents/MacOS" "${APP_BUNDLE}/Contents/Resources"
+      cat > "${APP_BUNDLE}/Contents/MacOS/Lectura" <<'MACLAUNCHER'
+#!/bin/bash
+DIR="$HOME/Library/Application Support/Lectura"
+export PATH="$DIR/venv/bin:$PATH"
+exec npm start --prefix "$DIR" "$@"
+MACLAUNCHER
+      chmod +x "${APP_BUNDLE}/Contents/MacOS/Lectura"
+      cat > "${APP_BUNDLE}/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -255,124 +285,76 @@ LAUNCHER
 </dict>
 </plist>
 PLIST
-
-      # Copy icon
       if [ -f "${INSTALL_DIR}/build/icon.png" ]; then
-        cp "${INSTALL_DIR}/build/icon.png" "${INSTALL_DIR}/Lectura.app/Contents/Resources/"
+        cp "${INSTALL_DIR}/build/icon.png" "${APP_BUNDLE}/Contents/Resources/"
       fi
-
-      # Symlink into /Applications
       if [ -d "/Applications" ]; then
-        ln -sf "${INSTALL_DIR}/Lectura.app" "/Applications/Lectura.app" 2>/dev/null || \
-        sudo ln -sf "${INSTALL_DIR}/Lectura.app" "/Applications/Lectura.app" 2>/dev/null || true
+        ln -sf "${APP_BUNDLE}" "/Applications/Lectura.app" 2>/dev/null || \
+        sudo ln -sf "${APP_BUNDLE}" "/Applications/Lectura.app" 2>/dev/null || true
+        ok "App bundle: /Applications/Lectura.app"
       fi
-
-      # Also create command-line launcher
-      if [ -w "${BIN_DIR}" ]; then
-        ln -sf "${INSTALL_DIR}/Lectura.app/Contents/MacOS/Lectura" "${BIN_DIR}/lectura"
-      else
-        sudo ln -sf "${INSTALL_DIR}/Lectura.app/Contents/MacOS/Lectura" "${BIN_DIR}/lectura" 2>/dev/null || true
-      fi
-      print_ok "App bundle created at ~/Library/Application Support/Lectura/Lectura.app"
-      print_ok "Symlinked to /Applications/Lectura.app"
-      print_ok "Launcher: ${BIN_DIR}/lectura"
       ;;
 
     windows)
-      # Batch launcher
       cat > "${INSTALL_DIR}/Lectura.bat" << BATCH
 @echo off
 cd /d "${INSTALL_DIR}"
 call venv\Scripts\activate.bat
 start "" npx electron .
 BATCH
+      ;;
+  esac
+}
 
-      # PowerShell shortcut creation
-      powershell -NoProfile -ExecutionPolicy Bypass -Command "
-        \$ws = New-Object -ComObject WScript.Shell;
-        \$s = \$ws.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\\Lectura.lnk');
-        \$s.TargetPath = 'cmd.exe';
-        \$s.Arguments = '/c \"${INSTALL_DIR}\\Lectura.bat\"';
-        \$s.WorkingDirectory = '${INSTALL_DIR}';
-        \$s.IconLocation = '${INSTALL_DIR}\\build\\icon.ico';
-        \$s.WindowStyle = 7;
-        \$s.Description = 'Lectura - Markdown Note-Taking App';
-        \$s.Save()
-      " 2>&1 || print_warn "Could not create desktop shortcut (run as normal user)"
-      print_ok "Shortcuts created on Desktop and Start Menu"
+# ── PATH setup ───────────────────────────────────────────────────────────────
+setup_path() {
+  case "$PLATFORM" in
+    linux)
+      if ! echo ":$PATH:" | grep -q ":${BIN_DIR}:"; then
+        if ! grep -q "\.local/bin" "$INIT_FILE" 2>/dev/null; then
+          printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$INIT_FILE"
+        fi
+      fi
+      ;;
+    macos)
+      if ! echo ":$PATH:" | grep -q ":${BIN_DIR}:"; then
+        if ! grep -q "/usr/local/bin" "$INIT_FILE" 2>/dev/null; then
+          printf '\nexport PATH="/usr/local/bin:$PATH"\n' >> "$INIT_FILE"
+        fi
+      fi
       ;;
   esac
 }
 
 # ── Summary ──────────────────────────────────────────────────────────────────
-print_summary() {
-  echo ""
-  echo "${GREEN}${BOLD}================================================${NC}"
-  echo "${GREEN}${BOLD}    ✓ Installation Complete!${NC}"
-  echo "${GREEN}${BOLD}================================================${NC}"
-  echo ""
-
+summary() {
+  printf "\n${GREEN}${BOLD}\342\234\223  Installation Complete${NC}\n\n"
+  printf "${BOLD}Launch:${NC}\n"
   case "$PLATFORM" in
-    linux)
-      echo "  Launch:  ${BOLD}lectura${NC}"
-      echo "  Or:      Search 'Lectura' in applications menu"
-      echo ""
-      echo "  PATH:    ${BIN_DIR}"
-      if echo ":$PATH:" | grep -qv ":${BIN_DIR}:"; then
-        print_warn "Add ${BIN_DIR} to your PATH:"
-        echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
-      fi
-      ;;
-    macos)
-      echo "  Launch:  ${BOLD}lectura${NC} (terminal)"
-      echo "  Or:      Open 'Lectura' from Applications"
-      ;;
-    windows)
-      echo "  Launch:  Double-click 'Lectura' on Desktop"
-      echo "  Or:      Find 'Lectura' in Start Menu"
-      echo "  Or:      Run: ${INSTALL_DIR}\\Lectura.bat"
-      ;;
+    linux)   printf "    lectura\n" ;;
+    macos)   printf "    lectura\n    Or open Lectura from Applications\n" ;;
+    windows) printf "    Double-click Lectura on Desktop\n" ;;
   esac
-
-  echo ""
-  echo "  Uninstall:"
-  case "$PLATFORM" in
-    linux)
-      echo "    rm -rf ${INSTALL_DIR}"
-      echo "    rm -f ${BIN_DIR}/lectura"
-      echo "    rm -f ${HOME}/.local/share/applications/lectura.desktop"
-      ;;
-    macos)
-      echo "    rm -rf '${INSTALL_DIR}'"
-      echo "    rm -f '${BIN_DIR}/lectura'"
-      echo "    rm -rf '/Applications/Lectura.app'"
-      ;;
-    windows)
-      echo "    rmdir /s /q '${INSTALL_DIR}'"
-      echo "    Delete Desktop and Start Menu shortcuts"
-      ;;
-  esac
-  echo ""
-  echo "${BOLD}Happy writing!${NC}"
-  echo ""
+  printf "\n${BOLD}Uninstall:${NC}\n"
+  printf "    curl -fsSL https://raw.githubusercontent.com/omondistep/lectura/main/uninstall.sh | sh\n"
+  printf "\n${BOLD}Support:${NC} https://github.com/omondistep/lectura/issues\n"
+  printf "\n"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════════
-print_banner
 detect_platform
+detect_init
+banner
 
-if [ "$PLATFORM" = "unknown" ]; then
-  print_err "Unsupported platform. Please install manually."
-  echo "  See: https://github.com/ondiekOS/lectura#installation"
-  exit 1
-fi
+info "Detected: ${PLATFORM} ($(uname -m))"
 
-check_deps
+install_system_deps
 set_paths
 install_files
 setup_python
 setup_node
-create_launchers
-print_summary
+create_launcher
+setup_path
+summary

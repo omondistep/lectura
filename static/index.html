@@ -66,6 +66,11 @@
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
   <link rel="modulepreload" href="https://esm.sh/@codemirror/view@6">
   <link rel="modulepreload" href="https://esm.sh/@codemirror/state@6">
+  <!-- xterm.js for integrated terminal -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" media="print" onload="this.media='all'">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js" defer></script>
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" as="style">
 </head>
 <body>
 <script>
@@ -578,6 +583,48 @@
   </div>
 </div>
 
+<!-- AI Assistant Panel (Zed AI-style) -->
+<div id="ai-panel" class="hidden">
+  <div class="ai-toolbar">
+    <span class="ai-label">AI Assistant</span>
+    <div class="ai-toolbar-actions">
+      <button id="btn-close-ai" class="ai-toolbar-btn" title="Close AI Assistant">×</button>
+    </div>
+  </div>
+  <div class="ai-content">
+    <div id="ai-messages" class="ai-messages">
+      <div class="ai-message ai-system">
+        <div class="ai-msg-content">Welcome! Ask me to help write, edit, or rewrite your notes.</div>
+      </div>
+    </div>
+    <div class="ai-input-area">
+      <textarea id="ai-input" class="ai-input" placeholder="Ask AI to help with your notes... (e.g., 'make this more concise', 'fix grammar', 'expand on this idea')" rows="3"></textarea>
+      <div class="ai-input-actions">
+        <label class="ai-mode-label">
+          <select id="ai-mode" class="ai-mode-select">
+            <option value="chat">Chat</option>
+            <option value="edit">Edit Selection</option>
+            <option value="complete">Complete</option>
+          </select>
+        </label>
+        <button id="btn-ai-send" class="ai-send-btn" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Integrated Terminal Panel (Zed-style) -->
+<div id="terminal-panel" class="hidden">
+  <div class="terminal-toolbar">
+    <span class="terminal-label">Terminal</span>
+    <div class="terminal-toolbar-actions">
+      <button id="btn-new-terminal" class="terminal-toolbar-btn" title="New Terminal">+</button>
+      <button id="btn-close-terminal" class="terminal-toolbar-btn" title="Close Terminal">×</button>
+    </div>
+  </div>
+  <div id="terminal-container"></div>
+</div>
+
 <!-- Global status bar (full-width, below main, like Typora) -->
 <footer id="statusbar">
   <div class="status-left">
@@ -629,6 +676,18 @@
         <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
         <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
         <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+      </svg>
+    </button>
+    <button id="btn-bottom-ai" class="bottom-control-btn" title="Toggle AI Assistant (Ctrl+Shift+A)">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0a.5.5 0 01.5.5V2a.5.5 0 01-1 0V.5A.5.5 0 018 0zM3.05 3.05a.5.5 0 01.707 0l.707.707a.5.5 0 11-.707.707l-.707-.707a.5.5 0 010-.707zm9.9 0a.5.5 0 010 .707l-.707.707a.5.5 0 11-.707-.707l.707-.707a.5.5 0 01.707 0zM8 5a3 3 0 100 6 3 3 0 000-6zM4.5 8a3.5 3.5 0 117 0 3.5 3.5 0 01-7 0z"/>
+        <path d="M12.5 5.5a.5.5 0 01.5.5v1.5h1.5a.5.5 0 010 1H13v1.5a.5.5 0 01-1 0V8.5h-1.5a.5.5 0 010-1H12V6a.5.5 0 01.5-.5z"/>
+      </svg>
+    </button>
+    <button id="btn-bottom-terminal" class="bottom-control-btn" title="Toggle Terminal (Ctrl+`)">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M4.646 3.646a.5.5 0 01.708 0l3 3a.5.5 0 010 .708l-3 3a.5.5 0 01-.708-.708L7.293 7 4.646 4.354a.5.5 0 010-.708z"/>
+        <path d="M8.5 11.5a.5.5 0 01.5-.5h3a.5.5 0 010 1H9a.5.5 0 01-.5-.5z"/>
       </svg>
     </button>
     <button id="btn-bottom-more" class="bottom-control-btn" title="More Actions">
@@ -869,7 +928,7 @@
       <div class="about-icon">L</div>
       <div class="about-info">
         <h2>Lectura <span class="about-platform">for Linux (x64)</span></h2>
-        <p class="about-version">version 1.0.0</p>
+        <p class="about-version" id="about-version">version 2.0.0</p>
         <p class="about-subtitle">Made by a Kenyan</p>
         <div class="about-social">
           <a href="https://twitter.com/Stephenondiek" target="_blank" class="social-link">
