@@ -2003,8 +2003,8 @@ function buildTree(folders, files) {
     const parts = filePath.split("/");
     const fileName = parts.pop();
     let current = tree;
-    parts.forEach(part => {
-      if (!current.children[part]) current.children[part] = { children: {}, files: [], path: part };
+    parts.forEach((part, index) => {
+      if (!current.children[part]) current.children[part] = { children: {}, files: [], path: parts.slice(0, index + 1).join("/") };
       current = current.children[part];
     });
     current.files.push({ name: fileName, path: filePath, preview: preview });
