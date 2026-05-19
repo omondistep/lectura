@@ -235,6 +235,14 @@ ipcMain.handle('open-folder-dialog', async (event, defaultPath) => {
   return null;
 });
 
+ipcMain.handle('reveal-in-folder', async (event, filePath) => {
+  if (filePath) {
+    shell.showItemInFolder(filePath);
+    return true;
+  }
+  return false;
+});
+
 ipcMain.handle('create-new-file-dialog', async (event, defaultPath) => {
   if (!mainWindow) return null;
   const result = await dialog.showSaveDialog(mainWindow, {

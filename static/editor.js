@@ -1806,23 +1806,18 @@ function switchSidebarMode(mode) {
     panel.style.display = "";
   });
   
-  // Update bottom controls visibility
-  const isFilesMode = mode === "files";
-  const isOutlineMode = mode === "outline";
-  const isCloudMode = mode === "git" || mode === "gdrive";
-  
-  document.querySelectorAll(".bottom-controls-group").forEach(group => {
-    if (group.dataset.for === "outline") {
-      group.style.display = isOutlineMode ? "flex" : "none";
-    } else if (group.dataset.for === "files") {
-      group.style.display = isFilesMode ? "flex" : "none";
-    }
-  });
-  
-  // Hide bottom controls for cloud modes
   const bottomControls = document.getElementById("sidebar-bottom-controls");
   if (bottomControls) {
-    bottomControls.style.display = isCloudMode ? "none" : "";
+    const isFilesMode = mode === "files";
+    const isOutlineMode = mode === "outline";
+    document.querySelectorAll(".bottom-controls-group").forEach(group => {
+      if (group.dataset.for === "outline") {
+        group.style.display = isOutlineMode ? "flex" : "none";
+      } else if (group.dataset.for === "files") {
+        group.style.display = isFilesMode ? "flex" : "none";
+      }
+    });
+    bottomControls.style.display = (isFilesMode || isOutlineMode) ? "" : "none";
   }
   
   // Update view toggle icon
@@ -1833,7 +1828,6 @@ function switchSidebarMode(mode) {
   
   if (mode === "files" && filesViewMode === "list") populateFileList();
   if (mode === "outline") updateOutline();
-  if (mode === "gdrive") checkGdriveStatus();
 }
 
 function updateViewToggleIcon() {
@@ -3347,6 +3341,8 @@ document.getElementById("btn-publish")?.addEventListener("click", () => {
 document.getElementById("btn-cancel-publish")?.addEventListener("click", () => document.getElementById("publish-overlay").classList.add("hidden"));
 document.getElementById("btn-confirm-publish")?.addEventListener("click", async () => {
   document.getElementById("publish-overlay").classList.add("hidden");
+  // Save current editor content to disk before publishing
+  if (isDirty) await saveFile(true);
   setStatus("Publishing…");
   const res = await fetch("/publish", { method: "POST" });
   const data = await res.json();
@@ -4416,6 +4412,7 @@ if (typewriterMode) document.body.classList.add("typewriter-mode");
 let githubToken = sessionStorage.getItem('github-token');
 let githubUser = null;
 let currentRepo = null;
+let gdriveConnected = false;
 
 // GitHub OAuth flow
 document.getElementById('btn-github-signin')?.addEventListener('click', async () => {
@@ -4522,75 +4519,383 @@ document.getElementById('btn-gdrive-signin')?.addEventListener('click', async ()
 
 // Google Drive: check connection status and load files
 async function checkGdriveStatus() {
-  const authSection = document.getElementById("gdrive-auth");
-  const filesSection = document.getElementById("gdrive-files");
-  if (!authSection || !filesSection) return;
+  const gdriveAuth = document.getElementById("gdrive-auth");
   try {
     const res = await fetch("/gdrive/status");
-    if (!res.ok) {
-      // Server error — show sign-in button as fallback
-      authSection.classList.remove("hidden");
-      filesSection.classList.add("hidden");
-      return;
-    }
+    if (!res.ok) { gdriveConnected = false; if (gdriveAuth) gdriveAuth.classList.remove("hidden"); updateHeaderUserMenu(); return; }
     const { connected } = await res.json();
-    if (connected) {
-      authSection.classList.add("hidden");
-      filesSection.classList.remove("hidden");
-      loadGdriveFiles();
-    } else {
-      authSection.classList.remove("hidden");
-      filesSection.classList.add("hidden");
+    gdriveConnected = connected;
+    if (gdriveAuth) gdriveAuth.classList.toggle("hidden", connected);
+    updateHeaderUserMenu();
+    if (!connected) return;
+    // Load files into dropdown view
+    const list = document.getElementById("gdrive-file-list");
+    if (!list) return;
+    list.innerHTML = "<li class='loading'>Loading…</li>";
+    try {
+      const fres = await fetch("/gdrive/files");
+      list.innerHTML = "";
+      if (!fres.ok) {
+        const err = await fres.json().catch(() => ({}));
+        list.innerHTML = `<li class="no-results">${err.detail || "Error loading files"}</li>`;
+        return;
+      }
+      const { files } = await fres.json();
+      if (!files.length) {
+        list.innerHTML = "<li class='no-results'>No .md files found</li>";
+        return;
+      }
+      files.forEach(name => {
+        const li = document.createElement("li");
+        li.textContent = name;
+        li.className = "file-item";
+        li.addEventListener("click", async () => {
+          const r = await fetch(`/gdrive/open/${encodeURIComponent(name)}`);
+          if (!r.ok) { setStatus("Failed to open", true); return; }
+          const { content } = await r.json();
+          // Save a local copy so it appears in the sidebar tree
+          const saveRes = await fetch(fileURL(name), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+          });
+          if (saveRes.ok) {
+            await openTab(name, { preview: false, focus: true });
+            await loadFileList();
+            setStatus(`Opened ${name}`);
+          } else {
+            setStatus("Failed to save local copy", true);
+          }
+        });
+        list.appendChild(li);
+      });
+    } catch (e) {
+      list.innerHTML = "<li class='no-results'>Failed to connect</li>";
     }
   } catch (_) {
-    // Network error — show sign-in button
-    authSection.classList.remove("hidden");
-    filesSection.classList.add("hidden");
+    gdriveConnected = false;
+    const gdriveAuth = document.getElementById("gdrive-auth");
+    if (gdriveAuth) gdriveAuth.classList.remove("hidden");
+    updateHeaderUserMenu();
   }
 }
 
-async function loadGdriveFiles() {
-  const list = document.getElementById("gdrive-file-list");
+
+// No old sidebar GDrive code — everything handled via header dropdown
+
+// ── Header user menu ────────────────────────────────────────────────────────────
+
+function updateHeaderUserMenu() {
+  const btn = document.getElementById("btn-header-user");
+  const avatar = document.getElementById("header-user-avatar");
+  const username = document.getElementById("header-username");
+  const dropdown = document.getElementById("header-user-dropdown");
+  
+  const ghConnected = githubUser !== null;
+  const gdConnected = gdriveConnected;
+  
+  if (ghConnected || gdConnected) {
+    btn.classList.remove("hidden");
+    if (ghConnected) {
+      avatar.src = githubUser.avatar_url;
+      username.textContent = githubUser.login;
+    } else if (gdConnected) {
+      avatar.src = "";
+      username.textContent = "Drive";
+    }
+  } else {
+    btn.classList.add("hidden");
+    dropdown.classList.add("hidden");
+  }
+  
+  // Update GitHub dropdown section
+  const ghAuth = document.getElementById("hdr-gh-auth");
+  const ghPanel = document.getElementById("hdr-gh-panel");
+  const ghSep = document.getElementById("hdr-gh-gdrive-sep");
+  
+  if (githubUser) {
+    ghAuth.classList.add("hidden");
+    ghPanel.classList.remove("hidden");
+    document.getElementById("hdr-gh-avatar").src = githubUser.avatar_url;
+    document.getElementById("hdr-gh-login").textContent = githubUser.login;
+    document.getElementById("hdr-gh-repo").textContent = currentRepo || "No repository connected";
+  } else {
+    ghAuth.classList.remove("hidden");
+    ghPanel.classList.add("hidden");
+  }
+  
+  // Update Google Drive dropdown section
+  const gdAuth = document.getElementById("hdr-gdrive-auth");
+  const gdPanel = document.getElementById("hdr-gdrive-panel");
+  
+  if (gdConnected) {
+    gdAuth.classList.add("hidden");
+    gdPanel.classList.remove("hidden");
+  } else {
+    gdAuth.classList.remove("hidden");
+    gdPanel.classList.add("hidden");
+  }
+  
+  // Hide separator if neither is connected
+  if (!githubUser && !gdConnected) ghSep.classList.add("hidden");
+  else ghSep.classList.remove("hidden");
+}
+
+// Toggle dropdown
+document.getElementById("btn-header-user")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const dropdown = document.getElementById("header-user-dropdown");
+  dropdown.classList.toggle("hidden");
+});
+
+// Close dropdown on outside click
+document.addEventListener("click", (e) => {
+  const dropdown = document.getElementById("header-user-dropdown");
+  const btn = document.getElementById("btn-header-user");
+  if (!dropdown.classList.contains("hidden") && !dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+    dropdown.classList.add("hidden");
+  }
+});
+
+// Header GitHub sign in
+document.getElementById("hdr-btn-github-signin")?.addEventListener("click", async () => {
+  document.getElementById("header-user-dropdown").classList.add("hidden");
+  try {
+    setStatus('Starting GitHub OAuth…');
+    const res = await fetch('/auth/github/device');
+    if (!res.ok) throw new Error(await res.text());
+    const { user_code, verification_uri, device_code, interval = 5 } = await res.json();
+    
+    // Show a modal-like notification with the code
+    setStatus(`GitHub: open ${verification_uri} and enter code: ${user_code}`);
+    if (window.electronAPI?.openExternal) window.electronAPI.openExternal(verification_uri);
+    
+    let pollInterval = interval * 1000;
+    let pollActive = true;
+    setTimeout(() => pollActive = false, 900000);
+    const doPoll = async () => {
+      if (!pollActive) return;
+      try {
+        const pr = await fetch('/auth/github/device/poll', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ device_code, interval: pollInterval / 1000 })
+        });
+        const pd = await pr.json();
+        if (pd.status === 'ok') {
+          pollActive = false;
+          await handleGitHubCallback();
+          return;
+        } else if (pd.status === 'expired_token' || pd.status === 'access_denied') {
+          pollActive = false;
+          setStatus('GitHub auth expired — try again.', true);
+          setTimeout(() => handleGitHubCallback(), 2000);
+          return;
+        } else if (pd.status === 'slow_down') {
+          pollInterval = (pd.interval || pollInterval / 1000 + 5) * 1000;
+        }
+      } catch {}
+      if (pollActive) setTimeout(doPoll, pollInterval);
+    };
+    setTimeout(doPoll, pollInterval);
+  } catch (e) {
+    setStatus('GitHub sign-in failed: ' + e.message, true);
+  }
+});
+
+// Header GitHub change repo
+document.getElementById("hdr-btn-github-change-repo")?.addEventListener("click", async () => {
+  const dropdown = document.getElementById("header-user-dropdown");
+  dropdown.classList.add("hidden");
+  await fetch('/github/clear-repo', { method: 'POST' }).catch(() => {});
+  currentRepo = null;
+  // Switch to files view and show repo selection
+  const repoUrl = prompt("Enter GitHub repository URL (https://github.com/owner/repo):");
+  if (!repoUrl) return;
+  const branch = "main";
+  try {
+    setStatus("Cloning repository...");
+    const res = await fetch('/github/select-repo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo_url: repoUrl, branch }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Clone failed');
+    currentRepo = repoUrl.split('/').slice(-1)[0].replace('.git', '');
+    document.getElementById("hdr-gh-repo").textContent = currentRepo;
+    document.getElementById("hdr-gh-branch-name").textContent = branch;
+    setStatus(`Connected to ${currentRepo}`);
+    if (data.local_path) {
+      await setWorkspace(data.local_path);
+    }
+    switchSidebarMode('files');
+    updateHeaderUserMenu();
+    updateGitStatus();
+  } catch (e) {
+    setStatus('Clone failed: ' + e.message, true);
+  }
+});
+
+// Header GitHub sign out
+document.getElementById("hdr-btn-github-signout")?.addEventListener("click", async () => {
+  document.getElementById("header-user-dropdown").classList.add("hidden");
+  await fetch('/github/signout', { method: 'POST' }).catch(() => {});
+  githubToken = null;
+  githubUser = null;
+  currentRepo = null;
+  sessionStorage.removeItem('github-token');
+  updateGitPanel();
+  updateHeaderUserMenu();
+  setStatus('Signed out of GitHub');
+});
+
+// Header commit
+document.getElementById("hdr-btn-git-commit")?.addEventListener("click", async () => {
+  const message = document.getElementById("hdr-git-commit-message").value.trim();
+  if (!message) { setStatus('Commit message required', true); return; }
+  try {
+    setStatus('Committing…');
+    const res = await fetch('/git/commit', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message })
+    });
+    if (res.ok) {
+      document.getElementById("hdr-git-commit-message").value = '';
+      document.getElementById("hdr-btn-git-push").disabled = false;
+      updateGitStatus();
+      setStatus('Committed');
+    } else { setStatus('Commit failed', true); }
+  } catch { setStatus('Commit failed', true); }
+});
+
+// Header push
+document.getElementById("hdr-btn-git-push")?.addEventListener("click", async () => {
+  try {
+    setStatus('Pushing…');
+    const res = await fetch('/git/push', { method: 'POST' });
+    if (res.ok) { updateGitStatus(); setStatus('Pushed to remote'); }
+    else { setStatus('Push failed', true); }
+  } catch { setStatus('Push failed', true); }
+});
+
+// Header pull
+document.getElementById("hdr-btn-git-pull")?.addEventListener("click", async () => {
+  try {
+    setStatus('Pulling…');
+    const res = await fetch('/git/pull', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({rebase: false}) });
+    if (res.ok) { loadFileList(); updateGitStatus(); setStatus('Pulled from remote'); }
+    else { setStatus('Pull failed', true); }
+  } catch { setStatus('Pull failed', true); }
+});
+
+// Header GDrive sign in
+document.getElementById("hdr-btn-gdrive-signin")?.addEventListener("click", async () => {
+  document.getElementById("header-user-dropdown").classList.add("hidden");
+  if (window.electronAPI?.openExternal) {
+    try {
+      const res = await fetch('/gdrive/auth?json=true');
+      if (!res.ok) throw new Error(await res.text());
+      const { auth_url } = await res.json();
+      await window.electronAPI.openExternal(auth_url);
+      setStatus('Google Drive: awaiting authorization…');
+      const check = setInterval(async () => {
+        try {
+          const s = await fetch('/gdrive/status');
+          if (s.ok) {
+            const data = await s.json();
+            if (data.connected) {
+              clearInterval(check);
+              setStatus('Google Drive connected!');
+              checkGdriveStatus();
+            }
+          }
+        } catch {}
+      }, 2000);
+      setTimeout(() => clearInterval(check), 300000);
+    } catch (e) {
+      setStatus('Google Drive sign-in failed: ' + e.message, true);
+    }
+  } else {
+    const popup = window.open("/gdrive/auth", "_blank", "width=600,height=700");
+    if (popup) {
+      const check = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(check);
+          checkGdriveStatus();
+        }
+      }, 1000);
+    } else {
+      setStatus('Could not open Google sign-in popup. Check your popup blocker.', true);
+    }
+  }
+});
+
+// Header GDrive sign out
+document.getElementById("hdr-btn-gdrive-signout")?.addEventListener("click", async () => {
+  document.getElementById("header-user-dropdown").classList.add("hidden");
+  await fetch('/gdrive/signout', { method: 'POST' }).catch(() => {});
+  checkGdriveStatus();
+  setStatus('Signed out of Google Drive');
+});
+
+// Header GDrive refresh
+document.getElementById("hdr-btn-gdrive-refresh")?.addEventListener("click", () => {
+  checkGdriveStatus();
+});
+
+// Header GDrive browse files
+document.getElementById("hdr-btn-gdrive-files")?.addEventListener("click", async () => {
+  document.getElementById("header-user-dropdown").classList.add("hidden");
+  const list = document.getElementById("gdrive-dialog-file-list");
   list.innerHTML = "<li class='loading'>Loading…</li>";
+  document.getElementById("gdrive-files-dialog").classList.remove("hidden");
   try {
     const res = await fetch("/gdrive/files");
-    list.innerHTML = "";
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      list.innerHTML = `<li class="no-results">${err.detail || "Error loading files"}</li>`;
-      return;
-    }
+    if (!res.ok) { list.innerHTML = "<li class='no-results'>Failed to load files</li>"; return; }
     const { files } = await res.json();
-    if (!files.length) {
-      list.innerHTML = "<li class='no-results'>No .md files found</li>";
-      return;
-    }
+    if (!files.length) { list.innerHTML = "<li class='no-results'>No .md files found</li>"; return; }
+    list.innerHTML = "";
     files.forEach(name => {
       const li = document.createElement("li");
       li.textContent = name;
-      li.className = "file-item";
       li.addEventListener("click", async () => {
         const r = await fetch(`/gdrive/open/${encodeURIComponent(name)}`);
         if (!r.ok) { setStatus("Failed to open", true); return; }
         const { content } = await r.json();
-        setContent(content);
-        document.getElementById("filename-input").value = name;
-        currentFile = name;
-        setStatus(`Opened ${name} from Google Drive`);
+        // Save a local copy so it appears in sidebar
+        const localPath = name;
+        const saveRes = await fetch(fileURL(localPath), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content })
+        });
+        if (saveRes.ok) {
+          await openTab(localPath, { preview: false, focus: true });
+          await loadFileList();
+          setStatus(`Opened ${name}`);
+        } else {
+          setStatus("Failed to save local copy", true);
+        }
+        document.getElementById("gdrive-files-dialog").classList.add("hidden");
       });
       list.appendChild(li);
     });
   } catch (e) {
     list.innerHTML = "<li class='no-results'>Failed to connect</li>";
   }
-}
-
-document.getElementById("btn-gdrive-refresh")?.addEventListener("click", loadGdriveFiles);
-document.getElementById("btn-gdrive-signout")?.addEventListener("click", async () => {
-  await fetch('/gdrive/signout', { method: 'POST' }).catch(() => {});
-  checkGdriveStatus();
-  setStatus('Signed out of Google Drive');
 });
+
+document.getElementById("btn-close-gdrive-dialog")?.addEventListener("click", () => {
+  document.getElementById("gdrive-files-dialog").classList.add("hidden");
+});
+
+// Header commit message input enables button
+document.getElementById("hdr-git-commit-message")?.addEventListener("input", () => {
+  const btn = document.getElementById("hdr-btn-git-commit");
+  btn.disabled = !document.getElementById("hdr-git-commit-message").value.trim();
+});
+
+// ── End header user menu ─────────────────────────────────────────────────────────
 
 // Handle OAuth callback (this would be called from the callback page)
 async function handleGitHubCallback() {
@@ -4604,18 +4909,14 @@ async function handleGitHubCallback() {
     if (token) {
       const user = await fetch('https://api.github.com/user', {
         headers: { 'Authorization': `token ${token}` }
-      }).then(r => r.ok ? r.json() : null);
-      if (user) {
-        githubToken = token;
-        githubUser = user;
-        sessionStorage.setItem('github-token', token);
-      }
+      }).then(r => r.json());
+      githubUser = user;
+      githubToken = token;
+      updateGitPanel();
+      updateHeaderUserMenu();
+      setStatus(`Connected as ${user.login}`);
     }
-    updateGitPanel();
-    setStatus('GitHub connected!');
-  } catch (e) {
-    setStatus('GitHub authentication failed', true);
-  }
+  } catch (e) { setStatus('GitHub callback error', true); }
 }
 
 // Sign out
@@ -4686,25 +4987,28 @@ function updateGitPanel() {
   const gitPanel = document.getElementById('git-panel');
 
   if (githubUser) {
-    authSection.classList.add('hidden');
-    gitPanel.classList.remove('hidden');
+    if (authSection) authSection.classList.add('hidden');
+    if (gitPanel) gitPanel.classList.remove('hidden');
 
-    document.getElementById('git-avatar').src = githubUser.avatar_url;
-    document.getElementById('git-username').textContent = githubUser.login;
-    document.getElementById('git-repo').textContent = currentRepo || 'No repository';
+    const avatarEl = document.getElementById('git-avatar');
+    const usernameEl = document.getElementById('git-username');
+    const repoEl = document.getElementById('git-repo');
+    if (avatarEl) avatarEl.src = githubUser.avatar_url;
+    if (usernameEl) usernameEl.textContent = githubUser.login;
+    if (repoEl) repoEl.textContent = currentRepo || 'No repository';
 
     loadRepoList();
   } else {
-    authSection.classList.remove('hidden');
-    gitPanel.classList.add('hidden');
+    if (authSection) authSection.classList.remove('hidden');
+    if (gitPanel) gitPanel.classList.add('hidden');
   }
+  
+  updateHeaderUserMenu();
 }
 
 // Load user's repos into the selector
 async function loadRepoList() {
   const select = document.getElementById('git-repo-list');
-  const selector = document.getElementById('git-repo-selector');
-  const working = document.getElementById('git-working');
 
   // Check if a repo is already configured
   try {
@@ -4712,19 +5016,16 @@ async function loadRepoList() {
     const status = await statusRes.json();
     if (status.repo_url) {
       currentRepo = status.repo_url.split('/').slice(-1)[0];
-      document.getElementById('git-repo').textContent = currentRepo;
-      document.getElementById('git-branch').textContent = status.branch || 'main';
+      document.getElementById('hdr-gh-repo').textContent = currentRepo;
+      document.getElementById('hdr-gh-branch-name').textContent = status.branch || 'main';
       const bottomBranch = document.getElementById('bottom-git-branch');
       if (bottomBranch) bottomBranch.textContent = status.branch || 'main';
-      selector.classList.add('hidden');
-      working.classList.remove('hidden');
       updateGitStatus();
       return;
     }
   } catch (_) {}
 
-  selector.classList.remove('hidden');
-  working.classList.add('hidden');
+  if (!select) return;
 
   select.innerHTML = '<option value="">Loading repositories...</option>';
   try {
@@ -4806,17 +5107,26 @@ async function updateGitStatus() {
     if (!res.ok) return;
     const data = await res.json();
     const all = [...data.changed, ...data.untracked];
-    changesEl.textContent = all.length ? `${all.length} file${all.length > 1 ? 's' : ''} changed` : 'No changes';
-    commitBtn.disabled = !messageInput.value.trim() || all.length === 0;
+    if (changesEl) changesEl.textContent = all.length ? `${all.length} file${all.length > 1 ? 's' : ''} changed` : 'No changes';
+    if (commitBtn) commitBtn.disabled = !(messageInput?.value.trim()) || all.length === 0;
     const branchEl = document.getElementById('git-branch-name');
     if (branchEl) branchEl.textContent = data.branch || 'main';
     const bottomBranch = document.getElementById('bottom-git-branch');
     if (bottomBranch) bottomBranch.textContent = data.branch || 'main';
-    fileList.innerHTML = data.changed.map(f =>
-      `<div class="git-file-item"><span class="git-file-status modified">M</span><span class="git-file-name">${f}</span></div>`
-    ).join('') + data.untracked.map(f =>
-      `<div class="git-file-item"><span class="git-file-status" style="color:var(--green,#3fb950)">U</span><span class="git-file-name">${f}</span></div>`
-    ).join('');
+    
+    // Update header dropdown
+    const hdrBranch = document.getElementById('hdr-gh-branch-name');
+    if (hdrBranch) hdrBranch.textContent = data.branch || 'main';
+    const hdrChanges = document.getElementById('hdr-gh-changes');
+    if (hdrChanges) hdrChanges.textContent = all.length ? `${all.length} changed` : '';
+    
+    if (fileList) {
+      fileList.innerHTML = data.changed.map(f =>
+        `<div class="git-file-item"><span class="git-file-status modified">M</span><span class="git-file-name">${f}</span></div>`
+      ).join('') + data.untracked.map(f =>
+        `<div class="git-file-item"><span class="git-file-status" style="color:var(--green,#3fb950)">U</span><span class="git-file-name">${f}</span></div>`
+      ).join('');
+    }
     // Update gutter decorations for current file
     if (currentFile && all.includes(currentFile)) updateGitGutter(currentFile);
   } catch {}
@@ -4851,6 +5161,9 @@ fetch('/github/token')
     updateGitPanel();
   })
   .catch(() => { githubToken = null; githubUser = null; });
+
+// Initialize Google Drive status check
+checkGdriveStatus();
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELP PANEL
@@ -5294,15 +5607,19 @@ function revealInExplorer() {
     showToast("No file selected");
     return;
   }
-  fetch("/reveal", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: currentFile })
-  }).then(() => {
+  if (window.electronAPI?.revealInFolder) {
+    const fullPath = workspacePath ? `${workspacePath}/${currentFile}` : `${currentFile}`;
+    window.electronAPI.revealInFolder(fullPath);
     showToast("Opened in file explorer");
-  }).catch(() => {
-    showToast("Could not open file explorer");
-  });
+  } else {
+    fetch(`/reveal/${encodeURIComponent(currentFile)}`, {
+      method: "POST"
+    }).then(() => {
+      showToast("Opened in file explorer");
+    }).catch(() => {
+      showToast("Could not open file explorer");
+    });
+  }
 }
 
 function makeFileNameEditable(fileEl, filePath, currentName) {

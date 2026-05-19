@@ -330,12 +330,14 @@ def _pdf_to_markdown(fitz, data: bytes) -> str:
 
 # ── app setup ──────────────────────────────────────────────────────────────────
 BASE = Path(__file__).parent
-CONFIG_PATH = BASE / "config.json"
+# Use CWD as data dir because Electron sets it to a writable location
+DATA_DIR = Path.cwd()
+CONFIG_PATH = DATA_DIR / "config.json"
 
-# Workspace directory — defaults to ./notes, can be changed at runtime
+# Workspace directory — defaults to DATA_DIR/notes, can be changed at runtime
 def _init_notes_dir() -> Path:
-    """Load last workspace from config, or default to BASE/notes."""
-    cfg_path = BASE / "config.json"
+    """Load last workspace from config, or default to DATA_DIR/notes."""
+    cfg_path = DATA_DIR / "config.json"
     if cfg_path.exists():
         try:
             cfg = json.loads(cfg_path.read_text())
@@ -346,7 +348,7 @@ def _init_notes_dir() -> Path:
                     return p
         except Exception:
             pass
-    default = BASE / "notes"
+    default = DATA_DIR / "notes"
     default.mkdir(exist_ok=True)
     return default
 
@@ -354,13 +356,13 @@ NOTES = _init_notes_dir()
 
 # GitHub OAuth
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', 'Ov23liRAx61UeLhPWx3s')
-GITHUB_TOKEN_PATH = BASE / ".github_token.json"
+GITHUB_TOKEN_PATH = DATA_DIR / ".github_token.json"
 
 
 # Google Drive OAuth
 GDRIVE_CLIENT_ID = os.getenv("GDRIVE_CLIENT_ID", "337821946016-jml660ds3tvf7ecdpevulg8s56aupe3h.apps.googleusercontent.com")
 GDRIVE_CLIENT_SECRET = os.getenv("GDRIVE_CLIENT_SECRET", "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")
-GDRIVE_TOKEN_PATH = BASE / ".gdrive_token.json"
+GDRIVE_TOKEN_PATH = DATA_DIR / ".gdrive_token.json"
 GDRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 GDRIVE_CLIENT_CONFIG = {
     "web": {
@@ -491,8 +493,11 @@ class SearchResponse(BaseModel):
 
 def validate_path(name: str) -> Path:
     """Resolve a user-supplied path and ensure it stays within NOTES directory."""
-    resolved = (NOTES / name).resolve()
-    if not str(resolved).startswith(str(NOTES.resolve())):
+    notes_abs = NOTES.resolve()
+    resolved = (notes_abs / name).resolve()
+    try:
+        resolved.relative_to(notes_abs)
+    except ValueError:
         raise HTTPException(403, "Path traversal not allowed")
     return resolved
 
@@ -694,15 +699,26 @@ async def rename_folder(name: str, new_name: str = ""):
 
 @app.post("/reveal/{name:path}")
 async def reveal_in_file_manager(name: str):
-    """Open the file manager with the given path selected (Linux xdg-open)."""
+    """Open the file manager with the given path selected (cross-platform)."""
     import subprocess
-    target = NOTES / name
+    import platform
+    target = validate_path(name)
     if not target.exists():
         raise HTTPException(404, f"'{name}' not found")
-    # Open the parent directory so the item is visible
-    parent = target.parent if target.is_file() else target
-    subprocess.Popen(["xdg-open", str(parent)])
-    return {"opened": str(parent)}
+    
+    try:
+        system = platform.system()
+        if system == "Darwin":
+            subprocess.Popen(["open", "-R", str(target)])
+        elif system == "Windows":
+            subprocess.Popen(["explorer", "/select,", str(target)])
+        else: # Linux
+            # Open the parent directory so the item is visible
+            parent = target.parent if target.is_file() else target
+            subprocess.Popen(["xdg-open", str(parent)])
+        return {"opened": str(target)}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to reveal in file manager: {e}")
 
 
 # ── search ─────────────────────────────────────────────────────────────────────
@@ -716,18 +732,21 @@ async def search_notes(q: str = ""):
     results = []
     # Search recursively for all .md files
     for path in sorted(NOTES.rglob("*.md")):
-        content = path.read_text(errors="replace")
-        if q_lower in content.lower():
-            # find first matching line for snippet
-            for line in content.splitlines():
-                if q_lower in line.lower():
-                    snippet = line.strip()[:120]
-                    break
-            else:
-                snippet = content[:120]
-            # Return path relative to NOTES
-            rel_path = path.relative_to(NOTES).as_posix()
-            results.append({"name": rel_path, "snippet": snippet})
+        try:
+            content = path.read_text(encoding="utf-8", errors="replace")
+            if q_lower in content.lower():
+                # find first matching line for snippet
+                for line in content.splitlines():
+                    if q_lower in line.lower():
+                        snippet = line.strip()[:120]
+                        break
+                else:
+                    snippet = content[:120]
+                # Return path relative to NOTES
+                rel_path = path.relative_to(NOTES).as_posix()
+                results.append({"name": rel_path, "snippet": snippet})
+        except Exception:
+            continue
     return {"results": results}
 
 
@@ -785,8 +804,8 @@ async def export_pdf(name: str, body: HtmlBody):
 
 # ── image upload ───────────────────────────────────────────────────────────────
 
-IMAGES = BASE / "static" / "images"
-IMAGES.mkdir(exist_ok=True)
+IMAGES = DATA_DIR / "static" / "images"
+IMAGES.mkdir(parents=True, exist_ok=True)
 
 @app.post("/upload/image")
 async def upload_image(file: UploadFile = File(...)):
@@ -1289,11 +1308,16 @@ async def publish_all():
     if not any([github_connected, gdrive_connected]):
         raise HTTPException(400, "No cloud service connected. Sign in to GitHub or Google Drive first.")
     
-    # Collect all files
+    # Collect all files (skip empty)
     files = {}
+    empty_skipped = []
     for p in NOTES.rglob("*.md"):
         rel_path = p.relative_to(NOTES).as_posix()
-        files[rel_path] = p.read_bytes()
+        content = p.read_bytes()
+        if content.strip():
+            files[rel_path] = content
+        else:
+            empty_skipped.append(rel_path)
     
     if not files:
         raise HTTPException(400, "No notes to publish")
@@ -1369,7 +1393,7 @@ async def publish_all():
                 folder_cache[path] = folder_id
                 return folder_id
             
-            # Upload files preserving folder structure
+            # Upload files preserving folder structure (update if exists)
             for rel_path, content in files.items():
                 parts = rel_path.split("/")
                 if len(parts) > 1:
@@ -1377,16 +1401,25 @@ async def publish_all():
                     parent_id = get_folder_id(folder_path)
                 else:
                     parent_id = root_id
-                
+
                 file_name = parts[-1]
                 media = gd["MediaIoBaseUpload"](io.BytesIO(content), mimetype="text/markdown")
-                file_meta = {"name": file_name, "parents": [parent_id]}
-                service.files().create(body=file_meta, media_body=media).execute()
+                # Check if file already exists under this parent
+                existing = service.files().list(
+                    q=f"name='{file_name}' and '{parent_id}' in parents and trashed=false",
+                    fields="files(id)"
+                ).execute().get("files", [])
+                if existing:
+                    service.files().update(fileId=existing[0]["id"], media_body=media).execute()
+                else:
+                    file_meta = {"name": file_name, "parents": [parent_id]}
+                    service.files().create(body=file_meta, media_body=media).execute()
             
             results["gdrive"] = f"✅ Uploaded {len(files)} files to Lectura/"
         except Exception as e:
             results["gdrive"] = f"Error: {e}"
     
+    results["empty_skipped"] = empty_skipped
     return {"published": len(files), "results": results}
 
 

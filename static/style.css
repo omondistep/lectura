@@ -524,6 +524,190 @@ html, body {
   background: var(--bg-input);
 }
 
+/* ── Header user avatar dropdown ──────────────────────── */
+.header-user-area {
+  position: relative;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.header-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 2px 8px 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 80ms;
+}
+.header-user-btn:hover { background: var(--bg-hover); }
+
+.header-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.header-username {
+  font-size: 12px;
+  color: var(--text-dim);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-dropdown-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 260px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  z-index: 1000;
+  padding: 4px;
+}
+
+.header-dropdown-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--border-dim);
+  margin-bottom: 4px;
+}
+
+.hdr-gh-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.hdr-gh-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hdr-gh-login {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hdr-gh-repo {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-dropdown-section {
+  padding: 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 60ms;
+}
+.dropdown-item:hover { background: var(--bg-hover); }
+.dropdown-item-disabled {
+  opacity: .7;
+  cursor: default;
+}
+.dropdown-item-disabled:hover { background: none; }
+
+.dropdown-sep {
+  height: 1px;
+  background: var(--border-dim);
+  margin: 4px 0;
+}
+
+.dropdown-textarea {
+  width: 100%;
+  margin: 4px 0;
+  padding: 6px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-ui);
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+.dropdown-textarea:focus { border-color: var(--accent); }
+
+.dropdown-inline-actions {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.dropdown-btn {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 60ms;
+}
+.dropdown-btn:hover { background: var(--bg-active); }
+.dropdown-btn:disabled { opacity: .4; cursor: default; }
+
+.hdr-gh-changes {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Google Drive file list dialog */
+.gdrive-dialog-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.gdrive-dialog-list li {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: background 60ms;
+}
+.gdrive-dialog-list li:hover { background: var(--bg-hover); }
+.gdrive-dialog-list .loading,
+.gdrive-dialog-list .no-results {
+  cursor: default;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 #autosave-badge {
   color: #fbbf24;
   font-size: 10px;

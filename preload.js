@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createNewFileDialog: (defaultPath) => ipcRenderer.invoke('create-new-file-dialog', defaultPath),
   createNewFolderDialog: (defaultPath) => ipcRenderer.invoke('create-new-folder-dialog', defaultPath),
   openInNewWindow: (filePath) => ipcRenderer.invoke('open-in-new-window', filePath),
+  revealInFolder: (filePath) => ipcRenderer.invoke('reveal-in-folder', filePath),
   setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
   getWindowOpacity: () => ipcRenderer.invoke('get-window-opacity'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
