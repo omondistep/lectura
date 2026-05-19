@@ -4026,23 +4026,43 @@ document.getElementById("btn-new-tab")?.addEventListener("click", () => {
   createUntitledFile();
 });
 
+// Filename input: Enter to save/rename, Escape to revert
+document.getElementById("filename-input")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    saveFile();
+  } else if (e.key === "Escape") {
+    const tab = getActiveTab();
+    if (tab) {
+      document.getElementById("filename-input").value = tab.name;
+      document.getElementById("filename-input").blur();
+    }
+  }
+});
+
 function createUntitledFile() {
+  // Derive current folder from active tab's path
+  const activeFile = currentFile || "";
+  const folder = activeFile.includes("/") ? activeFile.substring(0, activeFile.lastIndexOf("/")) : "";
+  
   // Generate unique untitled name
   let num = 1;
   let name = "untitled.md";
-  while (tabs.find(t => t.name === name)) {
+  let fullPath = folder ? `${folder}/${name}` : name;
+  while (tabs.find(t => t.path === fullPath)) {
     num++;
     name = `untitled-${num}.md`;
+    fullPath = folder ? `${folder}/${name}` : name;
   }
   
   // Create new tab
   const tab = {
     id: nextTabId++,
     name: name,
-    path: name,
+    path: fullPath,
     state: EditorState.create({ doc: "", extensions: getEditorExtensions() }),
     scrollTop: 0,
-    isDirty: true,
+    isDirty: false,
     isPreview: false,
     isPreviewTab: false
   };
