@@ -191,20 +191,27 @@ setup_node() {
   if [ ! -f "${INSTALL_DIR}/node_modules/electron/dist/electron" ]; then
     cache_zip=$(find "${HOME}/.cache/electron" -name "electron-v*-linux-x64.zip" 2>/dev/null | head -1)
     if [ -n "$cache_zip" ]; then
-      python3 -c "
+      # Try unzip first (most reliable), then Python zipfile as fallback
+      if command -v unzip >/dev/null 2>&1; then
+        unzip -o "$cache_zip" -d "${INSTALL_DIR}/node_modules/electron/dist" >/dev/null 2>&1
+      else
+        python3 -c "
 import zipfile, os
 dist = '${INSTALL_DIR}/node_modules/electron/dist'
 os.makedirs(dist, exist_ok=True)
 with zipfile.ZipFile('$cache_zip') as z:
     z.extractall(dist)
-with open('${INSTALL_DIR}/node_modules/electron/path.txt', 'w') as f:
-    f.write('electron')
-" 2>/dev/null
+"
+      fi
+      printf 'electron' > "${INSTALL_DIR}/node_modules/electron/path.txt"
     fi
   fi
   # Ensure binary is executable
   if [ -f "${INSTALL_DIR}/node_modules/electron/dist/electron" ]; then
     chmod +x "${INSTALL_DIR}/node_modules/electron/dist/electron"
+  fi
+  if [ ! -f "${INSTALL_DIR}/node_modules/electron/dist/electron" ]; then
+    err "Electron binary could not be installed. Try running: cd ${INSTALL_DIR} && npm install"
   fi
   ok "Electron ready"
 }
